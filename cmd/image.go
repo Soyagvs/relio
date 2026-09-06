@@ -136,6 +136,15 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	fmt.Fprintln(out, ui.Success([]string{"saved " + path}))
 	fmt.Fprintln(out, ui.Dim.Render("  "+abs))
 
+	// When run interactively without --upload, offer it (handy on a phone).
+	if !doUpload && interactive {
+		ans, ok, _ := pick.Run("Upload it for a phone link?", []pick.Item{
+			{Label: "Yes", Desc: "Upload to a temp host and show a QR + link", Value: "y"},
+			{Label: "No", Desc: "Just keep the file", Value: "n"},
+		})
+		doUpload = ok && ans == "y"
+	}
+
 	if doUpload {
 		fmt.Fprintln(out)
 		url, uerr := upload.Upload(path)
