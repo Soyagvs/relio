@@ -60,7 +60,7 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 
 var shapeItems = []pick.Item{
 	{Label: "Horizontal", Desc: "1200×630 — Twitter / OpenGraph", Value: "horizontal"},
-	{Label: "Vertical", Desc: "1080×1350 — Instagram portrait", Value: "vertical"},
+	{Label: "Vertical", Desc: "1080×1920 — Instagram story", Value: "vertical"},
 	{Label: "Square", Desc: "1080×1080", Value: "square"},
 }
 

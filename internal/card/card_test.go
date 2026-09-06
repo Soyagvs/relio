@@ -47,7 +47,7 @@ func TestParseShape(t *testing.T) {
 func TestRenderDimensionsEveryShapeAndTheme(t *testing.T) {
 	cases := map[Shape][2]int{
 		Horizontal: {1200, 630},
-		Vertical:   {1080, 1350},
+		Vertical:   {1080, 1920},
 		Square:     {1080, 1080},
 	}
 	for s, wh := range cases {

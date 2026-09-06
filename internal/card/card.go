@@ -29,8 +29,8 @@ import (
 type Shape int
 
 const (
-	Horizontal Shape = iota // 1200x630
-	Vertical                // 1080x1350
+	Horizontal Shape = iota // 1200x630  (Twitter / OpenGraph)
+	Vertical                // 1080x1920 (Instagram story, 9:16)
 	Square                  // 1080x1080
 )
 
@@ -61,7 +61,7 @@ func (s Shape) String() string {
 func (s Shape) size() (int, int) {
 	switch s {
 	case Vertical:
-		return 1080, 1350
+		return 1080, 1920 // Instagram story
 	case Square:
 		return 1080, 1080
 	default:
@@ -259,16 +259,17 @@ func (r *renderer) background() {
 	dc.Stroke()
 }
 
-// fitUnit shrinks r.u (within limits) so the content fits the card height.
+// fitUnit scales r.u so the content uses the card height well: it shrinks when
+// content overflows (down to a floor — the rest is then truncated with "+N
+// more") and grows a little when there is lots of empty space (tall formats).
 func (r *renderer) fitUnit() {
-	needed := r.contentHeight(r.u)
 	avail := r.H - 2*r.pad
-	if needed <= avail {
-		return
-	}
-	scale := avail / needed
-	if scale < 0.72 {
-		scale = 0.72 // items get truncated later instead
+	scale := avail / r.contentHeight(r.u)
+	switch {
+	case scale < 0.7:
+		scale = 0.7
+	case scale > 1.22:
+		scale = 1.22
 	}
 	r.u *= scale
 }
@@ -310,7 +311,7 @@ func (r *renderer) content() {
 	// Drift short content toward the vertical centre so tall formats don't look
 	// half-empty; tall content stays top-aligned.
 	if slack := (r.H - 2*r.pad) - r.contentHeight(r.u); slack > 0 {
-		y += slack * 0.38
+		y += slack * 0.42
 	}
 
 	// --- header: Project  Version ---
@@ -353,22 +354,48 @@ func (r *renderer) content() {
 
 	// --- groups ---
 	footerY := r.H - r.pad
-	maxY := footerY - r.u*1.4
+	reserve := r.u * 1.5 // always keep room for a trailing "+N more"
+	maxY := footerY - r.u*1.2
 
+	box := r.u * 1.35
+	itemX := x + box + r.u*0.6
+	itemH := r.u * 1.24
+
+	// If it won't all fit, cap items per section so every section gets airtime.
+	perGroupCap := 1 << 30
+	if r.contentHeight(r.u) > (r.H - 2*r.pad) {
+		nonEmpty := 0
+		for _, g := range r.c.Groups {
+			if len(g.Items) > 0 {
+				nonEmpty++
+			}
+		}
+		if nonEmpty > 0 {
+			perGroupCap = int(((maxY-y)/itemH - float64(nonEmpty)*2.4) / float64(nonEmpty))
+			if perGroupCap < 2 {
+				perGroupCap = 2
+			}
+		}
+	}
+
+	hidden := 0
 	for _, g := range r.c.Groups {
 		if len(g.Items) == 0 {
 			continue
 		}
-		col := catColor[g.Kind]
-		box := r.u * 1.35
+		// Enough room for this section's title + at least one line + the reserve?
+		if y+box+r.u*0.5+itemH+reserve > maxY {
+			hidden += len(g.Items)
+			continue
+		}
 
+		col := catColor[g.Kind]
 		r.icon(g.Kind, x, y, box, col)
 		dc.SetFontFace(face(fMonoBold, r.u*1.0))
 		dc.SetColor(col)
-		dc.DrawString(g.Title, x+box+r.u*0.6, y+box*0.78)
+		dc.DrawString(g.Title, itemX, y+box*0.78)
 		y += box + r.u*0.5
 
-		itemX := x + box + r.u*0.6
 		hashW := 0.0
 		if r.opt.ShowHash {
 			dc.SetFontFace(face(fMono, r.u*0.9))
@@ -383,8 +410,13 @@ func (r *renderer) content() {
 
 		shown := 0
 		for _, it := range g.Items {
-			if y+r.u*1.2 > maxY {
-				break // no room for another item; the rest become "+N more"
+			if shown >= perGroupCap {
+				break // rest of this section folds into "+N more"
+			}
+			dc.SetFontFace(face(fMono, r.u*0.95))
+			lines := wrapLines(dc, it.Text, textMax)
+			if y+float64(len(lines))*itemH+reserve > maxY {
+				break
 			}
 			if r.opt.ShowHash && it.Hash != "" {
 				dc.SetFontFace(face(fMono, r.u*0.9))
@@ -393,24 +425,21 @@ func (r *renderer) content() {
 			}
 			dc.SetFontFace(face(fMono, r.u*0.95))
 			dc.SetColor(colText)
-			// Long messages wrap onto the next line(s), aligned under the text.
-			for li, ln := range wrapLines(dc, it.Text, textMax) {
-				if li > 0 && y+r.u*1.1 > maxY {
-					break
-				}
+			for _, ln := range lines {
 				dc.DrawString(ln, itemX+hashW, y+r.u*0.72)
-				y += r.u * 1.24
+				y += itemH
 			}
 			y += r.u * 0.1
 			shown++
 		}
-		if shown < len(g.Items) {
-			dc.SetFontFace(face(fMono, r.u*0.82))
-			dc.SetColor(colDim)
-			dc.DrawString(fmt.Sprintf("+%d more", len(g.Items)-shown), itemX, y+r.u*0.6)
-			y += r.u * 1.1
-		}
+		hidden += len(g.Items) - shown
 		y += r.u * 0.7
+	}
+
+	if hidden > 0 {
+		dc.SetFontFace(face(fMonoBold, r.u*0.85))
+		dc.SetColor(colDim)
+		dc.DrawString(fmt.Sprintf("+ %d more", hidden), x, y+r.u*0.6)
 	}
 
 	// --- footer ---

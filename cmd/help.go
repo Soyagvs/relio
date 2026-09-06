@@ -36,7 +36,7 @@ var (
 		{"--format changelog", "The exact section that goes into CHANGELOG.md"},
 	}
 	refImageFlags = []refRow{
-		{"--shape", "horizontal (1200×630) | vertical (1080×1350) | square (1080×1080)"},
+		{"--shape", "horizontal (1200×630) | vertical (1080×1920) | square (1080×1080)"},
 		{"--theme", "orange (default) | green | purple accent"},
 		{"--hash", "show the commit hash on each line"},
 		{"--upload", "upload to a temp host (litterbox 72h) and print a link + QR"},
