@@ -32,6 +32,7 @@ var (
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	rule       = lipgloss.NewStyle().Foreground(Purple)
+	hash       = lipgloss.NewStyle().Foreground(Purple)
 
 	box = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -158,11 +159,11 @@ func Notes(n changelog.Notes) string {
 		}
 		b.WriteString(group.Render(string(g)) + "\n")
 		for _, it := range items {
-			line := "  " + Dim.Render("•") + " " + it.Text
+			marker := Dim.Render("      •")
 			if it.Hash != "" {
-				line += "  " + Dim.Render(it.Hash)
+				marker = hash.Render(fmt.Sprintf("%7s", it.Hash))
 			}
-			b.WriteString(line + "\n")
+			b.WriteString("  " + marker + "  " + it.Text + "\n")
 		}
 		b.WriteString("\n")
 	}
