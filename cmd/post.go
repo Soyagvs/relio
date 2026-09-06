@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/go-release/internal/changelog"
+	"github.com/soyagvs/go-release/internal/conventional"
 	"github.com/soyagvs/go-release/internal/release"
 	"github.com/soyagvs/go-release/internal/ui"
 )
@@ -62,6 +63,19 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 	return c
 }
 
+// headHash is the abbreviated hash of the newest commit in the release
+// (BuildPlan returns commits oldest-first, so HEAD is last). "" when unknown.
+func headHash(commits []conventional.Commit) string {
+	if len(commits) == 0 {
+		return ""
+	}
+	h := commits[len(commits)-1].Hash
+	if len(h) > 7 {
+		h = h[:7]
+	}
+	return h
+}
+
 // groupItems returns up to limit items of one changelog group, breaking prefix removed.
 func groupItems(n changelog.Notes, g changelog.Group, limit int) []string {
 	var items []string
@@ -93,7 +107,15 @@ func minimalPost(project string, p release.Plan) string {
 	fmt.Fprintf(&b, "--- %s release ---\n", project)
 	fmt.Fprintf(&b, "%s\n", p.Next.String())
 	fmt.Fprintf(&b, "%s\n\n", p.Now.Format("2006-01-02 15:04"))
-	fmt.Fprintf(&b, "%d commits\n", len(p.Commits))
+
+	firstRelease := p.Current.Major == 0 && p.Current.Minor == 0 && p.Current.Patch == 0
+	if head := headHash(p.Commits); head == "" {
+		fmt.Fprintf(&b, "%d commits\n", len(p.Commits))
+	} else if firstRelease {
+		fmt.Fprintf(&b, "%d commits (%s)\n", len(p.Commits), head)
+	} else {
+		fmt.Fprintf(&b, "%d commits (%s..%s)\n", len(p.Commits), p.Current.String(), head)
+	}
 
 	added := groupItems(p.Notes, changelog.Added, 6)
 	changed := groupItems(p.Notes, changelog.Changed, 6)

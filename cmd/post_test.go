@@ -13,12 +13,12 @@ import (
 
 func samplePlan() release.Plan {
 	commits := []conventional.Commit{
-		{Type: "feat", Description: "add transaction categories"},
-		{Type: "feat", Scope: "dashboard", Description: "monthly summary widget"},
-		{Type: "fix", Description: "crash on empty account list"},
-		{Type: "fix", Scope: "kiosk", Description: "header alignment"},
-		{Type: "refactor", Description: "auth flow"},
-		{Type: "chore", Description: "bump deps"},
+		{Type: "feat", Description: "add transaction categories", Hash: "1111111111111111111111111111111111111111"},
+		{Type: "feat", Scope: "dashboard", Description: "monthly summary widget", Hash: "2222222222222222222222222222222222222222"},
+		{Type: "fix", Description: "crash on empty account list", Hash: "3333333333333333333333333333333333333333"},
+		{Type: "fix", Scope: "kiosk", Description: "header alignment", Hash: "4444444444444444444444444444444444444444"},
+		{Type: "refactor", Description: "auth flow", Hash: "5555555555555555555555555555555555555555"},
+		{Type: "chore", Description: "bump deps", Hash: "6666666666666666666666666666666666666666"},
 	}
 	return release.Plan{
 		Current: semver.Version{Major: 1, Minor: 3, Patch: 2, Prefix: "v"},
@@ -37,7 +37,7 @@ func TestMinimalPost(t *testing.T) {
 		"--- gestam-frontend release ---",
 		"v1.4.0",
 		"2026-09-06 14:30",
-		"6 commits",
+		"6 commits (v1.3.2..6666666)",
 		"Fixes",
 		"- Crash on empty account list",
 		"- kiosk: Header alignment",
