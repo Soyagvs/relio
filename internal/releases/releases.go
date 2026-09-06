@@ -45,10 +45,11 @@ type model struct {
 	status string
 	err    string
 	quit   bool
+	picked int // index chosen with Enter to print on exit; -1 = none
 }
 
 func newModel(repo repoPort, changelogPath string) model {
-	m := model{repo: repo, changelogPath: changelogPath}
+	m := model{repo: repo, changelogPath: changelogPath, picked: -1}
 	m.reload()
 	return m
 }
@@ -106,6 +107,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.cursor < len(m.tags)-1 {
 			m.cursor++
 			m.status = ""
+		}
+	case "enter", " ":
+		if _, ok := m.selected(); ok {
+			m.picked = m.cursor // printed by staticView on the way out
+			m.quit = true
+			return m, tea.Quit
 		}
 	case "d", "x":
 		if _, ok := m.selected(); ok {
@@ -218,10 +225,13 @@ func (m model) View() string {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
 		if tag, ok := m.selected(); ok {
-			b.WriteString("\n\n" + ui.Key.Render("d") +
+			b.WriteString("\n\n" + ui.Key.Render("enter") +
+				ui.Dim.Render(fmt.Sprintf(" — print %s's notes to the terminal and leave", tag.Name)))
+			b.WriteString("\n" + ui.Key.Render("d") +
 				ui.Dim.Render(fmt.Sprintf(" — delete %s (git tag + its CHANGELOG section)", tag.Name)))
 		}
-		b.WriteString("\n" + keyHint("↑/↓", "move") + keyHint("d", "delete") + keyHint("q", "back"))
+		b.WriteString("\n\n" + keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
+			keyHint("d", "delete") + keyHint("q", "back"))
 	}
 	return b.String()
 }
@@ -231,8 +241,13 @@ func keyHint(key, label string) string {
 	return ui.Key.Render(key) + ui.Dim.Render(" "+label+"   ")
 }
 
-// staticView is what remains in the scrollback after quitting.
+// staticView is what remains in the scrollback after quitting. When a version
+// was picked with Enter, its notes are printed; otherwise a short list summary.
 func (m model) staticView() string {
+	if m.picked >= 0 && m.picked < len(m.tags) {
+		return "\n" + m.notesFor(m.picked) + "\n"
+	}
+
 	var b strings.Builder
 	b.WriteString(ui.Title.Render("⬢ Releases") + "\n")
 	if len(m.tags) == 0 {

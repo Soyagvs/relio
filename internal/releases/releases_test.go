@@ -158,6 +158,24 @@ func TestQuitProducesStaticView(t *testing.T) {
 	}
 }
 
+func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, path)
+
+	m = send(m, "down", "enter") // pick v0.1.0
+	if !m.quit || m.picked != 1 {
+		t.Fatalf("enter should quit with picked=1, got quit=%v picked=%d", m.quit, m.picked)
+	}
+
+	out := m.View() // this is what stays in the terminal
+	if !strings.Contains(out, "v0.1.0") || !strings.Contains(out, "First thing") || !strings.Contains(out, "bbbbbbb") {
+		t.Errorf("exit output should be v0.1.0's notes with hash:\n%s", out)
+	}
+	if strings.Contains(out, "move") || strings.Contains(out, "delete") {
+		t.Errorf("exit output should not carry the interactive footer:\n%s", out)
+	}
+}
+
 func TestCursorClampsAfterDeletingLast(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, path)
