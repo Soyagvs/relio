@@ -1,13 +1,13 @@
-# Go Release
+# Relio
 
 Turn a repository's git activity into a **version, changelog, and tag** — in one
 command, with a preview before anything is written.
 
 ```
-code  →  commit  →  push  →  go-release  →  version + changelog + tag
+code  →  commit  →  push  →  relio  →  version + changelog + tag
 ```
 
-Go Release does not try to replace git or GitHub. It removes the repetitive work
+Relio does not try to replace git or GitHub. It removes the repetitive work
 that happens *after* you finish coding.
 
 _created by SOYAGVS_
@@ -17,35 +17,35 @@ _created by SOYAGVS_
 ## Install
 
 ```bash
-go install github.com/soyagvs/go-release@latest   # installs the `go-release` binary
+go install github.com/soyagvs/relio@latest   # installs the `relio` binary
 
 # from source
-git clone https://github.com/soyagvs/go-release
-cd go-release
-go build -o go-release .
+git clone https://github.com/soyagvs/relio
+cd relio
+go build -o relio .
 ```
 
 ## Quick start
 
 ```bash
-go-release init     # writes .release.yaml (config only, never secrets)
-go-release          # opens the interactive menu
+relio init     # writes .release.yaml (config only, never secrets)
+relio          # opens the interactive menu
 ```
 
 ## Main menu
 
-Running `go-release` with no arguments in a terminal opens the menu:
+Running `relio` with no arguments in a terminal opens the menu:
 
 ```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║   ██████╗  ██████╗    ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗    ║
-║   ██╔════╝ ██╔═══██╗   ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝    ║
-║   ██║  ███╗██║   ██║   ██████╔╝█████╗  ██║     █████╗  ███████║███████╗    ║
-║   ╚██████╔╝╚██████╔╝   ██║  ██║███████╗███████╗███████╗██║  ██║███████║    ║
-║    ╚═════╝  ╚═════╝    ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝    ║
-║                  from finished code to a published release                ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-  created by SOYAGVS
+  ██████╗ ███████╗██╗     ██╗ ██████╗       (REL orange, IO purple)
+  ██╔══██╗██╔════╝██║     ██║██╔═══██╗
+  ██████╔╝█████╗  ██║     ██║██║   ██║
+  ██╔══██╗██╔══╝  ██║     ██║██║   ██║
+  ██║  ██║███████╗███████╗██║╚██████╔╝
+  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝ ╚═════╝
+        turn commits into releases        (purple)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        created by SOYAGVS
 
 ▸ Create a release
     Version, changelog, and tag from commits since the last tag
@@ -58,13 +58,13 @@ Running `go-release` with no arguments in a terminal opens the menu:
   Help
     Every command and flag, with a one-line description
   Exit
-    Leave Go Release
+    Leave Relio
 
 ↑/↓ move · enter select · q quit
 ```
 
 The menu runs **one action and exits** — the result stays on screen. Run
-`go-release` again for another action.
+`relio` again for another action.
 
 **Releases** opens a browser of every tag: move with `↑/↓` to read each
 version's notes (with commit hashes), press `d` to delete one (removes the git
@@ -78,7 +78,7 @@ skipped and a release runs directly.
 ## What "Create a release" looks like
 
 ```
-⬢ Go Release  v1.4.0  ·  azeink
+⬢ Relio  v1.4.0  ·  azeink
 
 ╭──────────────────────────╮
 │  Current version v1.3.2  │
@@ -123,20 +123,20 @@ With [Conventional Commits](https://www.conventionalcommits.org/):
 Override it:
 
 ```bash
-release --patch
-release --minor
-release --major
+relio --patch
+relio --minor
+relio --major
 ```
 
 ## Commands
 
 | Command            | What it does                                                   |
 | ------------------ | ------------------------------------------------------------- |
-| `go-release`       | Open the menu, or run a release directly in CI / with `--yes` |
-| `go-release init`  | Scaffold `.release.yaml`                                      |
-| `go-release post`  | Generate an announcement (`--format technical\|casual\|changelog`) — experimental |
-| `go-release auth`  | GitHub login — **placeholder, lands in v0.2.0**              |
-| `go-release version` | Print the tool version                                     |
+| `relio`       | Open the menu, or run a release directly in CI / with `--yes` |
+| `relio init`  | Scaffold `.release.yaml`                                      |
+| `relio post`  | Generate an announcement (`--format technical\|casual\|changelog`) — experimental |
+| `relio auth`  | GitHub login — **placeholder, lands in v0.2.0**              |
+| `relio version` | Print the tool version                                     |
 
 ### Useful flags
 
@@ -189,13 +189,13 @@ internal/
 
 - **v0.1.0** — local git tool: parse, version, changelog, tag, preview *(current)*
 - **v0.2.0** — GitHub: OAuth Device Flow, keychain storage, push tag, create Release
-- **v0.3.0** — content: `release post` templates, clipboard
+- **v0.3.0** — content: `relio post` templates, clipboard
 - **v0.4.0** — plugin API (`BeforeRelease` / `AfterRelease` / `OnTagCreated` / `OnReleasePublished`)
-- **v1.0.0** — `init` → `auth login` → `release`, polished
+- **v1.0.0** — `relio init` → `relio auth login` → `relio`, polished
 
 ## Development
 
 ```bash
 go test ./...
-go build -o release .
+go build -o relio .
 ```

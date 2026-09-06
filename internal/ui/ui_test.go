@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/soyagvs/go-release/internal/changelog"
+	"github.com/soyagvs/relio/internal/changelog"
 )
 
 func TestNotesShowsCommitHash(t *testing.T) {

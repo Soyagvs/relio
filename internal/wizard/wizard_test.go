@@ -5,9 +5,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/soyagvs/go-release/internal/config"
-	"github.com/soyagvs/go-release/internal/release"
-	"github.com/soyagvs/go-release/internal/semver"
+	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/semver"
 )
 
 func basePlan() release.Plan {

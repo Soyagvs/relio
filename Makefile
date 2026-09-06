@@ -1,10 +1,10 @@
-BINARY  := go-release
+BINARY  := relio
 VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
-LDFLAGS := -X github.com/soyagvs/go-release/cmd.version=$(VERSION)
+LDFLAGS := -X github.com/soyagvs/relio/cmd.version=$(VERSION)
 
 .PHONY: build install test run tidy
 
-## build: compile ./go-release in the repo
+## build: compile ./relio in the repo
 build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
 

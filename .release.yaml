@@ -1,5 +1,5 @@
 # release configuration — safe to commit. Never put secrets here.
-project: release
+project: relio
 versioning: semver
 commits: conventional
 release:

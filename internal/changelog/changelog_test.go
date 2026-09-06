@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/relio/internal/conventional"
 )
 
 var fixedDate = time.Date(2026, 9, 6, 0, 0, 0, 0, time.UTC)

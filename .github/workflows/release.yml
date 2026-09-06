@@ -36,7 +36,7 @@ jobs:
           [ "$GOOS" = "windows" ] && EXT=".exe"
           OUT="release_${GOOS}_${GOARCH}${EXT}"
           go build -trimpath \
-            -ldflags "-s -w -X github.com/soyagvs/go-release/cmd.version=${VERSION} -X github.com/soyagvs/go-release/cmd.commit=${GITHUB_SHA::7} -X github.com/soyagvs/go-release/cmd.date=$(date -u +%Y-%m-%d)" \
+            -ldflags "-s -w -X github.com/soyagvs/relio/cmd.version=${VERSION} -X github.com/soyagvs/relio/cmd.commit=${GITHUB_SHA::7} -X github.com/soyagvs/relio/cmd.date=$(date -u +%Y-%m-%d)" \
             -o "$OUT" .
           echo "ASSET=$OUT" >> "$GITHUB_ENV"
       - uses: softprops/action-gh-release@v2

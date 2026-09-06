@@ -9,8 +9,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/soyagvs/go-release/internal/changelog"
-	"github.com/soyagvs/go-release/internal/release"
+	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/release"
 )
 
 // Brand palette: orange + purple, red reserved for failures. 256-colour indices
@@ -42,29 +42,32 @@ var (
 
 // AppName and Author are shown on the big entry banner.
 const (
-	AppName = "Go Release"
+	AppName = "Relio"
 	Author  = "SOYAGVS"
 )
 
-// wordmarkGo / wordmarkRelease are the two halves of the ANSI Shadow title,
-// coloured separately (orange "Go", purple "Release"). Each slice is one row;
-// rows are padded to equal width at render time.
+// Tagline sits under the wordmark, in purple.
+const Tagline = "turn commits into releases"
+
+// wordmarkRel / wordmarkIo are the two halves of the ANSI Shadow "RELIO" title,
+// coloured separately (orange "REL", purple "IO"). Each slice is one row; rows
+// are padded to equal width at render time.
 var (
-	wordmarkGo = []string{
-		` ██████╗  ██████╗ `,
-		`██╔════╝ ██╔═══██╗`,
-		`██║  ███╗██║   ██║`,
-		`██║   ██║██║   ██║`,
-		`╚██████╔╝╚██████╔╝`,
-		` ╚═════╝  ╚═════╝ `,
+	wordmarkRel = []string{
+		`██████╗ ███████╗██╗     `,
+		`██╔══██╗██╔════╝██║     `,
+		`██████╔╝█████╗  ██║     `,
+		`██╔══██╗██╔══╝  ██║     `,
+		`██║  ██║███████╗███████╗`,
+		`╚═╝  ╚═╝╚══════╝╚══════╝`,
 	}
-	wordmarkRelease = []string{
-		`██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗`,
-		`██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝`,
-		`██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  `,
-		`██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝  `,
-		`██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗`,
-		`╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝`,
+	wordmarkIo = []string{
+		`██╗ ██████╗ `,
+		`██║██╔═══██╗`,
+		`██║██║   ██║`,
+		`██║██║   ██║`,
+		`██║╚██████╔╝`,
+		`╚═╝ ╚═════╝ `,
 	}
 )
 
@@ -77,37 +80,46 @@ func padRight(s string, w int) string {
 
 var bannerCache = map[string]string{}
 
-// BigBanner is the entry banner: the two-tone wordmark, a rule, and the author
-// credit centred beneath the name. Printed once when the menu opens.
+// BigBanner is the entry banner: the two-tone "RELIO" wordmark, the purple
+// tagline, a rule, and the author credit. Printed once when the menu opens.
 func BigBanner(version string) string {
 	if s, ok := bannerCache[version]; ok {
 		return s
 	}
 
 	const indent = "  "
-	gw, rw := 0, 0
-	for _, l := range wordmarkGo {
-		gw = max(gw, utf8.RuneCountInString(l))
+	lw, iw := 0, 0
+	for _, l := range wordmarkRel {
+		lw = max(lw, utf8.RuneCountInString(l))
 	}
-	for _, l := range wordmarkRelease {
-		rw = max(rw, utf8.RuneCountInString(l))
+	for _, l := range wordmarkIo {
+		iw = max(iw, utf8.RuneCountInString(l))
 	}
-	total := gw + 1 + rw
+	total := lw + iw
+
+	// lead centres a line of the given visible width within the wordmark.
+	lead := func(visibleWidth int) string {
+		return strings.Repeat(" ", max(0, (total-visibleWidth)/2))
+	}
 
 	var b strings.Builder
 	b.WriteString("\n")
-	for i := range wordmarkGo {
+	for i := range wordmarkRel {
 		b.WriteString(indent +
-			orangeMark.Render(padRight(wordmarkGo[i], gw)) + " " +
-			purpleMark.Render(padRight(wordmarkRelease[i], rw)) + "\n")
+			orangeMark.Render(padRight(wordmarkRel[i], lw)) +
+			purpleMark.Render(padRight(wordmarkIo[i], iw)) + "\n")
 	}
+	b.WriteString(indent + lead(utf8.RuneCountInString(Tagline)) + Title.Render(Tagline) + "\n")
 	b.WriteString(indent +
-		orangeMark.Render(strings.Repeat("━", gw+1)) +
-		rule.Render(strings.Repeat("━", rw)) + "\n")
+		orangeMark.Render(strings.Repeat("━", lw)) +
+		rule.Render(strings.Repeat("━", iw)) + "\n")
 
-	credit := "created by " + Author
-	lead := max(0, (total-utf8.RuneCountInString(credit))/2)
-	b.WriteString(indent + strings.Repeat(" ", lead) + Dim.Render("created by ") + author.Render(Author))
+	creditText := "created by " + Author
+	if version != "" {
+		creditText += "   " + version
+	}
+	b.WriteString(indent + lead(utf8.RuneCountInString(creditText)) +
+		Dim.Render("created by ") + author.Render(Author))
 	if version != "" {
 		b.WriteString(Dim.Render("   " + version))
 	}

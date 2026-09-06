@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/soyagvs/go-release/internal/changelog"
-	"github.com/soyagvs/go-release/internal/config"
-	"github.com/soyagvs/go-release/internal/conventional"
-	"github.com/soyagvs/go-release/internal/gitrepo"
-	"github.com/soyagvs/go-release/internal/semver"
+	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/semver"
 )
 
 // Plan is a proposed release, fully computed but not yet applied.

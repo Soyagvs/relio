@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/soyagvs/go-release/internal/config"
-	"github.com/soyagvs/go-release/internal/gitrepo"
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 func newInitCmd(f *releaseFlags) *cobra.Command {
@@ -25,7 +25,7 @@ func newInitCmd(f *releaseFlags) *cobra.Command {
 
 			repo, err := gitrepo.Open(f.dir)
 			if err != nil {
-				return fmt.Errorf("not a git repository — run `go-release init` inside a repo")
+				return fmt.Errorf("not a git repository — run `relio init` inside a repo")
 			}
 			root := repo.Root()
 
@@ -47,7 +47,7 @@ func newInitCmd(f *releaseFlags) *cobra.Command {
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, ui.Success([]string{filepath.Join(root, config.FileName) + " created"}))
 			fmt.Fprintln(out)
-			fmt.Fprintln(out, ui.Dim.Render("  Review it, commit it, then run `go-release`."))
+			fmt.Fprintln(out, ui.Dim.Render("  Review it, commit it, then run `relio`."))
 			return nil
 		},
 	}

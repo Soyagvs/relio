@@ -1,4 +1,4 @@
-module github.com/soyagvs/go-release
+module github.com/soyagvs/relio
 
 go 1.22.2
 

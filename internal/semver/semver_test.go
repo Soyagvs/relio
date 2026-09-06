@@ -3,7 +3,7 @@ package semver
 import (
 	"testing"
 
-	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/relio/internal/conventional"
 )
 
 func TestParseAndString(t *testing.T) {

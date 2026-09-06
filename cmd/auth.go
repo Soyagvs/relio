@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 // newAuthCmd is a placeholder for the v0.2.0 GitHub integration. It is wired in
@@ -25,7 +25,7 @@ func newAuthCmd() *cobra.Command {
 			Short: short,
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				fmt.Fprintln(cmd.OutOrStdout(), ui.Info("`go-release auth "+use+"` lands in v0.2.0."))
+				fmt.Fprintln(cmd.OutOrStdout(), ui.Info("`relio auth "+use+"` lands in v0.2.0."))
 				return nil
 			},
 		}

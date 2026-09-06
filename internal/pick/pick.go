@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 // Item is one selectable option. Value is what Run returns.

@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"github.com/soyagvs/go-release/cmd"
+	"github.com/soyagvs/relio/cmd"
 )
 
 func main() {

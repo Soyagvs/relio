@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/relio/internal/conventional"
 )
 
 // Bump is the kind of version increment.

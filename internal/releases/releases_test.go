@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/soyagvs/go-release/internal/conventional"
-	"github.com/soyagvs/go-release/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/gitrepo"
 )
 
 type fakeRepo struct {

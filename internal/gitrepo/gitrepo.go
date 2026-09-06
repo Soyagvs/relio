@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/relio/internal/conventional"
 )
 
 // unitSep and recordSep delimit `git log` output so subjects/bodies can contain

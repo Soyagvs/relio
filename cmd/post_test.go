@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/soyagvs/go-release/internal/changelog"
-	"github.com/soyagvs/go-release/internal/conventional"
-	"github.com/soyagvs/go-release/internal/release"
-	"github.com/soyagvs/go-release/internal/semver"
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/semver"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 func samplePlan() release.Plan {

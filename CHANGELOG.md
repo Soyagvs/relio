@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial Go Release CLI with interactive menu
+- Initial Relio CLI with interactive menu
 - menu: Add releases browser and help screen
 - post: Generate minimal copy-paste release text
 

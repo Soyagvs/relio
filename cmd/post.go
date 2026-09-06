@@ -6,11 +6,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/soyagvs/go-release/internal/changelog"
-	"github.com/soyagvs/go-release/internal/conventional"
-	"github.com/soyagvs/go-release/internal/pick"
-	"github.com/soyagvs/go-release/internal/release"
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/pick"
+	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 func newPostCmd(f *releaseFlags) *cobra.Command {
@@ -20,7 +20,7 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 		Use:   "post",
 		Short: "Generate copy-paste release text for social posts",
 		Long: "Build a short, plain-text announcement from commits since the last tag.\n" +
-			"Only the text goes to stdout, so `go-release post | pbcopy` works cleanly.\n" +
+			"Only the text goes to stdout, so `relio post | pbcopy` works cleanly.\n" +
 			"Experimental preview of the v0.3.0 content generator — nothing is published.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

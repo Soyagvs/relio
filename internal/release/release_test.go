@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/soyagvs/go-release/internal/config"
-	"github.com/soyagvs/go-release/internal/gitrepo"
-	"github.com/soyagvs/go-release/internal/semver"
+	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/semver"
 )
 
 func newRepo(t *testing.T) (string, *gitrepo.Repo) {

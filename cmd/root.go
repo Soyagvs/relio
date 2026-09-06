@@ -11,15 +11,15 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
-	"github.com/soyagvs/go-release/internal/config"
-	"github.com/soyagvs/go-release/internal/gitrepo"
-	"github.com/soyagvs/go-release/internal/menu"
-	"github.com/soyagvs/go-release/internal/pick"
-	"github.com/soyagvs/go-release/internal/release"
-	"github.com/soyagvs/go-release/internal/releases"
-	"github.com/soyagvs/go-release/internal/semver"
-	"github.com/soyagvs/go-release/internal/ui"
-	"github.com/soyagvs/go-release/internal/wizard"
+	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/menu"
+	"github.com/soyagvs/relio/internal/pick"
+	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/releases"
+	"github.com/soyagvs/relio/internal/semver"
+	"github.com/soyagvs/relio/internal/ui"
+	"github.com/soyagvs/relio/internal/wizard"
 )
 
 // Build metadata, overridable with -ldflags "-X .../cmd.version=...".
@@ -45,12 +45,12 @@ func NewRootCmd() *cobra.Command {
 	f := &releaseFlags{}
 
 	root := &cobra.Command{
-		Use:   "go-release",
+		Use:   "relio",
 		Short: "Turn finished code into a published release",
 		Long: ui.Title.Render("⬢ "+ui.AppName) + "\n\n" +
 			"  Read the repo's git activity and turn it into a version, changelog,\n" +
 			"  and tag — in one command, with a preview before anything is written.\n\n" +
-			"  Run `go-release` on its own for the interactive menu. Use the\n" +
+			"  Run `relio` on its own for the interactive menu. Use the\n" +
 			"  subcommands below for setup, extras, and scripting.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -63,7 +63,7 @@ func NewRootCmd() *cobra.Command {
 	root.SetVersionTemplate(fmt.Sprintf("%s %s (commit %s, built %s)\n", ui.AppName, version, commit, date))
 
 	pf := root.PersistentFlags()
-	pf.StringVarP(&f.dir, "dir", "C", ".", "run as if go-release was started in `path`")
+	pf.StringVarP(&f.dir, "dir", "C", ".", "run as if relio was started in `path`")
 
 	lf := root.Flags()
 	lf.BoolVar(&f.patch, "patch", false, "force a PATCH bump")
@@ -114,7 +114,7 @@ func openRepoAndConfig(dir string) (*gitrepo.Repo, config.Config, error) {
 	}
 	cfg, err := config.Load(repo.Root())
 	if errors.Is(err, config.ErrNotFound) {
-		return nil, config.Config{}, errors.New("no .release.yaml found — run `go-release init` first")
+		return nil, config.Config{}, errors.New("no .release.yaml found — run `relio init` first")
 	}
 	if err != nil {
 		return nil, config.Config{}, err

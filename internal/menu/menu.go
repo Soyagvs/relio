@@ -1,4 +1,4 @@
-// Package menu is the interactive main menu shown when `go-release` runs with no
+// Package menu is the interactive main menu shown when `relio` runs with no
 // subcommand in a TTY. It is a thin selector; each action is carried out by the
 // caller.
 package menu
@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 // Action is the choice the user made in the menu.
@@ -37,7 +37,7 @@ var items = []item{
 	{"Release text", "Copy-paste announcement for social posts — pick a format", ReleaseText},
 	{"GitHub auth", "Log in with your own GitHub account (coming in v0.2.0)", GitHubAuth},
 	{"Help", "Every command and flag, with a one-line description", Help},
-	{"Exit", "Leave Go Release", Exit},
+	{"Exit", "Leave Relio", Exit},
 }
 
 type model struct {

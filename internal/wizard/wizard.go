@@ -9,9 +9,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/soyagvs/go-release/internal/release"
-	"github.com/soyagvs/go-release/internal/semver"
-	"github.com/soyagvs/go-release/internal/ui"
+	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/semver"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 // Result is the wizard's outcome.

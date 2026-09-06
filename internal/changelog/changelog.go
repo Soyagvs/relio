@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/relio/internal/conventional"
 )
 
 // Header is written when a CHANGELOG.md does not exist yet.
