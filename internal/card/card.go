@@ -65,6 +65,7 @@ func (s Shape) size() (int, int) {
 type Row struct {
 	Type string
 	Text string
+	Hash string // abbreviated commit hash; shown only when Render is asked to
 }
 
 // Card is everything the image shows.
@@ -99,8 +100,9 @@ const (
 	colFaint  = "#63636F"
 )
 
-// Render draws the card for the given shape.
-func Render(c Card, s Shape) image.Image {
+// Render draws the card for the given shape. When showHash is true each row is
+// prefixed with its commit hash.
+func Render(c Card, s Shape, showHash bool) image.Image {
 	w, h := s.size()
 	fw, fh := float64(w), float64(h)
 	dc := gg.NewContext(w, h)
@@ -128,13 +130,7 @@ func Render(c Card, s Shape) image.Image {
 	dc.Stroke()
 
 	x := pad
-	y := pad + u*0.4
-
-	// Wordmark.
-	dc.SetFontFace(face(fontBold, u*1.05))
-	dc.SetHexColor(colOrange)
-	dc.DrawString("RELIO", x, y+u)
-	y += u * 2.0
+	y := pad + u*0.9
 
 	// Project + version.
 	dc.SetFontFace(face(fontBold, u*2.1))
@@ -158,7 +154,21 @@ func Render(c Card, s Shape) image.Image {
 	dc.Fill()
 	y += u * 1.1
 
-	// Rows.
+	// Rows. Columns: [hash] · type · text.
+	gap := u * 0.7
+	hashX := x
+	typeX := x
+	if showHash {
+		dc.SetFontFace(face(fontRegular, u))
+		hw := 0.0
+		for _, r := range c.Rows {
+			if w, _ := dc.MeasureString(r.Hash); w > hw {
+				hw = w
+			}
+		}
+		typeX = hashX + hw + gap
+	}
+
 	dc.SetFontFace(face(fontBold, u))
 	typeW := 0.0
 	for _, r := range c.Rows {
@@ -166,7 +176,7 @@ func Render(c Card, s Shape) image.Image {
 			typeW = tw
 		}
 	}
-	textX := x + typeW + u*0.7
+	textX := typeX + typeW + gap
 	maxTextW := fw - pad - textX
 	lineH := u * 1.7
 	bottom := fh - pad - u*1.4
@@ -184,9 +194,15 @@ func Render(c Card, s Shape) image.Image {
 		dc.DrawString("no notable changes", x, y+u*0.75)
 	}
 	for _, r := range rows {
+		if showHash && r.Hash != "" {
+			dc.SetFontFace(face(fontRegular, u))
+			dc.SetHexColor(colFaint)
+			dc.DrawString(r.Hash, hashX, y+u*0.75)
+		}
+
 		dc.SetFontFace(face(fontBold, u))
 		dc.SetHexColor(colOrange)
-		dc.DrawString(r.Type, x, y+u*0.75)
+		dc.DrawString(r.Type, typeX, y+u*0.75)
 
 		dc.SetFontFace(face(fontRegular, u))
 		dc.SetHexColor(colText)

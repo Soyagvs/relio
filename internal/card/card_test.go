@@ -14,10 +14,10 @@ func sample() Card {
 		Version: "v1.4.0",
 		Meta:    "06.09.26 · 13:47 · 4 commits",
 		Rows: []Row{
-			{"feat", "Add facial attendance"},
-			{"feat", "Add new kiosk interface"},
-			{"refactor", "Authentication flow"},
-			{"fix", "Supervisor login"},
+			{Type: "feat", Text: "Add facial attendance", Hash: "a967103"},
+			{Type: "feat", Text: "Add new kiosk interface", Hash: "92af81e"},
+			{Type: "refactor", Text: "Authentication flow", Hash: "03bc911"},
+			{Type: "fix", Text: "Supervisor login", Hash: "c814ab2"},
 		},
 	}
 }
@@ -45,10 +45,12 @@ func TestRenderDimensions(t *testing.T) {
 		Square:     {1080, 1080},
 	}
 	for s, wh := range cases {
-		img := Render(sample(), s)
-		b := img.Bounds()
-		if b.Dx() != wh[0] || b.Dy() != wh[1] {
-			t.Errorf("%v: got %dx%d, want %dx%d", s, b.Dx(), b.Dy(), wh[0], wh[1])
+		for _, hash := range []bool{false, true} {
+			img := Render(sample(), s, hash)
+			b := img.Bounds()
+			if b.Dx() != wh[0] || b.Dy() != wh[1] {
+				t.Errorf("%v hash=%v: got %dx%d, want %dx%d", s, hash, b.Dx(), b.Dy(), wh[0], wh[1])
+			}
 		}
 	}
 }
@@ -56,9 +58,9 @@ func TestRenderDimensions(t *testing.T) {
 func TestRenderHandlesManyRowsAndLongText(t *testing.T) {
 	c := sample()
 	for i := 0; i < 40; i++ {
-		c.Rows = append(c.Rows, Row{"feat", "A very long description that should be truncated with an ellipsis so it never overflows the card width"})
+		c.Rows = append(c.Rows, Row{Type: "feat", Hash: "deadbee", Text: "A very long description that should be truncated with an ellipsis so it never overflows the card width"})
 	}
-	img := Render(c, Square) // must not panic
+	img := Render(c, Square, true) // must not panic
 	if img.Bounds().Empty() {
 		t.Fatal("empty image")
 	}
@@ -66,7 +68,7 @@ func TestRenderHandlesManyRowsAndLongText(t *testing.T) {
 
 func TestSaveWritesValidPNG(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.png")
-	if err := Save(Render(sample(), Horizontal), path); err != nil {
+	if err := Save(Render(sample(), Horizontal, false), path); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(path)

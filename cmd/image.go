@@ -126,8 +126,18 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		Rows:    socialRows(commits),
 	}
 
+	// Commit hashes on the card: off with --no-hash, else ask when interactive.
+	showHash := false
+	if !ui.HideHashes && interactive {
+		ans, ok, _ := pick.Run("Show commit hashes on the image?", []pick.Item{
+			{Label: "No", Desc: "Cleaner — just type and description", Value: "n"},
+			{Label: "Yes", Desc: "Prefix each line with its short hash", Value: "y"},
+		})
+		showHash = ok && ans == "y"
+	}
+
 	path := filepath.Join(".", fmt.Sprintf("relio-%s-%s.png", version, shape))
-	if err := card.Save(card.Render(c, shape), path); err != nil {
+	if err := card.Save(card.Render(c, shape, showHash), path); err != nil {
 		return err
 	}
 	abs, _ := filepath.Abs(path)

@@ -138,7 +138,11 @@ func socialRows(commits []conventional.Commit) []card.Row {
 		if desc == "" {
 			desc = c.Raw
 		}
-		rows = append(rows, card.Row{Type: c.Type, Text: titleCase(strings.TrimSpace(desc))})
+		h := c.Hash
+		if len(h) > 7 {
+			h = h[:7]
+		}
+		rows = append(rows, card.Row{Type: c.Type, Text: titleCase(strings.TrimSpace(desc)), Hash: h})
 	}
 	return rows
 }
