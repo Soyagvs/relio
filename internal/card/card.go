@@ -1,9 +1,9 @@
 // Package card renders a shareable PNG "release card" for `relio image`.
 //
-// Identity: dark charcoal background, one selectable accent (orange / green /
-// purple), a faint git-branch graph as background decoration, changelog grouped
-// into Added / Changed / Fixed with small line icons, and a discreet
-// "generated with relio" signature. Every value comes from the real release.
+// Identity: dark charcoal background with a faint dot grid and a subtle warm
+// glow, one selectable accent (orange / green / purple), changelog grouped into
+// Added / Changed / Fixed with small line icons, and a discreet "generated with
+// relio" signature. Every value comes from the real release.
 package card
 
 import (
@@ -194,8 +194,6 @@ type renderer struct {
 	accent color.NRGBA
 
 	contentR float64 // right edge available to text
-	artX     float64 // left edge of the git-graph band
-	artFaint bool
 }
 
 func newRenderer(c Card, s Shape, opt Options) *renderer {
@@ -207,27 +205,19 @@ func newRenderer(c Card, s Shape, opt Options) *renderer {
 	case Horizontal:
 		r.pad = r.H * 0.085
 		r.u = r.H / 24
-		r.contentR = r.W * 0.64
-		r.artX = r.W * 0.62
 	case Square:
 		r.pad = r.W * 0.075
 		r.u = r.W / 26
-		r.contentR = r.W * 0.80
-		r.artX = r.W * 0.52
-		r.artFaint = true
 	case Vertical:
 		r.pad = r.W * 0.075
 		r.u = r.W / 25
-		r.contentR = r.W * 0.80
-		r.artX = r.W * 0.5
-		r.artFaint = true
 	}
+	r.contentR = r.W - r.pad
 	return r
 }
 
 func (r *renderer) draw() image.Image {
 	r.background()
-	r.gitGraph()
 	r.fitUnit()
 	r.content()
 	return r.dc.Image()
@@ -267,74 +257,6 @@ func (r *renderer) background() {
 	m := r.pad * 0.42
 	dc.DrawRoundedRectangle(m, m, r.W-2*m, r.H-2*m, r.u*0.9)
 	dc.Stroke()
-}
-
-// gitGraph draws the abstract branch graph decoration on the right side.
-func (r *renderer) gitGraph() {
-	dc := r.dc
-	gx := r.artX
-	gw := r.W - gx - r.pad*0.2
-	gy := r.pad
-	gh := r.H - 2*r.pad
-	rail := gx + gw*0.40
-	top, bot := gy+gh*0.05, gy+gh*0.95
-
-	n := 6
-	if gh > 950 {
-		n = 9
-	} else if gh < 520 {
-		n = 5
-	}
-	step := (bot - top) / float64(n-1)
-
-	fade := 1.0
-	if r.artFaint {
-		fade = 0.55
-	}
-	a := func(v float64) uint8 { return uint8(v * fade) }
-
-	branch := func(fromY, toY, dx float64) {
-		dc.MoveTo(rail, fromY)
-		dc.QuadraticTo(rail+dx, fromY, rail+dx, fromY+step*0.55)
-		dc.LineTo(rail+dx, toY-step*0.55)
-		dc.QuadraticTo(rail+dx, toY, rail, toY)
-	}
-
-	for _, pass := range []struct {
-		col color.NRGBA
-		w   float64
-	}{
-		{alpha(r.accent, a(16)), r.u * 0.5}, // glow
-		{alpha(r.accent, a(58)), r.u * 0.16},
-	} {
-		dc.SetColor(pass.col)
-		dc.SetLineWidth(pass.w)
-		dc.DrawLine(rail, top, rail, bot)
-		dc.Stroke()
-		branch(top+step*1, top+step*3, gw*0.30)
-		dc.Stroke()
-		branch(top+step*float64(n-3), top+step*float64(n-1), gw*0.17)
-		dc.Stroke()
-	}
-
-	node := func(x, y, rad float64) {
-		dc.SetColor(alpha(r.accent, a(14)))
-		dc.DrawCircle(x, y, rad*2.4)
-		dc.Fill()
-		dc.SetColor(alpha(r.accent, a(95)))
-		dc.DrawCircle(x, y, rad)
-		dc.Fill()
-		dc.SetColor(colBGTop)
-		dc.DrawCircle(x, y, rad*0.42)
-		dc.Fill()
-	}
-	nr := r.u * 0.34
-	for i := 0; i < n; i++ {
-		node(rail, top+step*float64(i), nr)
-	}
-	node(rail+gw*0.30, top+step*1.7, nr*0.9)
-	node(rail+gw*0.30, top+step*2.3, nr*0.9)
-	node(rail+gw*0.17, top+step*float64(n-2), nr*0.9)
 }
 
 // fitUnit shrinks r.u (within limits) so the content fits the card height.

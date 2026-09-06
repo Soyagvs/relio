@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.1.0] - 2026-09-06
+
+### Added
+
+- Add 'relio status'
+- image: Add --upload — temp public link + terminal QR code
+- image: Drop the RELIO wordmark, ask whether to show commit hashes
+- image: Offer the upload+QR after saving when run interactively
+- image: Redesign the release card — dark dev identity + git graph + themes
+
+### Changed
+
+- image: Footer reads "generated with relio" instead of the author
+
 ## [1.0.0] - 2026-09-06
 
 ### Added
