@@ -6,7 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/soyagvs/relio/internal/card"
 	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
@@ -125,6 +127,22 @@ var socialNotable = map[string]bool{
 	"feat": true, "fix": true, "perf": true, "refactor": true, "revert": true, "style": true,
 }
 
+// socialRows keeps only the notable commits, as "type / Description" rows.
+func socialRows(commits []conventional.Commit) []card.Row {
+	var rows []card.Row
+	for _, c := range commits {
+		if !socialNotable[c.Type] {
+			continue
+		}
+		desc := c.Description
+		if desc == "" {
+			desc = c.Raw
+		}
+		rows = append(rows, card.Row{Type: c.Type, Text: titleCase(strings.TrimSpace(desc))})
+	}
+	return rows
+}
+
 // socialPost is the shortest format:
 //
 //	Project -- Release
@@ -140,28 +158,19 @@ func socialPost(project string, p release.Plan) string {
 		ui.Ok.Render(p.Next.String()),
 		ui.Dim.Render(fmt.Sprintf("· %s · %s", p.Now.Format("02.01.06"), p.Now.Format("15:04"))))
 
-	type row struct{ typ, desc string }
-	var rows []row
-	width := 0
-	for _, c := range p.Commits {
-		if !socialNotable[c.Type] {
-			continue
-		}
-		desc := c.Description
-		if desc == "" {
-			desc = c.Raw
-		}
-		rows = append(rows, row{c.Type, titleCase(strings.TrimSpace(desc))})
-		if len(c.Type) > width {
-			width = len(c.Type)
-		}
-	}
+	rows := socialRows(p.Commits)
 	if len(rows) == 0 {
 		b.WriteString(ui.Dim.Render("(no notable changes)"))
 		return b.String()
 	}
+	width := 0
 	for _, r := range rows {
-		fmt.Fprintf(&b, "%s  %s\n", ui.Key.Render(fmt.Sprintf("%-*s", width, r.typ)), r.desc)
+		if len(r.Type) > width {
+			width = len(r.Type)
+		}
+	}
+	for _, r := range rows {
+		fmt.Fprintf(&b, "%s  %s\n", ui.Key.Render(fmt.Sprintf("%-*s", width, r.Type)), r.Text)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

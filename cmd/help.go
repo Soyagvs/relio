@@ -15,6 +15,7 @@ var (
 		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
+		{"relio image", "Save a shareable PNG of a release (pick a shape: horizontal / vertical / square)"},
 		{"relio auth", "GitHub login — placeholder, lands in v0.2.0"},
 		{"relio version", "Print the Relio version"},
 	}
@@ -37,6 +38,7 @@ var (
 		{"Create a release", "Same as running `relio` with no arguments"},
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
 		{"Release text", "Pick a post format and print copy-paste text (same as `relio post`)"},
+		{"Release image", "Pick a release + shape and save a PNG card (same as `relio image`)"},
 		{"GitHub auth", "Preview of the v0.2.0 GitHub integration"},
 		{"Help", "This screen"},
 		{"Exit", "Leave Relio"},

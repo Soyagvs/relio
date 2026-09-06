@@ -20,6 +20,7 @@ const (
 	CreateRelease
 	ViewReleases
 	ReleaseText
+	ReleaseImage
 	GitHubAuth
 	Help
 	Exit
@@ -35,6 +36,7 @@ var items = []item{
 	{"Create a release", "Version, changelog, and tag from commits since the last tag", CreateRelease},
 	{"Releases", "List every version, read its notes, or delete one", ViewReleases},
 	{"Release text", "Copy-paste announcement for social posts — pick a format", ReleaseText},
+	{"Release image", "Save a shareable PNG of a release — pick a shape", ReleaseImage},
 	{"GitHub auth", "Log in with your own GitHub account (coming in v0.2.0)", GitHubAuth},
 	{"Help", "Every command and flag, with a one-line description", Help},
 	{"Exit", "Leave Relio", Exit},

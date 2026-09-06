@@ -32,38 +32,23 @@ func TestSelectCreateRelease(t *testing.T) {
 	}
 }
 
-func TestSelectViewReleases(t *testing.T) {
-	m := send(model{}, "down", "enter")
-	if m.result != ViewReleases {
-		t.Errorf("result = %v, want ViewReleases", m.result)
+// selectAction drives the menu down to the item with the given action and picks it.
+func selectAction(a Action) model {
+	m := model{}
+	for _, it := range items {
+		if it.action == a {
+			break
+		}
+		m = send(m, "down")
 	}
+	return send(m, "enter")
 }
 
-func TestSelectReleaseText(t *testing.T) {
-	m := send(model{}, "down", "down", "enter")
-	if m.result != ReleaseText {
-		t.Errorf("result = %v, want ReleaseText", m.result)
-	}
-}
-
-func TestSelectAuth(t *testing.T) {
-	m := send(model{}, "down", "down", "down", "enter")
-	if m.result != GitHubAuth {
-		t.Errorf("result = %v, want GitHubAuth", m.result)
-	}
-}
-
-func TestSelectHelp(t *testing.T) {
-	m := send(model{}, "down", "down", "down", "down", "enter")
-	if m.result != Help {
-		t.Errorf("result = %v, want Help", m.result)
-	}
-}
-
-func TestSelectExit(t *testing.T) {
-	m := send(model{}, "down", "down", "down", "down", "down", "enter")
-	if m.result != Exit {
-		t.Errorf("result = %v, want Exit", m.result)
+func TestSelectEveryAction(t *testing.T) {
+	for _, a := range []Action{CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
+		if got := selectAction(a).result; got != a {
+			t.Errorf("selecting %v gave %v", a, got)
+		}
 	}
 }
 

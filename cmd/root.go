@@ -78,7 +78,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
 
-	root.AddCommand(newInitCmd(f), newPostCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
 }
 
@@ -198,6 +198,13 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			return oerr
 		}
 		return runReleaseText(cmd, repo, cfg)
+
+	case menu.ReleaseImage:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		return runReleaseImage(cmd, repo, cfg, "", "")
 	}
 	return nil
 }

@@ -53,6 +53,8 @@ Running `relio` with no arguments in a terminal opens the menu:
     List every version, read its notes, or delete one
   Release text
     Copy-paste announcement for social posts — pick a format
+  Release image
+    Save a shareable PNG of a release — pick a shape
   GitHub auth
     Log in with your own GitHub account (coming in v0.2.0)
   Help
@@ -71,6 +73,9 @@ version's notes (with commit hashes), press `d` to delete one (removes the git
 tag **and** its `CHANGELOG.md` section, after a `y/N` confirm), `q` to go back.
 
 **Release text** asks which format you want, then prints the announcement.
+
+**Release image** asks for a release and a shape (horizontal / vertical / square) and
+writes a PNG card into the current directory.
 
 In CI or when piped (no TTY), or with `--yes` / a forced bump, the menu is
 skipped and a release runs directly.
@@ -134,7 +139,8 @@ relio --major
 | ------------------ | ------------------------------------------------------------- |
 | `relio`       | Open the menu, or run a release directly in CI / with `--yes` |
 | `relio init`  | Scaffold `.release.yaml`                                      |
-| `relio post`  | Generate an announcement (`--format technical\|casual\|changelog`) — experimental |
+| `relio post`  | Generate an announcement (`--format minimal\|social\|technical\|casual\|changelog`) |
+| `relio image` | Save a shareable PNG of a release (`--shape horizontal\|vertical\|square`) |
 | `relio auth`  | GitHub login — **placeholder, lands in v0.2.0**              |
 | `relio version` | Print the tool version                                     |
 
@@ -183,6 +189,8 @@ internal/
   menu/              Bubble Tea main menu
   wizard/            Bubble Tea confirmation step
   releases/          Bubble Tea release browser (view / delete versions)
+  pick/              reusable Bubble Tea single-select
+  card/              PNG release image (fogleman/gg + Go fonts)
 ```
 
 ## Roadmap
