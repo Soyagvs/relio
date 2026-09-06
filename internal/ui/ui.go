@@ -29,7 +29,7 @@ var (
 
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	whiteMark  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("231"))
-	catEye     = lipgloss.NewStyle().Foreground(lipgloss.Color("130")) // dim, background
+	slitMark   = lipgloss.NewStyle().Foreground(lipgloss.Color("230")) // the snake-eye slit
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	hash       = lipgloss.NewStyle().Foreground(Purple)
@@ -50,8 +50,8 @@ const (
 const Tagline = "turn commits into releases"
 
 // The wordmark is "RELIO" in the ANSI Shadow block style, split so "RELI"
-// renders in white and "O" in orange. A pair of faint cat eyes sits above the
-// "O" as a background detail. Rows are padded to equal width at render time.
+// renders in white and "O" in orange. The "O" carries a vertical slit so it
+// reads as a snake eye. Rows are padded to equal width at render time.
 var (
 	wordReli = []string{
 		`██████╗ ███████╗██╗     ██╗`,
@@ -63,15 +63,29 @@ var (
 	}
 	wordO = []string{
 		` ██████╗ `,
-		`██╔═══██╗`,
-		`██║   ██║`,
-		`██║   ██║`,
+		`██╔═│═██╗`,
+		`██║ │ ██║`,
+		`██║ │ ██║`,
 		`╚██████╔╝`,
 		` ╚═════╝ `,
 	}
-	// catEyes floats just above the "O".
-	catEyes = `   ● ●  `
 )
+
+// renderO colours the "O": orange ring, a lighter vertical slit for the pupil.
+func renderO(row string) string {
+	var b strings.Builder
+	for _, r := range row {
+		switch r {
+		case ' ':
+			b.WriteRune(' ')
+		case '│':
+			b.WriteString(slitMark.Render("│"))
+		default:
+			b.WriteString(orangeMark.Render(string(r)))
+		}
+	}
+	return b.String()
+}
 
 func padRight(s string, w int) string {
 	if n := w - utf8.RuneCountInString(s); n > 0 {
@@ -83,8 +97,7 @@ func padRight(s string, w int) string {
 var bannerCache = map[string]string{}
 
 // BigBanner is the entry banner: the "RELIO" block wordmark (white "RELI",
-// orange "O", faint cat eyes above the "O"), the tagline, a rule, and the
-// author credit.
+// orange "O" drawn as a snake eye), the tagline, a rule, and the author credit.
 func BigBanner(version string) string {
 	if s, ok := bannerCache[version]; ok {
 		return s
@@ -108,13 +121,10 @@ func BigBanner(version string) string {
 	var b strings.Builder
 	b.WriteString("\n")
 
-	// Faint cat eyes above the "O".
-	b.WriteString(strings.Repeat(" ", len(indent)+lw) + catEye.Render(catEyes) + "\n")
-
 	for i := range wordReli {
 		b.WriteString(indent +
 			whiteMark.Render(padRight(wordReli[i], lw)) +
-			orangeMark.Render(wordO[i]) + "\n")
+			renderO(wordO[i]) + "\n")
 	}
 	b.WriteString(indent + lead(utf8.RuneCountInString(Tagline)) + Title.Render(Tagline) + "\n")
 	b.WriteString(indent + orangeMark.Render(strings.Repeat("━", total)) + "\n")
