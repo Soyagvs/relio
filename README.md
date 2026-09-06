@@ -49,6 +49,8 @@ Running `go-release` with no arguments in a terminal opens the menu:
 
 ▸ Create a release
     Version, changelog, and tag from commits since the last tag
+  Releases
+    List every version, read its notes, or delete one
   GitHub auth
     Log in with your own GitHub account (coming in v0.2.0)
   Exit
@@ -56,6 +58,10 @@ Running `go-release` with no arguments in a terminal opens the menu:
 
 ↑/↓ move · enter select · q quit
 ```
+
+**Releases** opens a browser of every tag: move with `↑/↓` to read each
+version's changelog notes, press `d` to delete one (removes the git tag **and**
+its `CHANGELOG.md` section, after a `y/N` confirm), `q` to go back.
 
 In CI or when piped (no TTY), or with `--yes` / a forced bump, the menu is
 skipped and a release runs directly.
@@ -167,6 +173,7 @@ internal/
   ui/                lipgloss palette + banner + non-interactive views
   menu/              Bubble Tea main menu
   wizard/            Bubble Tea confirmation step
+  releases/          Bubble Tea release browser (view / delete versions)
 ```
 
 ## Roadmap
