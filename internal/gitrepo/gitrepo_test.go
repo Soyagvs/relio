@@ -2,6 +2,7 @@ package gitrepo
 
 import (
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -134,6 +135,9 @@ func TestTagsAndDeleteTag(t *testing.T) {
 	}
 	if tags[0].Date == "" {
 		t.Errorf("date is empty")
+	}
+	if m, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$`, tags[0].DateTime); !m {
+		t.Errorf("DateTime = %q, want YYYY-MM-DD HH:MM", tags[0].DateTime)
 	}
 
 	msg, err := r.TagMessage("v0.2.0")

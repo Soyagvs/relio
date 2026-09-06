@@ -36,6 +36,7 @@ const (
 
 type model struct {
 	repo          repoPort
+	project       string
 	changelogPath string
 	changelog     string
 
@@ -48,8 +49,8 @@ type model struct {
 	picked int // index chosen with Enter to print on exit; -1 = none
 }
 
-func newModel(repo repoPort, changelogPath string) model {
-	m := model{repo: repo, changelogPath: changelogPath, picked: -1}
+func newModel(repo repoPort, project, changelogPath string) model {
+	m := model{repo: repo, project: project, changelogPath: changelogPath, picked: -1}
 	m.reload()
 	return m
 }
@@ -150,6 +151,22 @@ func (m model) doDelete() model {
 	return m
 }
 
+// header is the "<project> -- release / <version> / <date time>" block shown
+// above a version's notes.
+func (m model) header(tag gitrepo.TagInfo, commits int) string {
+	when := tag.DateTime
+	if when == "" {
+		when = tag.Date
+	}
+	meta := when
+	if commits > 0 {
+		meta = fmt.Sprintf("%s  ·  %d commits", when, commits)
+	}
+	return ui.Key.Render(m.project+" -- release") + "\n" +
+		ui.Ok.Render(tag.Name) + "\n" +
+		ui.Dim.Render(meta)
+}
+
 // notesFor returns the text shown in the detail pane for the tag at idx. It
 // rebuilds the notes from the commits that landed in that version so each line
 // carries its commit hash; the changelog section and tag message are fallbacks.
@@ -161,7 +178,7 @@ func (m model) notesFor(idx int) string {
 		from = m.tags[idx+1].Name // next entry is the previous (lower) version
 	}
 	if raw, err := m.repo.CommitsBetween(from, tag.Name); err == nil && len(raw) > 0 {
-		head := ui.Key.Render(tag.Name) + ui.Dim.Render(fmt.Sprintf("  ·  %d commits", len(raw)))
+		head := m.header(tag, len(raw))
 		notes := changelog.Build(conventional.ParseMany(raw))
 		if body := ui.Notes(notes); body != "" {
 			return head + "\n\n" + body
@@ -170,7 +187,7 @@ func (m model) notesFor(idx int) string {
 	}
 
 	if s := changelog.ExtractSection(m.changelog, tag.Name); s != "" {
-		return s
+		return m.header(tag, 0) + "\n\n" + s
 	}
 	if msg, _ := m.repo.TagMessage(tag.Name); strings.TrimSpace(msg) != "" {
 		return strings.TrimSpace(msg)
@@ -268,7 +285,7 @@ func Run(repo *gitrepo.Repo, cfg config.Config) error {
 	if path == "" {
 		path = "CHANGELOG.md"
 	}
-	m := newModel(repo, repo.Root()+string(os.PathSeparator)+path)
+	m := newModel(repo, cfg.Project, repo.Root()+string(os.PathSeparator)+path)
 	_, err := tea.NewProgram(m).Run()
 	return err
 }

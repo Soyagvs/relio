@@ -72,8 +72,8 @@ func setup(t *testing.T) (*fakeRepo, string) {
 	}
 	fr := &fakeRepo{
 		tags: []gitrepo.TagInfo{
-			{Name: "v0.2.0", Date: "2026-09-06", Subject: "release v0.2.0"},
-			{Name: "v0.1.0", Date: "2026-08-01", Subject: "release v0.1.0"},
+			{Name: "v0.2.0", Date: "2026-09-06", DateTime: "2026-09-06 14:30", Subject: "release v0.2.0"},
+			{Name: "v0.1.0", Date: "2026-08-01", DateTime: "2026-08-01 09:15", Subject: "release v0.1.0"},
 		},
 		messages: map[string]string{"v0.2.0": "release v0.2.0", "v0.1.0": "release v0.1.0"},
 		commits: map[string][]conventional.Raw{
@@ -86,7 +86,7 @@ func setup(t *testing.T) (*fakeRepo, string) {
 
 func TestListsAllVersions(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 	if len(m.tags) != 2 {
 		t.Fatalf("want 2 tags, got %d", len(m.tags))
 	}
@@ -98,7 +98,7 @@ func TestListsAllVersions(t *testing.T) {
 
 func TestDetailShowsNotesWithCommitHashForSelection(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 
 	v := m.View()
 	if !strings.Contains(v, "Second thing") {
@@ -117,7 +117,7 @@ func TestDetailShowsNotesWithCommitHashForSelection(t *testing.T) {
 
 func TestDeleteRequiresConfirmation(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 
 	m = send(m, "d") // arm delete
 	if m.mode != confirmDelete {
@@ -147,7 +147,7 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 
 func TestQuitProducesStaticView(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 	m = send(m, "q")
 	if !m.quit {
 		t.Fatal("q should quit")
@@ -160,7 +160,7 @@ func TestQuitProducesStaticView(t *testing.T) {
 
 func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 
 	m = send(m, "down", "enter") // pick v0.1.0
 	if !m.quit || m.picked != 1 {
@@ -168,8 +168,10 @@ func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
 	}
 
 	out := m.View() // this is what stays in the terminal
-	if !strings.Contains(out, "v0.1.0") || !strings.Contains(out, "First thing") || !strings.Contains(out, "bbbbbbb") {
-		t.Errorf("exit output should be v0.1.0's notes with hash:\n%s", out)
+	for _, want := range []string{"demo -- release", "v0.1.0", "2026-08-01 09:15", "First thing", "bbbbbbb"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("exit output missing %q:\n%s", want, out)
+		}
 	}
 	if strings.Contains(out, "move") || strings.Contains(out, "delete") {
 		t.Errorf("exit output should not carry the interactive footer:\n%s", out)
@@ -178,7 +180,7 @@ func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
 
 func TestCursorClampsAfterDeletingLast(t *testing.T) {
 	fr, path := setup(t)
-	m := newModel(fr, path)
+	m := newModel(fr, "demo", path)
 	m = send(m, "down") // v0.1.0, cursor=1
 	m = send(m, "d", "y")
 	if m.cursor != 0 {

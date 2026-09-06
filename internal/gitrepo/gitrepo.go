@@ -57,14 +57,18 @@ func (r *Repo) LatestTag() (tag string, ok bool, err error) {
 
 // TagInfo describes one tag for listing purposes.
 type TagInfo struct {
-	Name    string
-	Date    string // YYYY-MM-DD of the tagged commit (or tag date)
-	Subject string // annotation subject, or the commit subject for lightweight tags
+	Name     string
+	Date     string // YYYY-MM-DD of the tagged commit (or tag date)
+	DateTime string // "YYYY-MM-DD HH:MM" in local time
+	Subject  string // annotation subject, or the commit subject for lightweight tags
 }
 
 // Tags lists every tag, newest version first.
 func (r *Repo) Tags() ([]TagInfo, error) {
-	const f = "%(refname:short)" + unitSep + "%(creatordate:short)" + unitSep + "%(contents:subject)"
+	const f = "%(refname:short)" + unitSep +
+		"%(creatordate:short)" + unitSep +
+		"%(creatordate:format-local:%Y-%m-%d %H:%M)" + unitSep +
+		"%(contents:subject)"
 	out, err := run(r.root, "for-each-ref", "--sort=-v:refname", "--format="+f, "refs/tags")
 	if err != nil {
 		return nil, err
@@ -75,13 +79,16 @@ func (r *Repo) Tags() ([]TagInfo, error) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		parts := strings.SplitN(line, unitSep, 3)
+		parts := strings.SplitN(line, unitSep, 4)
 		t := TagInfo{Name: parts[0]}
 		if len(parts) > 1 {
 			t.Date = parts[1]
 		}
 		if len(parts) > 2 {
-			t.Subject = strings.TrimSpace(parts[2])
+			t.DateTime = parts[2]
+		}
+		if len(parts) > 3 {
+			t.Subject = strings.TrimSpace(parts[3])
 		}
 		tags = append(tags, t)
 	}
