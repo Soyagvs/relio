@@ -124,7 +124,6 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		Version: version,
 		Meta:    imageMeta(tags[idx].DateTime, tags[idx].Date, len(raw)),
 		Rows:    socialRows(commits),
-		Author:  ui.Author,
 	}
 
 	path := filepath.Join(".", fmt.Sprintf("relio-%s-%s.png", version, shape))

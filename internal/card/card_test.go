@@ -19,7 +19,6 @@ func sample() Card {
 			{"refactor", "Authentication flow"},
 			{"fix", "Supervisor login"},
 		},
-		Author: "SOYAGVS",
 	}
 }
 

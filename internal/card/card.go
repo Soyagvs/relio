@@ -73,7 +73,6 @@ type Card struct {
 	Version string
 	Meta    string // "2026-09-06 · 13:47 · 4 commits"
 	Rows    []Row
-	Author  string
 }
 
 var (
@@ -203,7 +202,7 @@ func Render(c Card, s Shape) image.Image {
 	// Footer.
 	dc.SetFontFace(face(fontRegular, u*0.78))
 	dc.SetHexColor(colFaint)
-	dc.DrawString("created by "+c.Author, x, fh-pad)
+	dc.DrawString("generated with relio", x, fh-pad)
 
 	return dc.Image()
 }
