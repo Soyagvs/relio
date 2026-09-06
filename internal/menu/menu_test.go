@@ -25,10 +25,10 @@ func send(m model, keys ...string) model {
 	return m
 }
 
-func TestSelectCreateRelease(t *testing.T) {
+func TestFirstItemIsStatus(t *testing.T) {
 	m := send(model{}, "enter")
-	if m.result != CreateRelease {
-		t.Errorf("result = %v, want CreateRelease", m.result)
+	if m.result != Status {
+		t.Errorf("result = %v, want Status (the first item)", m.result)
 	}
 }
 
@@ -45,7 +45,7 @@ func selectAction(a Action) model {
 }
 
 func TestSelectEveryAction(t *testing.T) {
-	for _, a := range []Action{CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
+	for _, a := range []Action{Status, CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
 		if got := selectAction(a).result; got != a {
 			t.Errorf("selecting %v gave %v", a, got)
 		}

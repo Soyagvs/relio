@@ -13,6 +13,7 @@ type refRow struct{ name, desc string }
 var (
 	refCommands = []refRow{
 		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
+		{"relio status", "Show what's unreleased since the last tag and the version it suggests"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
 		{"relio image", "Render a PNG release card (--shape, --theme orange|green|purple, --hash, --upload)"},
@@ -41,6 +42,7 @@ var (
 		{"--upload", "upload to a temp host (litterbox 72h) and print a link + QR"},
 	}
 	refMenu = []refRow{
+		{"Status", "What's unreleased and the suggested version (same as `relio status`)"},
 		{"Create a release", "Same as running `relio` with no arguments"},
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
 		{"Release text", "Pick a post format and print copy-paste text (same as `relio post`)"},

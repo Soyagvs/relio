@@ -17,6 +17,7 @@ type Action int
 const (
 	// None means the menu was dismissed without a choice (e.g. ctrl+c).
 	None Action = iota
+	Status
 	CreateRelease
 	ViewReleases
 	ReleaseText
@@ -33,6 +34,7 @@ type item struct {
 }
 
 var items = []item{
+	{"Status", "What's unreleased since the last tag and the version it suggests", Status},
 	{"Create a release", "Version, changelog, and tag from commits since the last tag", CreateRelease},
 	{"Releases", "List every version, read its notes, or delete one", ViewReleases},
 	{"Release text", "Copy-paste announcement for social posts — pick a format", ReleaseText},

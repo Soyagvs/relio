@@ -78,7 +78,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
 
-	root.AddCommand(newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newStatusCmd(f), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
 }
 
@@ -166,6 +166,13 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	switch action {
 	case menu.Exit, menu.None:
 		return nil
+
+	case menu.Status:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		return runStatus(cmd, repo, cfg)
 
 	case menu.Help:
 		fmt.Fprintln(out, helpReference())
