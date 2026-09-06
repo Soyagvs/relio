@@ -28,10 +28,8 @@ var (
 	Ok    = lipgloss.NewStyle().Foreground(Purple).Bold(true)
 
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
-	purpleMark = lipgloss.NewStyle().Bold(true).Foreground(Purple)
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
-	rule       = lipgloss.NewStyle().Foreground(Purple)
 	hash       = lipgloss.NewStyle().Foreground(Purple)
 
 	box = lipgloss.NewStyle().
@@ -50,7 +48,7 @@ const (
 const Tagline = "turn commits into releases"
 
 // wordmarkRel / wordmarkIo are the two halves of the ANSI Shadow "RELIO" title,
-// coloured separately (orange "REL", purple "IO"). Each slice is one row; rows
+// joined into one all-orange wordmark. Each slice is one row; rows
 // are padded to equal width at render time.
 var (
 	wordmarkRel = []string{
@@ -80,7 +78,7 @@ func padRight(s string, w int) string {
 
 var bannerCache = map[string]string{}
 
-// BigBanner is the entry banner: the two-tone "RELIO" wordmark, the purple
+// BigBanner is the entry banner: the all-orange "RELIO" wordmark, the purple
 // tagline, a rule, and the author credit. Printed once when the menu opens.
 func BigBanner(version string) string {
 	if s, ok := bannerCache[version]; ok {
@@ -106,13 +104,10 @@ func BigBanner(version string) string {
 	b.WriteString("\n")
 	for i := range wordmarkRel {
 		b.WriteString(indent +
-			orangeMark.Render(padRight(wordmarkRel[i], lw)) +
-			purpleMark.Render(padRight(wordmarkIo[i], iw)) + "\n")
+			orangeMark.Render(padRight(wordmarkRel[i], lw)+padRight(wordmarkIo[i], iw)) + "\n")
 	}
 	b.WriteString(indent + lead(utf8.RuneCountInString(Tagline)) + Title.Render(Tagline) + "\n")
-	b.WriteString(indent +
-		orangeMark.Render(strings.Repeat("━", lw)) +
-		rule.Render(strings.Repeat("━", iw)) + "\n")
+	b.WriteString(indent + orangeMark.Render(strings.Repeat("━", total)) + "\n")
 
 	creditText := "created by " + Author
 	if version != "" {
