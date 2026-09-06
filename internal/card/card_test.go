@@ -12,12 +12,18 @@ func sample() Card {
 	return Card{
 		Project: "Azeink",
 		Version: "v1.4.0",
-		Meta:    "06.09.26 · 13:47 · 4 commits",
-		Rows: []Row{
-			{Type: "feat", Text: "Add facial attendance", Hash: "a967103"},
-			{Type: "feat", Text: "Add new kiosk interface", Hash: "92af81e"},
-			{Type: "refactor", Text: "Authentication flow", Hash: "03bc911"},
-			{Type: "fix", Text: "Supervisor login", Hash: "c814ab2"},
+		Meta:    "06.09.26 · 13:47 · 7 commits",
+		Groups: []Group{
+			{Kind: KindAdded, Title: "Added", Items: []Item{
+				{Text: "Add facial attendance", Hash: "a967103"},
+				{Text: "Add kiosk interface", Hash: "92af81e"},
+			}},
+			{Kind: KindChanged, Title: "Changed", Items: []Item{
+				{Text: "Refactor authentication flow", Hash: "03bc911"},
+			}},
+			{Kind: KindFixed, Title: "Fixed", Items: []Item{
+				{Text: "Fix supervisor login", Hash: "c814ab2"},
+			}},
 		},
 	}
 }
@@ -38,37 +44,49 @@ func TestParseShape(t *testing.T) {
 	}
 }
 
-func TestRenderDimensions(t *testing.T) {
+func TestRenderDimensionsEveryShapeAndTheme(t *testing.T) {
 	cases := map[Shape][2]int{
 		Horizontal: {1200, 630},
 		Vertical:   {1080, 1350},
 		Square:     {1080, 1080},
 	}
 	for s, wh := range cases {
-		for _, hash := range []bool{false, true} {
-			img := Render(sample(), s, hash)
-			b := img.Bounds()
-			if b.Dx() != wh[0] || b.Dy() != wh[1] {
-				t.Errorf("%v hash=%v: got %dx%d, want %dx%d", s, hash, b.Dx(), b.Dy(), wh[0], wh[1])
+		for _, th := range ThemeNames {
+			for _, hash := range []bool{false, true} {
+				img := Render(sample(), s, Options{Theme: th, ShowHash: hash})
+				b := img.Bounds()
+				if b.Dx() != wh[0] || b.Dy() != wh[1] {
+					t.Errorf("%v/%s hash=%v: %dx%d, want %dx%d", s, th, hash, b.Dx(), b.Dy(), wh[0], wh[1])
+				}
 			}
 		}
 	}
 }
 
-func TestRenderHandlesManyRowsAndLongText(t *testing.T) {
+func TestRenderHandlesManyItemsWithoutOverflow(t *testing.T) {
 	c := sample()
 	for i := 0; i < 40; i++ {
-		c.Rows = append(c.Rows, Row{Type: "feat", Hash: "deadbee", Text: "A very long description that should be truncated with an ellipsis so it never overflows the card width"})
+		c.Groups[0].Items = append(c.Groups[0].Items, Item{
+			Text: "A very long changelog line that must be truncated so it never runs past the card edge",
+			Hash: "deadbee",
+		})
 	}
-	img := Render(c, Square, true) // must not panic
-	if img.Bounds().Empty() {
+	if Render(c, Square, Options{ShowHash: true}).Bounds().Empty() {
+		t.Fatal("empty image")
+	}
+}
+
+func TestRenderNoGroups(t *testing.T) {
+	c := sample()
+	c.Groups = nil
+	if Render(c, Horizontal, Options{}).Bounds().Empty() {
 		t.Fatal("empty image")
 	}
 }
 
 func TestSaveWritesValidPNG(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.png")
-	if err := Save(Render(sample(), Horizontal, false), path); err != nil {
+	if err := Save(Render(sample(), Horizontal, Options{}), path); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(path)

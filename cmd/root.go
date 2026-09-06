@@ -204,7 +204,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 		if oerr != nil {
 			return oerr
 		}
-		return runReleaseImage(cmd, repo, cfg, "", "", false)
+		return runReleaseImage(cmd, repo, cfg, imageFlags{})
 	}
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/soyagvs/relio/internal/card"
 	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/pick"
@@ -127,9 +126,11 @@ var socialNotable = map[string]bool{
 	"feat": true, "fix": true, "perf": true, "refactor": true, "revert": true, "style": true,
 }
 
+type socialRow struct{ Type, Text string }
+
 // socialRows keeps only the notable commits, as "type / Description" rows.
-func socialRows(commits []conventional.Commit) []card.Row {
-	var rows []card.Row
+func socialRows(commits []conventional.Commit) []socialRow {
+	var rows []socialRow
 	for _, c := range commits {
 		if !socialNotable[c.Type] {
 			continue
@@ -138,11 +139,7 @@ func socialRows(commits []conventional.Commit) []card.Row {
 		if desc == "" {
 			desc = c.Raw
 		}
-		h := c.Hash
-		if len(h) > 7 {
-			h = h[:7]
-		}
-		rows = append(rows, card.Row{Type: c.Type, Text: titleCase(strings.TrimSpace(desc)), Hash: h})
+		rows = append(rows, socialRow{Type: c.Type, Text: titleCase(strings.TrimSpace(desc))})
 	}
 	return rows
 }

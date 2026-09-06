@@ -15,7 +15,7 @@ var (
 		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
-		{"relio image", "Save a PNG of a release (--shape h/v/square; --upload for a link + QR to a phone)"},
+		{"relio image", "Render a PNG release card (--shape, --theme orange|green|purple, --hash, --upload)"},
 		{"relio auth", "GitHub login — placeholder, lands in v0.2.0"},
 		{"relio version", "Print the Relio version"},
 	}
@@ -33,6 +33,12 @@ var (
 		{"--format technical", "Terse bullet list, for a changelog or a dev channel"},
 		{"--format casual", "Loose tone: \"proj v1.4.0 is out. → …\""},
 		{"--format changelog", "The exact section that goes into CHANGELOG.md"},
+	}
+	refImageFlags = []refRow{
+		{"--shape", "horizontal (1200×630) | vertical (1080×1350) | square (1080×1080)"},
+		{"--theme", "orange (default) | green | purple accent"},
+		{"--hash", "show the commit hash on each line"},
+		{"--upload", "upload to a temp host (litterbox 72h) and print a link + QR"},
 	}
 	refMenu = []refRow{
 		{"Create a release", "Same as running `relio` with no arguments"},
@@ -66,6 +72,7 @@ func helpReference() string {
 	section("Commands", refCommands)
 	section("Release flags", refReleaseFlags)
 	section("post flags", refPostFlags)
+	section("image flags", refImageFlags)
 	section("Menu", refMenu)
 
 	b.WriteString(ui.Dim.Render("Conventional Commits drive the version: fix→patch, feat→minor, feat!/BREAKING→major."))
