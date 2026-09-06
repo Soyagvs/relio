@@ -1,0 +1,13 @@
+# release configuration — safe to commit. Never put secrets here.
+project: release
+versioning: semver
+commits: conventional
+release:
+    changelog: true
+    changelog_file: CHANGELOG.md
+    tag: true
+    tag_prefix: v
+github:
+    enabled: false
+content:
+    enabled: false

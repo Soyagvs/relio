@@ -1,0 +1,8 @@
+/go-release
+/release
+/dist/
+*.out
+.DS_Store
+
+# tooling
+/.atl/

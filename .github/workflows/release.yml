@@ -1,0 +1,45 @@
+name: release
+
+# Build cross-platform binaries and attach them to the GitHub Release whenever a
+# vX.Y.Z tag is pushed (the tag `release` creates for you).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          EXT=""
+          [ "$GOOS" = "windows" ] && EXT=".exe"
+          OUT="release_${GOOS}_${GOARCH}${EXT}"
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/soyagvs/go-release/cmd.version=${VERSION} -X github.com/soyagvs/go-release/cmd.commit=${GITHUB_SHA::7} -X github.com/soyagvs/go-release/cmd.date=$(date -u +%Y-%m-%d)" \
+            -o "$OUT" .
+          echo "ASSET=$OUT" >> "$GITHUB_ENV"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET }}
+          generate_release_notes: true
