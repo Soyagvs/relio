@@ -217,9 +217,18 @@ func (m model) View() string {
 		if m.status != "" {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
-		b.WriteString("\n\n" + ui.Dim.Render("↑/↓ move · d delete · q back"))
+		if tag, ok := m.selected(); ok {
+			b.WriteString("\n\n" + ui.Key.Render("d") +
+				ui.Dim.Render(fmt.Sprintf(" — delete %s (git tag + its CHANGELOG section)", tag.Name)))
+		}
+		b.WriteString("\n" + keyHint("↑/↓", "move") + keyHint("d", "delete") + keyHint("q", "back"))
 	}
 	return b.String()
+}
+
+// keyHint renders "<key> label" with the key highlighted, padded for a footer row.
+func keyHint(key, label string) string {
+	return ui.Key.Render(key) + ui.Dim.Render(" "+label+"   ")
 }
 
 // staticView is what remains in the scrollback after quitting.
