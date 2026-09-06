@@ -7,6 +7,17 @@
 
 <p align="center"><i>turn commits into releases</i></p>
 
+<p align="center">
+  <a href="https://github.com/Soyagvs/relio/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/Soyagvs/relio?style=flat-square&color=F5872B&label=release"></a>
+  <a href="https://github.com/Soyagvs/relio/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/Soyagvs/relio/total?style=flat-square&color=F5872B&label=downloads"></a>
+  <a href="https://github.com/Soyagvs/homebrew-tap"><img alt="homebrew" src="https://img.shields.io/badge/brew-soyagvs%2Ftap%2Frelio-F5872B?style=flat-square"></a>
+  <a href="https://github.com/Soyagvs/relio/actions/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/github/actions/workflow/status/Soyagvs/relio/ci.yml?branch=main&style=flat-square&label=ci"></a>
+  <a href="https://github.com/Soyagvs/relio/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Soyagvs/relio?style=flat-square&color=F5872B"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/Soyagvs/relio?style=flat-square"></a>
+</p>
+
+<p align="center"><sub>badges are cached by shields.io — <code>relio stats</code> shows the live numbers</sub></p>
+
 Relio reads a repository's git activity and turns it into a **version, a
 changelog, and a tag** — with a preview before anything is written. It does not
 try to replace git or GitHub; it removes the repetitive work that happens
