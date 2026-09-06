@@ -75,7 +75,9 @@ tag **and** its `CHANGELOG.md` section, after a `y/N` confirm), `q` to go back.
 **Release text** asks which format you want, then prints the announcement.
 
 **Release image** asks for a release and a shape (horizontal / vertical / square) and
-writes a PNG card into the current directory.
+writes a PNG card into the current directory. `relio image --upload` also uploads it
+to a temporary public host (litterbox, 72h) and prints the link plus a QR code — scan
+it from a phone (works over `mosh`, since only text is sent).
 
 In CI or when piped (no TTY), or with `--yes` / a forced bump, the menu is
 skipped and a release runs directly.

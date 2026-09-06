@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/mdp/qrterminal/v3"
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/card"
@@ -13,29 +16,34 @@ import (
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/ui"
+	"github.com/soyagvs/relio/internal/upload"
 )
 
 func newImageCmd(f *releaseFlags) *cobra.Command {
 	var shape, version string
+	var doUpload bool
 
 	c := &cobra.Command{
 		Use:   "image",
 		Short: "Save a shareable PNG of a release",
 		Long: "Pick a release and a shape (horizontal / vertical / square) and write a\n" +
 			"PNG card of it into the current directory. Pass --version and --shape to\n" +
-			"skip the prompts (also skipped automatically when there is no TTY).",
+			"skip the prompts (also skipped automatically when there is no TTY).\n\n" +
+			"--upload also sends the PNG to a temporary public host (litterbox, 72h)\n" +
+			"and prints the URL plus a QR code — handy for grabbing it onto a phone.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
 			if err != nil {
 				return err
 			}
-			return runReleaseImage(cmd, repo, cfg, version, shape)
+			return runReleaseImage(cmd, repo, cfg, version, shape, doUpload)
 		},
 	}
 
 	c.Flags().StringVar(&version, "version", "", "release tag to render (default: latest)")
 	c.Flags().StringVar(&shape, "shape", "", "horizontal | vertical | square (default: horizontal)")
+	c.Flags().BoolVar(&doUpload, "upload", false, "upload to a temp host (litterbox 72h) and show a link + QR")
 	return c
 }
 
@@ -45,7 +53,7 @@ var shapeItems = []pick.Item{
 	{Label: "Square", Desc: "1080×1080", Value: "square"},
 }
 
-func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, versionFlag, shapeFlag string) error {
+func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, versionFlag, shapeFlag string, doUpload bool) error {
 	out := cmd.OutOrStdout()
 	interactive := stdinIsTTY() && stdoutIsTTY()
 
@@ -127,7 +135,37 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 
 	fmt.Fprintln(out, ui.Success([]string{"saved " + path}))
 	fmt.Fprintln(out, ui.Dim.Render("  "+abs))
+
+	if doUpload {
+		fmt.Fprintln(out)
+		url, uerr := upload.Upload(path)
+		if uerr != nil {
+			fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error())
+			fmt.Fprintln(out, ui.Dim.Render("  the image is still saved locally"))
+			return nil
+		}
+		fmt.Fprint(out, qrBlock(url))
+		fmt.Fprintln(out, "  "+ui.Key.Render(url))
+	}
 	return nil
+}
+
+// qrBlock renders an ANSI QR of s (black/white cells so it scans on any terminal
+// theme, and mosh passes the colour codes fine), each line indented two spaces.
+func qrBlock(s string) string {
+	var buf bytes.Buffer
+	qrterminal.GenerateWithConfig(s, qrterminal.Config{
+		Level:     qrterminal.L,
+		Writer:    &buf,
+		QuietZone: 2,
+		BlackChar: qrterminal.BLACK,
+		WhiteChar: qrterminal.WHITE,
+	})
+	var b strings.Builder
+	for _, ln := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
+		b.WriteString("  " + ln + "\n")
+	}
+	return b.String()
 }
 
 // imageMeta renders "DD.MM.YY · HH:MM · N commits" from a "2006-01-02 15:04"
