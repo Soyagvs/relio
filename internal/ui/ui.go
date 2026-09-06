@@ -29,7 +29,7 @@ var (
 
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	whiteMark  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("231"))
-	slitMark   = lipgloss.NewStyle().Foreground(lipgloss.Color("230")) // the snake-eye slit
+	glintMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("223")) // snake-eye catchlight
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	hash       = lipgloss.NewStyle().Foreground(Purple)
@@ -61,25 +61,27 @@ var (
 		`██║  ██║███████╗███████╗██║`,
 		`╚═╝  ╚═╝╚══════╝╚══════╝╚═╝`,
 	}
+	// A solid orange eyeball with a lens-shaped vertical slit carved out (the
+	// dark terminal background) and a small catchlight — a snake eye.
 	wordO = []string{
-		` ██████╗ `,
-		`██╔═│═██╗`,
-		`██║ │ ██║`,
-		`██║ │ ██║`,
-		`╚██████╔╝`,
-		` ╚═════╝ `,
+		` ███████ `,
+		`████ ████`,
+		`███ ▪ ███`,
+		`███   ███`,
+		`████ ████`,
+		` ███████ `,
 	}
 )
 
-// renderO colours the "O": orange ring, a lighter vertical slit for the pupil.
+// renderO colours the eyeball orange and the catchlight pale.
 func renderO(row string) string {
 	var b strings.Builder
 	for _, r := range row {
 		switch r {
 		case ' ':
 			b.WriteRune(' ')
-		case '│':
-			b.WriteString(slitMark.Render("│"))
+		case '▪':
+			b.WriteString(glintMark.Render("▪"))
 		default:
 			b.WriteString(orangeMark.Render(string(r)))
 		}
