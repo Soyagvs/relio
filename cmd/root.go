@@ -78,7 +78,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
 
-	root.AddCommand(newStatusCmd(f), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newStatusCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
 }
 

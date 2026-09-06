@@ -27,7 +27,7 @@ last tag, parsed as [Conventional Commits](https://www.conventionalcommits.org/)
 - [Quick start](#quick-start)
 - [The interactive menu](#the-interactive-menu)
 - [Commands](#commands)
-  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
+  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
@@ -42,18 +42,52 @@ last tag, parsed as [Conventional Commits](https://www.conventionalcommits.org/)
 
 ## Install
 
-```bash
-# with Go (installs the `relio` binary onto $GOPATH/bin or $GOBIN)
-go install github.com/soyagvs/relio@latest
+### Homebrew (macOS / Linux)
 
-# from source
+```bash
+brew install soyagvs/tap/relio
+```
+
+`brew upgrade relio` picks up new releases. The formula downloads the official
+prebuilt binaries from this repo's [GitHub Releases](https://github.com/soyagvs/relio/releases)
+— it does not build from source.
+
+### Manual — from GitHub Releases
+
+Grab the archive for your platform from the
+[latest release](https://github.com/soyagvs/relio/releases/latest), verify it
+against `checksums.txt`, and drop the binary on your `PATH`:
+
+```bash
+VER=1.2.0                      # the release you want
+OS=darwin; ARCH=arm64          # darwin|linux|windows  +  amd64|arm64
+curl -fsSLO "https://github.com/soyagvs/relio/releases/download/v${VER}/relio_${VER}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/soyagvs/relio/releases/download/v${VER}/checksums.txt"
+sha256sum -c --ignore-missing checksums.txt
+tar -xzf "relio_${VER}_${OS}_${ARCH}.tar.gz" relio
+sudo mv relio /usr/local/bin/
+```
+
+Windows: download `relio_<ver>_windows_amd64.zip` and put `relio.exe` on your
+`PATH`.
+
+### With Go
+
+```bash
+go install github.com/soyagvs/relio@latest   # -> $GOBIN / $GOPATH/bin
+```
+
+### From source
+
+```bash
 git clone https://github.com/soyagvs/relio
 cd relio
 go build -o relio .          # ./relio
 # or: make install           # builds to ~/.cargo/bin/relio
 ```
 
-Requires **Go 1.22+** and the `git` binary on `PATH`.
+Building requires **Go 1.22+**. At runtime Relio needs the `git` binary on
+`PATH`.
 
 ---
 
@@ -191,6 +225,52 @@ Ready to release.
 
 When there are no new commits: `Suggested —` and `Nothing to release.`
 Also available as the **Status** menu entry.
+
+---
+
+### `relio stats`
+
+Relio's **public** distribution numbers, read straight from the GitHub REST API
+— release-asset download counts, per-release and per-platform breakdowns, stars
+and forks.
+
+```
+$ relio stats
+
+Relio -- stats
+
+Downloads
+  total               1,284
+  latest release        437
+
+Releases
+  v1.2.0                437
+  v1.1.0                521
+  v1.0.0                326
+
+Latest release (v1.2.0)
+  macOS arm64           291
+  macOS amd64            38
+  Linux amd64            82
+  Linux arm64            26
+
+GitHub
+  stars                126
+  forks                 14
+
+downloads = release-asset downloads, not unique users or installs
+```
+
+- **No telemetry.** Relio records nothing — no runs, commands, repos, or user
+  data. `relio stats` only makes `GET` requests to `api.github.com`.
+- **"Downloads" = release-asset downloads.** Each time someone downloads a
+  binary archive from a GitHub Release it counts once. It is **not** a count of
+  unique users or active installs. `checksums.txt` and signatures are excluded.
+- Works **without authentication**. If you hit the API rate limit, set
+  `GITHUB_TOKEN` (or `GH_TOKEN`) in your environment to raise it — the token is
+  only sent to GitHub, never stored.
+- `--repo owner/name` queries a different repository (defaults to
+  `soyagvs/relio`). `--prerelease` includes pre-releases in the list.
 
 ---
 
@@ -391,17 +471,31 @@ relio post --format changelog        # plain text on stdout
 relio image --shape horizontal       # latest tag, default theme, saved to cwd
 ```
 
-A minimal GitHub Actions job that cuts a release from the default branch:
-
-```yaml
-- uses: actions/checkout@v4
-  with: { fetch-depth: 0 }        # tags + full history
-- run: go install github.com/soyagvs/relio@latest
-- run: relio --yes
-- run: git push --follow-tags
-```
-
 Relio never pushes; wire the `git push` into your pipeline.
+
+### Publishing Relio itself
+
+Relio is distributed with **[GoReleaser](https://goreleaser.com)**. Cutting a
+version is two steps:
+
+1. **Locally** — bump + tag + changelog with Relio's own flow:
+
+   ```bash
+   relio            # or `relio --minor` / `relio --major`
+   git push --follow-tags
+   ```
+
+2. **Automatically** — pushing a `vX.Y.Z` tag triggers
+   `.github/workflows/release.yml`, which runs `goreleaser release`:
+   builds the 5 platform binaries, packages `relio_<ver>_<os>_<arch>.tar.gz`
+   (`.zip` on Windows), writes `checksums.txt`, creates the GitHub Release with
+   every asset attached, and pushes an updated `Formula/relio.rb` to
+   `Soyagvs/homebrew-tap`.
+
+The config lives in [`.goreleaser.yaml`](.goreleaser.yaml). It needs one secret
+you set once: **`HOMEBREW_TAP_TOKEN`** — a PAT with write access to
+`Soyagvs/homebrew-tap` (the repo's own `GITHUB_TOKEN` covers the Release
+itself).
 
 ---
 
@@ -409,7 +503,8 @@ Relio never pushes; wire the `git push` into your pipeline.
 
 ```
 main.go
-cmd/                 Cobra command wiring (root, status, init, post, image, auth, version)
+.goreleaser.yaml     GoReleaser: build matrix, archives, checksums, GitHub Release, Homebrew tap
+cmd/                 Cobra command wiring (root, status, stats, init, post, image, auth, version)
 internal/
   conventional/      Conventional Commits parser
   semver/            version parsing + bump rules
@@ -417,6 +512,7 @@ internal/
   config/            .release.yaml load / save
   gitrepo/           thin wrapper over the git binary
   release/           orchestration: build a plan, apply it
+  ghstats/           read-only GitHub REST client for `relio stats`
   ui/                lipgloss palette, banner, non-interactive views
   menu/              Bubble Tea main menu
   wizard/            Bubble Tea release confirmation

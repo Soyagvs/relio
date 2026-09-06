@@ -1,45 +1,40 @@
 name: release
 
-# Build cross-platform binaries and attach them to the GitHub Release whenever a
-# vX.Y.Z tag is pushed (the tag `release` creates for you).
-
+# Runs GoReleaser when a semver tag is pushed (the tag `relio` creates locally,
+# then `git push --follow-tags`). It builds the binaries, packages archives,
+# writes checksums.txt, creates the GitHub Release with all assets, and pushes
+# an updated Formula/relio.rb to Soyagvs/homebrew-tap.
 on:
   push:
-    tags: ["v*"]
+    tags:
+      - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: write # create the GitHub Release + upload assets in THIS repo
 
 jobs:
-  build:
+  goreleaser:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - { goos: darwin, goarch: arm64 }
-          - { goos: darwin, goarch: amd64 }
-          - { goos: linux, goarch: arm64 }
-          - { goos: linux, goarch: amd64 }
-          - { goos: windows, goarch: amd64 }
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags for the changelog
+
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
-      - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          EXT=""
-          [ "$GOOS" = "windows" ] && EXT=".exe"
-          OUT="release_${GOOS}_${GOARCH}${EXT}"
-          go build -trimpath \
-            -ldflags "-s -w -X github.com/soyagvs/relio/cmd.version=${VERSION} -X github.com/soyagvs/relio/cmd.commit=${GITHUB_SHA::7} -X github.com/soyagvs/relio/cmd.date=$(date -u +%Y-%m-%d)" \
-            -o "$OUT" .
-          echo "ASSET=$OUT" >> "$GITHUB_ENV"
-      - uses: softprops/action-gh-release@v2
+          go-version-file: go.mod
+          cache: true
+
+      - name: Tests
+        run: go test ./...
+
+      - uses: goreleaser/goreleaser-action@v6
         with:
-          files: ${{ env.ASSET }}
-          generate_release_notes: true
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          # Provided automatically — scoped to THIS repo (release + assets).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT you create with write access to Soyagvs/homebrew-tap.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

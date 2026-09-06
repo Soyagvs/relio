@@ -14,6 +14,7 @@ var (
 	refCommands = []refRow{
 		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
 		{"relio status", "Show what's unreleased since the last tag and the version it suggests"},
+		{"relio stats", "Relio's public GitHub download stats (read-only, no telemetry)"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
 		{"relio image", "Render a PNG release card (--shape, --theme orange|green|purple, --hash, --upload)"},

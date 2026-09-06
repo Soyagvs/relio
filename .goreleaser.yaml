@@ -1,0 +1,101 @@
+# GoReleaser config — https://goreleaser.com
+#
+# Triggered by .github/workflows/release.yml when a vX.Y.Z tag is pushed.
+# It builds the binaries, packages archives with consistent names, writes
+# checksums.txt, creates the GitHub Release with those assets, and pushes an
+# updated Formula/relio.rb to Soyagvs/homebrew-tap.
+version: 2
+
+project_name: relio
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: relio
+    main: .
+    binary: relio
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/soyagvs/relio/cmd.version={{ .Version }}
+      - -X github.com/soyagvs/relio/cmd.commit={{ .ShortCommit }}
+      - -X github.com/soyagvs/relio/cmd.date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: relio
+    ids: [relio]
+    # relio_1.2.0_darwin_arm64.tar.gz / ..._windows_amd64.zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^style:"
+      - "^build:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: Soyagvs
+    name: relio
+  draft: false
+  prerelease: auto # v1.2.0-rc.1 -> marked as a pre-release
+  name_template: "{{ .Tag }}"
+
+# NOTE: `brews` is deprecated in GoReleaser v2 (still fully functional on the v2
+# line, which the workflow pins). It is kept because it produces Formula/relio.rb
+# exactly as intended. Revisit if/when GoReleaser removes it — the successor for
+# CLI formulae will be documented at https://goreleaser.com/deprecations#brews
+brews:
+  - name: relio
+    ids: [relio]
+    repository:
+      owner: Soyagvs
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/soyagvs/relio"
+    description: "turn commits into releases"
+    license: "MIT"
+    # Skip the tap bump for pre-releases.
+    skip_upload: auto
+    commit_author:
+      name: goreleaser-bot
+      email: goreleaser-bot@users.noreply.github.com
+    commit_msg_template: "relio {{ .Tag }}"
+    install: |
+      bin.install "relio"
+    test: |
+      assert_match "Relio", shell_output("#{bin}/relio version")
