@@ -1,5 +1,5 @@
 BINARY  := go-release
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/soyagvs/go-release/cmd.version=$(VERSION)
 
 .PHONY: build install test run tidy
