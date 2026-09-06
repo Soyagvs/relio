@@ -275,8 +275,28 @@ func (r *renderer) fitUnit() {
 
 func (r *renderer) contentHeight(u float64) float64 {
 	h := u*2.4 + u*1.5 + u*1.4 // project, meta, divider gap
+
+	itemX := r.pad + u*1.35 + u*0.6
+	hashW := 0.0
+	if r.opt.ShowHash {
+		hashW = u * 4.8
+	}
+	textMax := r.contentR - (itemX + hashW)
+	r.dc.SetFontFace(face(fMono, u*0.95))
+
 	for _, g := range r.c.Groups {
-		h += u*1.9 + float64(len(g.Items))*u*1.35 + u*0.7
+		if len(g.Items) == 0 {
+			continue
+		}
+		h += u * 1.85 // title row
+		for _, it := range g.Items {
+			n := len(wrapLines(r.dc, it.Text, textMax))
+			if n < 1 {
+				n = 1
+			}
+			h += float64(n)*u*1.24 + u*0.1
+		}
+		h += u * 0.7
 	}
 	h += u * 1.8 // footer
 	return h
@@ -363,8 +383,8 @@ func (r *renderer) content() {
 
 		shown := 0
 		for _, it := range g.Items {
-			if y+r.u*1.2 > maxY && shown < len(g.Items) {
-				break
+			if y+r.u*1.2 > maxY {
+				break // no room for another item; the rest become "+N more"
 			}
 			if r.opt.ShowHash && it.Hash != "" {
 				dc.SetFontFace(face(fMono, r.u*0.9))
@@ -373,8 +393,15 @@ func (r *renderer) content() {
 			}
 			dc.SetFontFace(face(fMono, r.u*0.95))
 			dc.SetColor(colText)
-			dc.DrawString(truncate(dc, it.Text, textMax), itemX+hashW, y+r.u*0.72)
-			y += r.u * 1.32
+			// Long messages wrap onto the next line(s), aligned under the text.
+			for li, ln := range wrapLines(dc, it.Text, textMax) {
+				if li > 0 && y+r.u*1.1 > maxY {
+					break
+				}
+				dc.DrawString(ln, itemX+hashW, y+r.u*0.72)
+				y += r.u * 1.24
+			}
+			y += r.u * 0.1
 			shown++
 		}
 		if shown < len(g.Items) {
@@ -429,6 +456,38 @@ func (r *renderer) icon(k GroupKind, x, y, box float64, col color.NRGBA) {
 		}
 		dc.Stroke()
 	}
+}
+
+// wrapLines splits s into lines that each fit maxW pixels, breaking on spaces.
+// A single word wider than maxW is ellipsised rather than overflowing.
+func wrapLines(dc *gg.Context, s string, maxW float64) []string {
+	words := strings.Fields(s)
+	if len(words) == 0 || maxW <= 0 {
+		return []string{s}
+	}
+	var lines []string
+	cur := ""
+	for _, w := range words {
+		try := w
+		if cur != "" {
+			try = cur + " " + w
+		}
+		if tw, _ := dc.MeasureString(try); tw <= maxW || cur == "" {
+			cur = try
+		} else {
+			lines = append(lines, cur)
+			cur = w
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	for i, ln := range lines {
+		if w, _ := dc.MeasureString(ln); w > maxW {
+			lines[i] = truncate(dc, ln, maxW)
+		}
+	}
+	return lines
 }
 
 // truncate shortens s with a trailing ellipsis until it fits maxW pixels.
