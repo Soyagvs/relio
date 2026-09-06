@@ -52,8 +52,14 @@ func groupFor(typ string) (Group, bool) {
 }
 
 // Notes is the grouped set of human-readable lines for one release.
+// Item is one changelog line plus the commit it came from.
+type Item struct {
+	Text string
+	Hash string // abbreviated commit hash; "" when unknown
+}
+
 type Notes struct {
-	Groups map[Group][]string
+	Groups map[Group][]Item
 }
 
 // Empty reports whether there is nothing worth publishing.
@@ -66,21 +72,29 @@ func (n Notes) Empty() bool {
 	return true
 }
 
+func shortHash(h string) string {
+	if len(h) > 7 {
+		return h[:7]
+	}
+	return h
+}
+
 // Build turns commits into grouped notes. Breaking changes are prefixed and
 // always land in the Changed group in addition to their natural group.
 func Build(commits []conventional.Commit) Notes {
-	n := Notes{Groups: map[Group][]string{}}
+	n := Notes{Groups: map[Group][]Item{}}
 	for _, c := range commits {
-		line := lineFor(c)
+		it := Item{Text: lineFor(c), Hash: shortHash(c.Hash)}
 		if c.Breaking {
-			n.Groups[Changed] = append(n.Groups[Changed], "**Breaking:** "+line)
+			it.Text = "**Breaking:** " + it.Text
+			n.Groups[Changed] = append(n.Groups[Changed], it)
 			continue
 		}
 		g, ok := groupFor(c.Type)
 		if !ok {
 			continue
 		}
-		n.Groups[g] = append(n.Groups[g], line)
+		n.Groups[g] = append(n.Groups[g], it)
 	}
 	return n
 }
@@ -112,10 +126,11 @@ func RenderSection(version string, date time.Time, n Notes) string {
 		if len(items) == 0 {
 			continue
 		}
-		sort.Strings(items)
+		sorted := append([]Item(nil), items...)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i].Text < sorted[j].Text })
 		fmt.Fprintf(&b, "\n### %s\n\n", g)
-		for _, it := range items {
-			fmt.Fprintf(&b, "- %s\n", it)
+		for _, it := range sorted {
+			fmt.Fprintf(&b, "- %s\n", it.Text)
 		}
 		wrote = true
 	}

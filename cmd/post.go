@@ -80,7 +80,7 @@ func headHash(commits []conventional.Commit) string {
 func groupItems(n changelog.Notes, g changelog.Group, limit int) []string {
 	var items []string
 	for _, it := range n.Groups[g] {
-		items = append(items, strings.TrimPrefix(it, "**Breaking:** "))
+		items = append(items, strings.TrimPrefix(it.Text, "**Breaking:** "))
 	}
 	if limit > 0 && len(items) > limit {
 		items = items[:limit]

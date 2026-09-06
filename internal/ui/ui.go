@@ -158,7 +158,11 @@ func Notes(n changelog.Notes) string {
 		}
 		b.WriteString(group.Render(string(g)) + "\n")
 		for _, it := range items {
-			b.WriteString("  " + Dim.Render("•") + " " + it + "\n")
+			line := "  " + Dim.Render("•") + " " + it.Text
+			if it.Hash != "" {
+				line += "  " + Dim.Render(it.Hash)
+			}
+			b.WriteString(line + "\n")
 		}
 		b.WriteString("\n")
 	}

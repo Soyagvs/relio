@@ -21,13 +21,13 @@ func sampleCommits() []conventional.Commit {
 
 func TestBuildGrouping(t *testing.T) {
 	n := Build(sampleCommits())
-	if got := n.Groups[Added]; len(got) != 1 || got[0] != "Add facial attendance" {
+	if got := n.Groups[Added]; len(got) != 1 || got[0].Text != "Add facial attendance" {
 		t.Errorf("Added = %v", got)
 	}
-	if got := n.Groups[Fixed]; len(got) != 1 || got[0] != "kiosk: Header alignment" {
+	if got := n.Groups[Fixed]; len(got) != 1 || got[0].Text != "kiosk: Header alignment" {
 		t.Errorf("Fixed = %v", got)
 	}
-	if got := n.Groups[Changed]; len(got) != 1 || got[0] != "Auth flow" {
+	if got := n.Groups[Changed]; len(got) != 1 || got[0].Text != "Auth flow" {
 		t.Errorf("Changed = %v", got)
 	}
 	if n.Empty() {
@@ -35,9 +35,18 @@ func TestBuildGrouping(t *testing.T) {
 	}
 }
 
+func TestBuildCarriesHash(t *testing.T) {
+	n := Build([]conventional.Commit{
+		{Type: "fix", Description: "a bug", Hash: "abcdef1234567890"},
+	})
+	if got := n.Groups[Fixed]; len(got) != 1 || got[0].Hash != "abcdef1" {
+		t.Errorf("expected abbreviated hash, got %+v", got)
+	}
+}
+
 func TestBuildBreaking(t *testing.T) {
 	n := Build([]conventional.Commit{{Type: "feat", Description: "new api", Breaking: true}})
-	if got := n.Groups[Changed]; len(got) != 1 || !strings.HasPrefix(got[0], "**Breaking:**") {
+	if got := n.Groups[Changed]; len(got) != 1 || !strings.HasPrefix(got[0].Text, "**Breaking:**") {
 		t.Errorf("Changed = %v", got)
 	}
 }
