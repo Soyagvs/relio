@@ -28,6 +28,8 @@ var (
 	Ok    = lipgloss.NewStyle().Foreground(Purple).Bold(true)
 
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
+	whiteMark  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("231"))
+	catEye     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	hash       = lipgloss.NewStyle().Foreground(Purple)
@@ -47,27 +49,47 @@ const (
 // Tagline sits under the wordmark, in purple.
 const Tagline = "turn commits into releases"
 
-// wordmarkRel / wordmarkIo are the two halves of the ANSI Shadow "RELIO" title,
-// joined into one all-orange wordmark. Each slice is one row; rows
-// are padded to equal width at render time.
+// The wordmark is "Relio" in figlet's "big" font, split so "Reli" renders in
+// white and "o" in orange, with a small black cat (orange outline + eyes)
+// peeking out above the "o". Rows are padded to equal width at render time.
 var (
-	wordmarkRel = []string{
-		`██████╗ ███████╗██╗     `,
-		`██╔══██╗██╔════╝██║     `,
-		`██████╔╝█████╗  ██║     `,
-		`██╔══██╗██╔══╝  ██║     `,
-		`██║  ██║███████╗███████╗`,
-		`╚═╝  ╚═╝╚══════╝╚══════╝`,
+	wordReli = []string{
+		` _____      _ _`,
+		`|  __ \    | (_)`,
+		`| |__) |___| |_`,
+		`|  _  // _ \ | |`,
+		`| | \ \  __/ | |`,
+		`|_|  \_\___|_|_|`,
 	}
-	wordmarkIo = []string{
-		`██╗ ██████╗ `,
-		`██║██╔═══██╗`,
-		`██║██║   ██║`,
-		`██║██║   ██║`,
-		`██║╚██████╔╝`,
-		`╚═╝ ╚═════╝ `,
+	wordO = []string{
+		`       `,
+		`  ___  `,
+		` / _ \ `,
+		`| (_) |`,
+		` \___/ `,
+		`       `,
+	}
+	catFace = []string{
+		` /\ /\ `,
+		`(=o.o=)`,
 	}
 )
+
+// renderCat colours the cat: orange outline, brighter eyes, spaces left as bg.
+func renderCat(row string) string {
+	var b strings.Builder
+	for _, r := range row {
+		switch r {
+		case ' ':
+			b.WriteRune(' ')
+		case 'o':
+			b.WriteString(catEye.Render("o"))
+		default:
+			b.WriteString(orangeMark.Render(string(r)))
+		}
+	}
+	return b.String()
+}
 
 func padRight(s string, w int) string {
 	if n := w - utf8.RuneCountInString(s); n > 0 {
@@ -78,22 +100,20 @@ func padRight(s string, w int) string {
 
 var bannerCache = map[string]string{}
 
-// BigBanner is the entry banner: the all-orange "RELIO" wordmark, the purple
-// tagline, a rule, and the author credit. Printed once when the menu opens.
+// BigBanner is the entry banner: the "Relio" wordmark (white "Reli", orange
+// "o", cat over the "o"), the purple tagline, a rule, and the author credit.
 func BigBanner(version string) string {
 	if s, ok := bannerCache[version]; ok {
 		return s
 	}
 
 	const indent = "  "
-	lw, iw := 0, 0
-	for _, l := range wordmarkRel {
+	const ow = 7 // width of the "o" glyph
+	lw := 0
+	for _, l := range wordReli {
 		lw = max(lw, utf8.RuneCountInString(l))
 	}
-	for _, l := range wordmarkIo {
-		iw = max(iw, utf8.RuneCountInString(l))
-	}
-	total := lw + iw
+	total := lw + ow
 
 	// lead centres a line of the given visible width within the wordmark.
 	lead := func(visibleWidth int) string {
@@ -102,9 +122,17 @@ func BigBanner(version string) string {
 
 	var b strings.Builder
 	b.WriteString("\n")
-	for i := range wordmarkRel {
+
+	// Cat, peeking over the "o".
+	catPad := strings.Repeat(" ", len(indent)+lw)
+	for _, cr := range catFace {
+		b.WriteString(catPad + renderCat(cr) + "\n")
+	}
+
+	for i := range wordReli {
 		b.WriteString(indent +
-			orangeMark.Render(padRight(wordmarkRel[i], lw)+padRight(wordmarkIo[i], iw)) + "\n")
+			whiteMark.Render(padRight(wordReli[i], lw)) +
+			orangeMark.Render(wordO[i]) + "\n")
 	}
 	b.WriteString(indent + lead(utf8.RuneCountInString(Tagline)) + Title.Render(Tagline) + "\n")
 	b.WriteString(indent + orangeMark.Render(strings.Repeat("━", total)) + "\n")

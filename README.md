@@ -37,12 +37,14 @@ relio          # opens the interactive menu
 Running `relio` with no arguments in a terminal opens the menu:
 
 ```
-  ██████╗ ███████╗██╗     ██╗ ██████╗       (REL orange, IO purple)
-  ██╔══██╗██╔════╝██║     ██║██╔═══██╗
-  ██████╔╝█████╗  ██║     ██║██║   ██║
-  ██╔══██╗██╔══╝  ██║     ██║██║   ██║
-  ██║  ██║███████╗███████╗██║╚██████╔╝
-  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝ ╚═════╝
+                    /\ /\          <- black cat, orange outline + eyes
+                   (=o.o=)
+   _____      _ _        ___
+  |  __ \    | (_)      / _ \      "Reli" white, "o" orange
+  | |__) |___| |_      | (_) |
+  |  _  // _ \ | |       \___/
+  | | \ \  __/ | |
+  |_|  \_\___|_|_|
         turn commits into releases        (purple)
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         created by SOYAGVS
