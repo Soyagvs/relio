@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.1.0] - 2026-09-06
+
+### Added
+
+- image: Story-size vertical (1080×1920) + guaranteed fit for many commits
+
+### Changed
+
+- ui: Back to the block wordmark; cat reduced to faint eyes over the O
+- ui: Banner is 'Relio' (white) with an orange 'o' and a cat peeking over it
+- ui: Draw the banner O as a snake eye with a vertical slit
+- ui: Redo the banner O as a filled snake eye (lens slit + catchlight)
+
 ## [1.0.0] - 2026-09-06
 
 ### Added
