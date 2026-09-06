@@ -5,6 +5,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -12,33 +13,30 @@ import (
 	"github.com/soyagvs/go-release/internal/release"
 )
 
-// Palette. Colors are ANSI-256 so they degrade gracefully on limited terminals.
+// Brand palette: orange + purple, red reserved for failures. 256-colour indices
+// so the look holds up on terminals without truecolor.
 var (
-	accent  = lipgloss.Color("42")  // green
-	accent2 = lipgloss.Color("39")  // cyan
-	warnCol = lipgloss.Color("214") // amber
-	dimCol  = lipgloss.Color("245")
+	Orange = lipgloss.Color("208")
+	Purple = lipgloss.Color("135")
+	redCol = lipgloss.Color("203")
+	dimCol = lipgloss.Color("245")
 
-	Title = lipgloss.NewStyle().Bold(true).Foreground(accent)
+	Title = lipgloss.NewStyle().Bold(true).Foreground(Purple)
 	Dim   = lipgloss.NewStyle().Foreground(dimCol)
-	Key   = lipgloss.NewStyle().Foreground(accent2)
-	Warn  = lipgloss.NewStyle().Foreground(warnCol)
-	Ok    = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	Key   = lipgloss.NewStyle().Foreground(Orange)
+	Warn  = lipgloss.NewStyle().Foreground(redCol)
+	Ok    = lipgloss.NewStyle().Foreground(Purple).Bold(true)
 
-	group = lipgloss.NewStyle().Bold(true).Foreground(accent2)
+	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
+	purpleMark = lipgloss.NewStyle().Bold(true).Foreground(Purple)
+	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
+	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
+	rule       = lipgloss.NewStyle().Foreground(Purple)
 
 	box = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(dimCol).
+		BorderForeground(Purple).
 		Padding(0, 2)
-
-	wordmark = lipgloss.NewStyle().Bold(true).Foreground(accent)
-
-	bannerBox = lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder()).
-			BorderForeground(accent).
-			Padding(1, 4).
-			Align(lipgloss.Center)
 )
 
 // AppName and Author are shown on the big entry banner.
@@ -47,31 +45,81 @@ const (
 	Author  = "SOYAGVS"
 )
 
-// asciiWordmark is the figlet-style "GO RELEASE" title.
-const asciiWordmark = ` ██████╗  ██████╗    ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗
-██╔════╝ ██╔═══██╗   ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝
-██║  ███╗██║   ██║   ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗
-██║   ██║██║   ██║   ██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝
-╚██████╔╝╚██████╔╝   ██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗
- ╚═════╝  ╚═════╝    ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝`
-
-// BigBanner is the full entry banner: the wordmark, tagline, and author credit.
-// It is printed once when the interactive menu opens.
-func BigBanner(version string) string {
-	inner := wordmark.Render(asciiWordmark) + "\n\n" +
-		Dim.Render("from finished code to a published release")
-	framed := bannerBox.Render(inner)
-
-	credit := Dim.Render("created by ") + Key.Render(Author)
-	if version != "" {
-		credit += Dim.Render("  ·  " + version)
+// wordmarkGo / wordmarkRelease are the two halves of the ANSI Shadow title,
+// coloured separately (orange "Go", purple "Release"). Each slice is one row;
+// rows are padded to equal width at render time.
+var (
+	wordmarkGo = []string{
+		` ██████╗  ██████╗ `,
+		`██╔════╝ ██╔═══██╗`,
+		`██║  ███╗██║   ██║`,
+		`██║   ██║██║   ██║`,
+		`╚██████╔╝╚██████╔╝`,
+		` ╚═════╝  ╚═════╝ `,
 	}
-	return framed + "\n" + lipgloss.NewStyle().PaddingLeft(2).Render(credit)
+	wordmarkRelease = []string{
+		`██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗`,
+		`██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝`,
+		`██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  `,
+		`██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝  `,
+		`██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗`,
+		`╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝`,
+	}
+)
+
+func padRight(s string, w int) string {
+	if n := w - utf8.RuneCountInString(s); n > 0 {
+		return s + strings.Repeat(" ", n)
+	}
+	return s
+}
+
+var bannerCache = map[string]string{}
+
+// BigBanner is the entry banner: the two-tone wordmark, a rule, and the author
+// credit centred beneath the name. Printed once when the menu opens.
+func BigBanner(version string) string {
+	if s, ok := bannerCache[version]; ok {
+		return s
+	}
+
+	const indent = "  "
+	gw, rw := 0, 0
+	for _, l := range wordmarkGo {
+		gw = max(gw, utf8.RuneCountInString(l))
+	}
+	for _, l := range wordmarkRelease {
+		rw = max(rw, utf8.RuneCountInString(l))
+	}
+	total := gw + 1 + rw
+
+	var b strings.Builder
+	b.WriteString("\n")
+	for i := range wordmarkGo {
+		b.WriteString(indent +
+			orangeMark.Render(padRight(wordmarkGo[i], gw)) + " " +
+			purpleMark.Render(padRight(wordmarkRelease[i], rw)) + "\n")
+	}
+	b.WriteString(indent +
+		orangeMark.Render(strings.Repeat("━", gw+1)) +
+		rule.Render(strings.Repeat("━", rw)) + "\n")
+
+	credit := "created by " + Author
+	lead := max(0, (total-utf8.RuneCountInString(credit))/2)
+	b.WriteString(indent + strings.Repeat(" ", lead) + Dim.Render("created by ") + author.Render(Author))
+	if version != "" {
+		b.WriteString(Dim.Render("   " + version))
+	}
+	b.WriteString("\n")
+
+	out := b.String()
+	bannerCache[version] = out
+	return out
 }
 
 // Banner is the small header printed at the top of a command run.
 func Banner(project, version string) string {
-	mark := Title.Render("⬢ " + AppName)
+	mark := Key.Render("⬢ ") + Title.Render(AppName)
 	meta := Dim.Render(version)
 	if project != "" {
 		meta = Dim.Render(version + "  ·  " + project)
