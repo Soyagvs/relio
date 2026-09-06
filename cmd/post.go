@@ -16,9 +16,10 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "post",
-		Short: "Generate a short announcement from the pending release",
-		Long: "Build social/changelog copy from commits since the last tag.\n" +
-			"Experimental preview of the v0.3.0 content generator — it prints text, nothing is published.",
+		Short: "Generate copy-paste release text for social posts",
+		Long: "Build a short, plain-text announcement from commits since the last tag.\n" +
+			"Only the text goes to stdout, so `go-release post | pbcopy` works cleanly.\n" +
+			"Experimental preview of the v0.3.0 content generator — nothing is published.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()
@@ -32,12 +33,14 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return err
 			}
 			if plan.NothingToRelease() {
-				fmt.Fprintln(out, ui.Info("No commits since the last tag — nothing to announce."))
+				fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
 				return nil
 			}
 
 			var text string
 			switch format {
+			case "minimal", "":
+				text = minimalPost(cfg.Project, plan)
 			case "technical", "tech":
 				text = technicalPost(cfg.Project, plan)
 			case "casual":
@@ -45,32 +48,74 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 			case "changelog":
 				text = plan.Section()
 			default:
-				return fmt.Errorf("unknown format %q (technical|casual|changelog)", format)
+				return fmt.Errorf("unknown format %q (minimal|technical|casual|changelog)", format)
 			}
 
-			fmt.Fprintln(out, ui.Banner(cfg.Project, version))
-			fmt.Fprintln(out)
+			// Text only on stdout so it can be piped straight to the clipboard.
+			fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:"))
 			fmt.Fprintln(out, text)
 			return nil
 		},
 	}
 
-	c.Flags().StringVar(&format, "format", "technical", "technical | casual | changelog")
+	c.Flags().StringVar(&format, "format", "minimal", "minimal | technical | casual | changelog")
 	return c
+}
+
+// groupItems returns up to limit items of one changelog group, breaking prefix removed.
+func groupItems(n changelog.Notes, g changelog.Group, limit int) []string {
+	var items []string
+	for _, it := range n.Groups[g] {
+		items = append(items, strings.TrimPrefix(it, "**Breaking:** "))
+	}
+	if limit > 0 && len(items) > limit {
+		items = items[:limit]
+	}
+	return items
 }
 
 func bulletList(n changelog.Notes, max int) []string {
 	order := []changelog.Group{changelog.Added, changelog.Changed, changelog.Fixed}
 	var items []string
 	for _, g := range order {
-		for _, it := range n.Groups[g] {
-			items = append(items, strings.TrimPrefix(it, "**Breaking:** "))
-		}
+		items = append(items, groupItems(n, g, 0)...)
 	}
 	if max > 0 && len(items) > max {
 		items = items[:max]
 	}
 	return items
+}
+
+// minimalPost is the default: project title with dashes, version, date/time,
+// commit count, then the fixes (and features, if any).
+func minimalPost(project string, p release.Plan) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- %s release ---\n", project)
+	fmt.Fprintf(&b, "%s\n", p.Next.String())
+	fmt.Fprintf(&b, "%s\n\n", p.Now.Format("2006-01-02 15:04"))
+	fmt.Fprintf(&b, "%d commits\n", len(p.Commits))
+
+	added := groupItems(p.Notes, changelog.Added, 6)
+	changed := groupItems(p.Notes, changelog.Changed, 6)
+	fixed := groupItems(p.Notes, changelog.Fixed, 6)
+
+	section := func(title string, items []string) {
+		if len(items) == 0 {
+			return
+		}
+		fmt.Fprintf(&b, "\n%s\n", title)
+		for _, it := range items {
+			fmt.Fprintf(&b, "- %s\n", it)
+		}
+	}
+	section("New", added)
+	section("Changes", changed)
+	section("Fixes", fixed)
+
+	if len(added)+len(changed)+len(fixed) == 0 {
+		b.WriteString("\nMaintenance release.\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func technicalPost(project string, p release.Plan) string {
