@@ -26,7 +26,7 @@ var (
 		{"-C, --dir <path>", "Run as if Go Release was started in <path>"},
 	}
 	refPostFlags = []refRow{
-		{"--format minimal", "Title with dashes, version, date/time, commit count, then New / Changes / Fixes (default)"},
+		{"--format minimal", "Same output as the releases browser: project, version, date, commits, grouped notes (default)"},
 		{"--format technical", "Terse bullet list, for a changelog or a dev channel"},
 		{"--format casual", "Loose tone: \"proj v1.4.0 is out. → …\""},
 		{"--format changelog", "The exact section that goes into CHANGELOG.md"},

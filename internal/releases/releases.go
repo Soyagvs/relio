@@ -151,20 +151,24 @@ func (m model) doDelete() model {
 	return m
 }
 
-// header is the "<project> -- release / <version> / <date time>" block shown
-// above a version's notes.
-func (m model) header(tag gitrepo.TagInfo, commits int) string {
+// meta is the "<date time>  ·  N commits (from..head)" line under the version.
+func meta(tag gitrepo.TagInfo, from string, raw []conventional.Raw) string {
 	when := tag.DateTime
 	if when == "" {
 		when = tag.Date
 	}
-	meta := when
-	if commits > 0 {
-		meta = fmt.Sprintf("%s  ·  %d commits", when, commits)
+	if len(raw) == 0 {
+		return when
 	}
-	return ui.Key.Render(m.project+" -- release") + "\n" +
-		ui.Ok.Render(tag.Name) + "\n" +
-		ui.Dim.Render(meta)
+	head := raw[len(raw)-1].Hash
+	if len(head) > 7 {
+		head = head[:7]
+	}
+	rangeText := head
+	if from != "" {
+		rangeText = from + ".." + head
+	}
+	return fmt.Sprintf("%s  ·  %d commits (%s)", when, len(raw), rangeText)
 }
 
 // notesFor returns the text shown in the detail pane for the tag at idx. It
@@ -178,16 +182,12 @@ func (m model) notesFor(idx int) string {
 		from = m.tags[idx+1].Name // next entry is the previous (lower) version
 	}
 	if raw, err := m.repo.CommitsBetween(from, tag.Name); err == nil && len(raw) > 0 {
-		head := m.header(tag, len(raw))
 		notes := changelog.Build(conventional.ParseMany(raw))
-		if body := ui.Notes(notes); body != "" {
-			return head + "\n\n" + body
-		}
-		return head + "\n\n" + ui.Dim.Render("(no user-facing changes)")
+		return ui.ReleaseText(m.project, tag.Name, meta(tag, from, raw), notes)
 	}
 
 	if s := changelog.ExtractSection(m.changelog, tag.Name); s != "" {
-		return m.header(tag, 0) + "\n\n" + s
+		return ui.ReleaseHeader(m.project, tag.Name, meta(tag, "", nil)) + "\n\n" + s
 	}
 	if msg, _ := m.repo.TagMessage(tag.Name); strings.TrimSpace(msg) != "" {
 		return strings.TrimSpace(msg)

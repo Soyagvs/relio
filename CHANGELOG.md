@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- menu: Head each version in the releases browser with project, version and datetime
+- menu: Make the menu one-shot and add a Release text picker
+- menu: Press enter in the releases browser to print a version and exit
 - menu: Show commit hashes in the releases browser
+- menu: Spell out the d-to-delete shortcut in the releases browser
+
+### Changed
+
+- ui: Put the commit hash first, in purple, on each note line
 
 ## [0.3.0] - 2026-09-06
 

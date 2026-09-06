@@ -54,7 +54,7 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 
 // postFormats is the menu of styles offered by `Release text` in the UI.
 var postFormats = []pick.Item{
-	{Label: "Minimal", Desc: "Title, version, date/time, commit count, then New / Changes / Fixes", Value: "minimal"},
+	{Label: "Minimal", Desc: "Same as the releases browser: project, version, date, commits, grouped notes with hashes", Value: "minimal"},
 	{Label: "Technical", Desc: "Terse bullet list, for a changelog or a dev channel", Value: "technical"},
 	{Label: "Casual", Desc: "Loose tone: \"proj v1.4.0 is out. → …\"", Value: "casual"},
 	{Label: "Changelog", Desc: "The exact section that goes into CHANGELOG.md", Value: "changelog"},
@@ -70,7 +70,7 @@ func renderPost(project string, plan release.Plan, format string) (string, error
 	case "casual":
 		return casualPost(project, plan), nil
 	case "changelog":
-		return plan.Section(), nil
+		return ui.Markdownish(plan.Section()), nil
 	default:
 		return "", fmt.Errorf("unknown format %q (minimal|technical|casual|changelog)", format)
 	}
@@ -113,61 +113,43 @@ func bulletList(n changelog.Notes, max int) []string {
 	return items
 }
 
-// minimalPost is the default: project title with dashes, version, date/time,
-// commit count, then the fixes (and features, if any).
+// minimalPost is the default and is identical to what the releases browser
+// prints for a version: "<project> -- release", version, date/time and commit
+// range, then the grouped notes with commit hashes.
 func minimalPost(project string, p release.Plan) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "--- %s release ---\n", project)
-	fmt.Fprintf(&b, "%s\n", p.Next.String())
-	fmt.Fprintf(&b, "%s\n\n", p.Now.Format("2006-01-02 15:04"))
+	return ui.ReleaseText(project, p.Next.String(), commitMeta(p), p.Notes)
+}
 
+// commitMeta is the "<date time>  ·  N commits (from..head)" line.
+func commitMeta(p release.Plan) string {
+	when := p.Now.Format("2006-01-02 15:04")
+	head := headHash(p.Commits)
 	firstRelease := p.Current.Major == 0 && p.Current.Minor == 0 && p.Current.Patch == 0
-	if head := headHash(p.Commits); head == "" {
-		fmt.Fprintf(&b, "%d commits\n", len(p.Commits))
-	} else if firstRelease {
-		fmt.Fprintf(&b, "%d commits (%s)\n", len(p.Commits), head)
-	} else {
-		fmt.Fprintf(&b, "%d commits (%s..%s)\n", len(p.Commits), p.Current.String(), head)
+	switch {
+	case head == "":
+		return fmt.Sprintf("%s  ·  %d commits", when, len(p.Commits))
+	case firstRelease:
+		return fmt.Sprintf("%s  ·  %d commits (%s)", when, len(p.Commits), head)
+	default:
+		return fmt.Sprintf("%s  ·  %d commits (%s..%s)", when, len(p.Commits), p.Current.String(), head)
 	}
-
-	added := groupItems(p.Notes, changelog.Added, 6)
-	changed := groupItems(p.Notes, changelog.Changed, 6)
-	fixed := groupItems(p.Notes, changelog.Fixed, 6)
-
-	section := func(title string, items []string) {
-		if len(items) == 0 {
-			return
-		}
-		fmt.Fprintf(&b, "\n%s\n", title)
-		for _, it := range items {
-			fmt.Fprintf(&b, "- %s\n", it)
-		}
-	}
-	section("New", added)
-	section("Changes", changed)
-	section("Fixes", fixed)
-
-	if len(added)+len(changed)+len(fixed) == 0 {
-		b.WriteString("\nMaintenance release.\n")
-	}
-	return strings.TrimRight(b.String(), "\n")
 }
 
 func technicalPost(project string, p release.Plan) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s — %s\n\n", project, p.Next.String())
+	fmt.Fprintf(&b, "%s %s\n\n", ui.Key.Render(project), ui.Ok.Render(p.Next.String()))
 	for _, it := range bulletList(p.Notes, 5) {
-		fmt.Fprintf(&b, "• %s\n", it)
+		fmt.Fprintf(&b, "%s %s\n", ui.Dim.Render("•"), it)
 	}
-	fmt.Fprintf(&b, "\n%d commits · %s", len(p.Commits), p.Next.String())
+	fmt.Fprintf(&b, "\n%s", ui.Dim.Render(fmt.Sprintf("%d commits · %s", len(p.Commits), p.Next.String())))
 	return b.String()
 }
 
 func casualPost(project string, p release.Plan) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s is out.\n\n", project, p.Next.String())
+	fmt.Fprintf(&b, "%s %s %s\n\n", ui.Key.Render(project), ui.Ok.Render(p.Next.String()), ui.Dim.Render("is out."))
 	for _, it := range bulletList(p.Notes, 4) {
-		fmt.Fprintf(&b, "→ %s\n", it)
+		fmt.Fprintf(&b, "%s %s\n", ui.Key.Render("→"), it)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

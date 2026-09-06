@@ -9,6 +9,7 @@ import (
 	"github.com/soyagvs/go-release/internal/conventional"
 	"github.com/soyagvs/go-release/internal/release"
 	"github.com/soyagvs/go-release/internal/semver"
+	"github.com/soyagvs/go-release/internal/ui"
 )
 
 func samplePlan() release.Plan {
@@ -33,35 +34,45 @@ func samplePlan() release.Plan {
 func TestMinimalPost(t *testing.T) {
 	got := minimalPost("gestam-frontend", samplePlan())
 
-	wantLines := []string{
-		"--- gestam-frontend release ---",
+	for _, w := range []string{
+		"gestam-frontend -- release",
 		"v1.4.0",
-		"2026-09-06 14:30",
-		"6 commits (v1.3.2..6666666)",
-		"Fixes",
-		"- Crash on empty account list",
-		"- kiosk: Header alignment",
-	}
-	for _, w := range wantLines {
+		"2026-09-06 14:30  ·  6 commits (v1.3.2..6666666)",
+		"Added",
+		"1111111  Add transaction categories",
+		"Fixed",
+		"3333333  Crash on empty account list",
+		"4444444  kiosk: Header alignment",
+	} {
 		if !strings.Contains(got, w) {
 			t.Errorf("missing %q in:\n%s", w, got)
 		}
 	}
 
-	// title is the first line, version the second, timestamp the third
 	lines := strings.Split(got, "\n")
-	if lines[0] != "--- gestam-frontend release ---" {
+	if lines[0] != "gestam-frontend -- release" {
 		t.Errorf("line 1 = %q", lines[0])
 	}
 	if lines[1] != "v1.4.0" {
 		t.Errorf("line 2 = %q", lines[1])
 	}
-	if lines[2] != "2026-09-06 14:30" {
+	if lines[2] != "2026-09-06 14:30  ·  6 commits (v1.3.2..6666666)" {
 		t.Errorf("line 3 = %q", lines[2])
 	}
 }
 
-func TestMinimalPostMaintenanceOnly(t *testing.T) {
+// minimalPost must be byte-for-byte the releases-browser output for the same
+// project, version, meta and notes.
+func TestMinimalPostMatchesReleasesBrowser(t *testing.T) {
+	p := samplePlan()
+	got := minimalPost("gestam-frontend", p)
+	want := ui.ReleaseText("gestam-frontend", p.Next.String(), commitMeta(p), p.Notes)
+	if got != want {
+		t.Errorf("minimalPost diverged from ui.ReleaseText:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestMinimalPostNoNotableChanges(t *testing.T) {
 	commits := []conventional.Commit{{Type: "chore", Description: "bump deps"}}
 	p := release.Plan{
 		Next:    semver.Version{Minor: 1, Prefix: "v"},
@@ -73,7 +84,7 @@ func TestMinimalPostMaintenanceOnly(t *testing.T) {
 	if !strings.Contains(got, "1 commits") {
 		t.Errorf("commit count missing:\n%s", got)
 	}
-	if !strings.Contains(got, "Maintenance release.") {
-		t.Errorf("expected maintenance fallback:\n%s", got)
+	if !strings.Contains(got, "(no user-facing changes)") {
+		t.Errorf("expected the no-changes note:\n%s", got)
 	}
 }

@@ -170,6 +170,44 @@ func Notes(n changelog.Notes) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// ReleaseHeader is the "<project> -- release / <version> / <meta>" block.
+func ReleaseHeader(project, version, meta string) string {
+	return Key.Render(project+" -- release") + "\n" +
+		Ok.Render(version) + "\n" +
+		Dim.Render(meta)
+}
+
+// ReleaseText renders the canonical release summary shared by the releases
+// browser and `post --format minimal`: the header plus the grouped notes with
+// commit hashes. Colours are stripped automatically when stdout is not a TTY.
+func ReleaseText(project, version, meta string, notes changelog.Notes) string {
+	body := Notes(notes)
+	if strings.TrimSpace(body) == "" {
+		body = Dim.Render("(no user-facing changes)")
+	}
+	return ReleaseHeader(project, version, meta) + "\n\n" + body
+}
+
+// Markdownish adds colour to a plain Keep a Changelog block for terminal display
+// without changing the text (it stays a valid changelog section).
+func Markdownish(s string) string {
+	var b strings.Builder
+	for _, ln := range strings.Split(s, "\n") {
+		switch {
+		case strings.HasPrefix(ln, "## "):
+			b.WriteString(Title.Render(ln))
+		case strings.HasPrefix(ln, "### "):
+			b.WriteString(group.Render(ln))
+		case strings.HasPrefix(ln, "- "):
+			b.WriteString(Dim.Render("- ") + strings.TrimPrefix(ln, "- "))
+		default:
+			b.WriteString(ln)
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 // PlanView is the full non-interactive preview: card + notes + commit count.
 func PlanView(p release.Plan) string {
 	parts := []string{PlanBox(p), ""}
