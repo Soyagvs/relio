@@ -168,7 +168,7 @@ func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
 	}
 
 	out := m.View() // this is what stays in the terminal
-	for _, want := range []string{"demo -- release", "v0.1.0", "2026-08-01 09:15", "First thing", "bbbbbbb"} {
+	for _, want := range []string{"relio -- release", "demo · v0.1.0", "2026-08-01 · 09:15 · 1 commits", "First thing", "bbbbbbb"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("exit output missing %q:\n%s", want, out)
 		}

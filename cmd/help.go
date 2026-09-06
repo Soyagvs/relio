@@ -23,6 +23,7 @@ var (
 		{"-y, --yes", "Skip the menu and the confirmation (required in CI or a non-interactive shell)"},
 		{"--no-changelog", "Do not modify the changelog file"},
 		{"--no-tag", "Do not create the git tag"},
+		{"--no-hash", "Hide the commit hash on each release-note line"},
 		{"-C, --dir <path>", "Run as if Relio was started in <path>"},
 	}
 	refPostFlags = []refRow{

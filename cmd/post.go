@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/changelog"
-	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
@@ -76,19 +75,6 @@ func renderPost(project string, plan release.Plan, format string) (string, error
 	}
 }
 
-// headHash is the abbreviated hash of the newest commit in the release
-// (BuildPlan returns commits oldest-first, so HEAD is last). "" when unknown.
-func headHash(commits []conventional.Commit) string {
-	if len(commits) == 0 {
-		return ""
-	}
-	h := commits[len(commits)-1].Hash
-	if len(h) > 7 {
-		h = h[:7]
-	}
-	return h
-}
-
 // groupItems returns up to limit items of one changelog group, breaking prefix removed.
 func groupItems(n changelog.Notes, g changelog.Group, limit int) []string {
 	var items []string
@@ -114,25 +100,14 @@ func bulletList(n changelog.Notes, max int) []string {
 }
 
 // minimalPost is the default and is identical to what the releases browser
-// prints for a version: "<project> -- release", version, date/time and commit
-// range, then the grouped notes with commit hashes.
+// prints for a version: the "<cli> -- release" header, "<project> · <version>",
+// "<date> · <time> · N commits", then the grouped notes.
 func minimalPost(project string, p release.Plan) string {
 	return ui.ReleaseText(project, p.Next.String(), commitMeta(p), p.Notes)
 }
 
-// commitMeta is the "<date time>  ·  N commits (from..head)" line.
 func commitMeta(p release.Plan) string {
-	when := p.Now.Format("2006-01-02 15:04")
-	head := headHash(p.Commits)
-	firstRelease := p.Current.Major == 0 && p.Current.Minor == 0 && p.Current.Patch == 0
-	switch {
-	case head == "":
-		return fmt.Sprintf("%s  ·  %d commits", when, len(p.Commits))
-	case firstRelease:
-		return fmt.Sprintf("%s  ·  %d commits (%s)", when, len(p.Commits), head)
-	default:
-		return fmt.Sprintf("%s  ·  %d commits (%s..%s)", when, len(p.Commits), p.Current.String(), head)
-	}
+	return ui.ReleaseMeta(p.Now.Format("2006-01-02 15:04"), len(p.Commits))
 }
 
 func technicalPost(project string, p release.Plan) string {

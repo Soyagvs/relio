@@ -152,7 +152,11 @@ func PlanBox(p release.Plan) string {
 	return box.Render(strings.Join(lines, "\n"))
 }
 
-// Notes renders the grouped release notes as indented bullet lists.
+// HideHashes suppresses the per-line commit hash in Notes (set by --no-hash).
+var HideHashes bool
+
+// Notes renders the grouped release notes as indented lists, "hash  text" per
+// line unless HideHashes is set.
 func Notes(n changelog.Notes) string {
 	order := []changelog.Group{
 		changelog.Added, changelog.Changed, changelog.Deprecated,
@@ -166,21 +170,32 @@ func Notes(n changelog.Notes) string {
 		}
 		b.WriteString(group.Render(string(g)) + "\n")
 		for _, it := range items {
-			marker := Dim.Render("      •")
-			if it.Hash != "" {
-				marker = hash.Render(fmt.Sprintf("%7s", it.Hash))
+			if HideHashes || it.Hash == "" {
+				b.WriteString("  " + Dim.Render("•") + " " + it.Text + "\n")
+				continue
 			}
-			b.WriteString("  " + marker + "  " + it.Text + "\n")
+			b.WriteString("  " + hash.Render(fmt.Sprintf("%7s", it.Hash)) + "  " + it.Text + "\n")
 		}
 		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// ReleaseHeader is the "<project> -- release / <version> / <meta>" block.
+// ReleaseMeta is the "<date> · <time> · N commits" line. datetime is
+// "2006-01-02 15:04".
+func ReleaseMeta(datetime string, commits int) string {
+	return fmt.Sprintf("%s · %d commits", strings.Replace(datetime, " ", " · ", 1), commits)
+}
+
+// ReleaseHeader is the block above a version's notes:
+//
+//	relio -- release
+//
+//	<project> · <version>
+//	<meta>
 func ReleaseHeader(project, version, meta string) string {
-	return Key.Render(project+" -- release") + "\n" +
-		Ok.Render(version) + "\n" +
+	return Key.Render(strings.ToLower(AppName)+" -- release") + "\n\n" +
+		Key.Render(project) + Dim.Render(" · ") + Ok.Render(version) + "\n" +
 		Dim.Render(meta)
 }
 

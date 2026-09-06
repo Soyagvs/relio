@@ -37,6 +37,7 @@ type releaseFlags struct {
 	yes         bool
 	noChangelog bool
 	noTag       bool
+	noHash      bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -55,6 +56,9 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			ui.HideHashes = f.noHash
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRoot(cmd, f)
 		},
@@ -64,6 +68,7 @@ func NewRootCmd() *cobra.Command {
 
 	pf := root.PersistentFlags()
 	pf.StringVarP(&f.dir, "dir", "C", ".", "run as if relio was started in `path`")
+	pf.BoolVar(&f.noHash, "no-hash", false, "hide commit hashes in release notes")
 
 	lf := root.Flags()
 	lf.BoolVar(&f.patch, "patch", false, "force a PATCH bump")

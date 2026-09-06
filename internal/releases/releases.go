@@ -151,24 +151,13 @@ func (m model) doDelete() model {
 	return m
 }
 
-// meta is the "<date time>  ·  N commits (from..head)" line under the version.
-func meta(tag gitrepo.TagInfo, from string, raw []conventional.Raw) string {
+// metaFor is the "<date> · <time> · N commits" line under the version.
+func metaFor(tag gitrepo.TagInfo, commits int) string {
 	when := tag.DateTime
 	if when == "" {
 		when = tag.Date
 	}
-	if len(raw) == 0 {
-		return when
-	}
-	head := raw[len(raw)-1].Hash
-	if len(head) > 7 {
-		head = head[:7]
-	}
-	rangeText := head
-	if from != "" {
-		rangeText = from + ".." + head
-	}
-	return fmt.Sprintf("%s  ·  %d commits (%s)", when, len(raw), rangeText)
+	return ui.ReleaseMeta(when, commits)
 }
 
 // notesFor returns the text shown in the detail pane for the tag at idx. It
@@ -183,11 +172,11 @@ func (m model) notesFor(idx int) string {
 	}
 	if raw, err := m.repo.CommitsBetween(from, tag.Name); err == nil && len(raw) > 0 {
 		notes := changelog.Build(conventional.ParseMany(raw))
-		return ui.ReleaseText(m.project, tag.Name, meta(tag, from, raw), notes)
+		return ui.ReleaseText(m.project, tag.Name, metaFor(tag, len(raw)), notes)
 	}
 
 	if s := changelog.ExtractSection(m.changelog, tag.Name); s != "" {
-		return ui.ReleaseHeader(m.project, tag.Name, meta(tag, "", nil)) + "\n\n" + s
+		return ui.ReleaseHeader(m.project, tag.Name, metaFor(tag, 0)) + "\n\n" + s
 	}
 	if msg, _ := m.repo.TagMessage(tag.Name); strings.TrimSpace(msg) != "" {
 		return strings.TrimSpace(msg)
@@ -241,12 +230,8 @@ func (m model) View() string {
 		if m.status != "" {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
-		if tag, ok := m.selected(); ok {
-			b.WriteString("\n\n" + ui.Key.Render("enter") +
-				ui.Dim.Render(fmt.Sprintf(" — print %s's notes to the terminal and leave", tag.Name)))
-			b.WriteString("\n" + ui.Key.Render("d") +
-				ui.Dim.Render(fmt.Sprintf(" — delete %s (git tag + its CHANGELOG section)", tag.Name)))
-		}
+		b.WriteString("\n\n" + ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit"))
+		b.WriteString("\n" + ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release"))
 		b.WriteString("\n\n" + keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
 			keyHint("d", "delete") + keyHint("q", "back"))
 	}

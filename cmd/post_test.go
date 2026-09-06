@@ -35,9 +35,9 @@ func TestMinimalPost(t *testing.T) {
 	got := minimalPost("gestam-frontend", samplePlan())
 
 	for _, w := range []string{
-		"gestam-frontend -- release",
-		"v1.4.0",
-		"2026-09-06 14:30  ·  6 commits (v1.3.2..6666666)",
+		"relio -- release",
+		"gestam-frontend · v1.4.0",
+		"2026-09-06 · 14:30 · 6 commits",
 		"Added",
 		"1111111  Add transaction categories",
 		"Fixed",
@@ -48,16 +48,32 @@ func TestMinimalPost(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", w, got)
 		}
 	}
+	if strings.Contains(got, "v1.3.2..") {
+		t.Errorf("commit range should be gone:\n%s", got)
+	}
 
 	lines := strings.Split(got, "\n")
-	if lines[0] != "gestam-frontend -- release" {
+	if lines[0] != "relio -- release" {
 		t.Errorf("line 1 = %q", lines[0])
 	}
-	if lines[1] != "v1.4.0" {
-		t.Errorf("line 2 = %q", lines[1])
-	}
-	if lines[2] != "2026-09-06 14:30  ·  6 commits (v1.3.2..6666666)" {
+	if lines[2] != "gestam-frontend · v1.4.0" {
 		t.Errorf("line 3 = %q", lines[2])
+	}
+	if lines[3] != "2026-09-06 · 14:30 · 6 commits" {
+		t.Errorf("line 4 = %q", lines[3])
+	}
+}
+
+func TestNoHashHidesHashes(t *testing.T) {
+	ui.HideHashes = true
+	defer func() { ui.HideHashes = false }()
+
+	got := minimalPost("proj", samplePlan())
+	if strings.Contains(got, "1111111") || strings.Contains(got, "3333333") {
+		t.Errorf("--no-hash should drop hashes:\n%s", got)
+	}
+	if !strings.Contains(got, "• Add transaction categories") {
+		t.Errorf("expected plain bullet lines:\n%s", got)
 	}
 }
 
