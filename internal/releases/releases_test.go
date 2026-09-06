@@ -8,18 +8,24 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/soyagvs/go-release/internal/conventional"
 	"github.com/soyagvs/go-release/internal/gitrepo"
 )
 
 type fakeRepo struct {
 	tags     []gitrepo.TagInfo
 	messages map[string]string
+	commits  map[string][]conventional.Raw // keyed by "to" tag name
 	deleted  []string
 }
 
 func (f *fakeRepo) Tags() ([]gitrepo.TagInfo, error) { return f.tags, nil }
 
 func (f *fakeRepo) TagMessage(name string) (string, error) { return f.messages[name], nil }
+
+func (f *fakeRepo) CommitsBetween(from, to string) ([]conventional.Raw, error) {
+	return f.commits[to], nil
+}
 
 func (f *fakeRepo) DeleteTag(name string) error {
 	f.deleted = append(f.deleted, name)
@@ -70,6 +76,10 @@ func setup(t *testing.T) (*fakeRepo, string) {
 			{Name: "v0.1.0", Date: "2026-08-01", Subject: "release v0.1.0"},
 		},
 		messages: map[string]string{"v0.2.0": "release v0.2.0", "v0.1.0": "release v0.1.0"},
+		commits: map[string][]conventional.Raw{
+			"v0.2.0": {{Hash: "aaaaaaa0000000", Subject: "fix: second thing"}},
+			"v0.1.0": {{Hash: "bbbbbbb0000000", Subject: "feat: first thing"}},
+		},
 	}
 	return fr, path
 }
@@ -86,16 +96,22 @@ func TestListsAllVersions(t *testing.T) {
 	}
 }
 
-func TestDetailShowsChangelogSectionForSelection(t *testing.T) {
+func TestDetailShowsNotesWithCommitHashForSelection(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, path)
 
-	if !strings.Contains(m.View(), "Second thing") {
-		t.Errorf("expected v0.2.0 notes in view:\n%s", m.View())
+	v := m.View()
+	if !strings.Contains(v, "Second thing") {
+		t.Errorf("expected v0.2.0 notes in view:\n%s", v)
 	}
+	if !strings.Contains(v, "aaaaaaa") {
+		t.Errorf("expected v0.2.0 commit hash next to its note:\n%s", v)
+	}
+
 	m = send(m, "down") // select v0.1.0
-	if !strings.Contains(m.View(), "First thing") {
-		t.Errorf("expected v0.1.0 notes after moving down:\n%s", m.View())
+	v = m.View()
+	if !strings.Contains(v, "First thing") || !strings.Contains(v, "bbbbbbb") {
+		t.Errorf("expected v0.1.0 note + hash after moving down:\n%s", v)
 	}
 }
 

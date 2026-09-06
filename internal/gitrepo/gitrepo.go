@@ -106,12 +106,21 @@ func (r *Repo) DeleteTag(name string) error {
 // CommitsSince returns commits in sinceTag..HEAD, oldest first. When sinceTag is
 // empty every commit reachable from HEAD is returned.
 func (r *Repo) CommitsSince(sinceTag string) ([]conventional.Raw, error) {
-	format := "%H" + unitSep + "%s" + unitSep + "%b" + recordSep
-	args := []string{"log", "--reverse", "--no-merges", "--pretty=format:" + format}
-	if sinceTag != "" {
-		args = append(args, sinceTag+"..HEAD")
+	return r.CommitsBetween(sinceTag, "")
+}
+
+// CommitsBetween returns commits in from..to, oldest first. Empty from means
+// "from the start of history"; empty to means HEAD.
+func (r *Repo) CommitsBetween(from, to string) ([]conventional.Raw, error) {
+	if to == "" {
+		to = "HEAD"
 	}
-	out, err := run(r.root, args...)
+	spec := to
+	if from != "" {
+		spec = from + ".." + to
+	}
+	format := "%H" + unitSep + "%s" + unitSep + "%b" + recordSep
+	out, err := run(r.root, "log", "--reverse", "--no-merges", "--pretty=format:"+format, spec)
 	if err != nil {
 		return nil, err
 	}

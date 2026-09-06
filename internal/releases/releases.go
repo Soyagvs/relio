@@ -13,6 +13,7 @@ import (
 
 	"github.com/soyagvs/go-release/internal/changelog"
 	"github.com/soyagvs/go-release/internal/config"
+	"github.com/soyagvs/go-release/internal/conventional"
 	"github.com/soyagvs/go-release/internal/gitrepo"
 	"github.com/soyagvs/go-release/internal/ui"
 )
@@ -23,6 +24,7 @@ type repoPort interface {
 	Tags() ([]gitrepo.TagInfo, error)
 	TagMessage(name string) (string, error)
 	DeleteTag(name string) error
+	CommitsBetween(from, to string) ([]conventional.Raw, error)
 }
 
 type mode int
@@ -141,8 +143,25 @@ func (m model) doDelete() model {
 	return m
 }
 
-// notesFor returns the text shown in the detail pane for a tag.
-func (m model) notesFor(tag gitrepo.TagInfo) string {
+// notesFor returns the text shown in the detail pane for the tag at idx. It
+// rebuilds the notes from the commits that landed in that version so each line
+// carries its commit hash; the changelog section and tag message are fallbacks.
+func (m model) notesFor(idx int) string {
+	tag := m.tags[idx]
+
+	from := ""
+	if idx+1 < len(m.tags) {
+		from = m.tags[idx+1].Name // next entry is the previous (lower) version
+	}
+	if raw, err := m.repo.CommitsBetween(from, tag.Name); err == nil && len(raw) > 0 {
+		head := ui.Key.Render(tag.Name) + ui.Dim.Render(fmt.Sprintf("  ·  %d commits", len(raw)))
+		notes := changelog.Build(conventional.ParseMany(raw))
+		if body := ui.Notes(notes); body != "" {
+			return head + "\n\n" + body
+		}
+		return head + "\n\n" + ui.Dim.Render("(no user-facing changes)")
+	}
+
 	if s := changelog.ExtractSection(m.changelog, tag.Name); s != "" {
 		return s
 	}
@@ -153,12 +172,10 @@ func (m model) notesFor(tag gitrepo.TagInfo) string {
 }
 
 var (
-	paneStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder(), false, false, false, true).
-			BorderForeground(lipgloss.Color("245")).
-			PaddingLeft(2).
-			MarginTop(1)
-	rowSel = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
+	// A plain indent, not a box-drawing border, so the pane stays readable on
+	// terminals with a non-UTF-8 code page.
+	paneStyle = lipgloss.NewStyle().PaddingLeft(3).MarginTop(1)
+	rowSel    = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
 )
 
 func (m model) View() string {
@@ -188,8 +205,8 @@ func (m model) View() string {
 		}
 	}
 
-	if tag, ok := m.selected(); ok {
-		b.WriteString(paneStyle.Render(m.notesFor(tag)))
+	if _, ok := m.selected(); ok {
+		b.WriteString(paneStyle.Render(m.notesFor(m.cursor)))
 		b.WriteString("\n")
 	}
 
