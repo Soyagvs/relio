@@ -1,5 +1,6 @@
 BINARY  := relio
-VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
+# The tag only when HEAD is exactly on one; "dev" while there is unreleased work.
+VERSION := $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/soyagvs/relio/cmd.version=$(VERSION)
 
 .PHONY: build install test run tidy
