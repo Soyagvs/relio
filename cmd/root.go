@@ -14,6 +14,7 @@ import (
 	"github.com/soyagvs/go-release/internal/config"
 	"github.com/soyagvs/go-release/internal/gitrepo"
 	"github.com/soyagvs/go-release/internal/menu"
+	"github.com/soyagvs/go-release/internal/pick"
 	"github.com/soyagvs/go-release/internal/release"
 	"github.com/soyagvs/go-release/internal/releases"
 	"github.com/soyagvs/go-release/internal/semver"
@@ -144,58 +145,84 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 		return doRelease(out, repo, cfg, f, force, interactive)
 	}
 
-	return runMenu(out, f)
+	return runMenu(cmd, f)
 }
 
-// runMenu loops the main menu until the user chooses Exit.
-func runMenu(out io.Writer, f *releaseFlags) error {
-	for {
-		action, err := menu.Run(version)
-		if err != nil {
-			return err
-		}
+// runMenu shows the main menu once, runs the chosen action, and returns. It does
+// not loop — the action's output stays on screen as the last thing printed.
+func runMenu(cmd *cobra.Command, f *releaseFlags) error {
+	out := cmd.OutOrStdout()
 
-		switch action {
-		case menu.Exit, menu.None:
-			fmt.Fprintln(out, ui.Info("See you next release."))
-			return nil
-
-		case menu.Help:
-			fmt.Fprintln(out, helpReference())
-			fmt.Fprintln(out)
-
-		case menu.GitHubAuth:
-			fmt.Fprintln(out, ui.Banner("", version))
-			fmt.Fprintln(out)
-			fmt.Fprintln(out, ui.Info("GitHub auth lands in v0.2.0: per-user OAuth Device Flow,"))
-			fmt.Fprintln(out, ui.Info("tokens stored in the OS keychain — never in .release.yaml."))
-			fmt.Fprintln(out)
-
-		case menu.CreateRelease:
-			repo, cfg, oerr := openRepoAndConfig(f.dir)
-			if oerr != nil {
-				fmt.Fprintln(out, ui.Warn.Render("✗ ")+oerr.Error())
-				fmt.Fprintln(out)
-				continue
-			}
-			if derr := doRelease(out, repo, cfg, f, semver.None, true); derr != nil {
-				fmt.Fprintln(out, ui.Warn.Render("✗ ")+derr.Error())
-			}
-			fmt.Fprintln(out)
-
-		case menu.ViewReleases:
-			repo, cfg, oerr := openRepoAndConfig(f.dir)
-			if oerr != nil {
-				fmt.Fprintln(out, ui.Warn.Render("✗ ")+oerr.Error())
-				fmt.Fprintln(out)
-				continue
-			}
-			if rerr := releases.Run(repo, cfg); rerr != nil {
-				fmt.Fprintln(out, ui.Warn.Render("✗ ")+rerr.Error())
-			}
-			fmt.Fprintln(out)
-		}
+	action, err := menu.Run(version)
+	if err != nil {
+		return err
 	}
+
+	switch action {
+	case menu.Exit, menu.None:
+		return nil
+
+	case menu.Help:
+		fmt.Fprintln(out, helpReference())
+		return nil
+
+	case menu.GitHubAuth:
+		fmt.Fprintln(out, ui.Banner("", version))
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, ui.Info("GitHub auth lands in v0.2.0: per-user OAuth Device Flow,"))
+		fmt.Fprintln(out, ui.Info("tokens stored in the OS keychain — never in .release.yaml."))
+		return nil
+
+	case menu.CreateRelease:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		return doRelease(out, repo, cfg, f, semver.None, true)
+
+	case menu.ViewReleases:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		return releases.Run(repo, cfg)
+
+	case menu.ReleaseText:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		return runReleaseText(cmd, repo, cfg)
+	}
+	return nil
+}
+
+// runReleaseText asks for a post format, then prints the text (stdout only).
+func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error {
+	plan, err := release.BuildPlan(repo, cfg, release.Options{})
+	if err != nil {
+		return err
+	}
+	if plan.NothingToRelease() {
+		fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
+		return nil
+	}
+
+	format, chosen, err := pick.Run("Release text — pick a format", postFormats)
+	if err != nil {
+		return err
+	}
+	if !chosen {
+		return nil
+	}
+
+	text, err := renderPost(cfg.Project, plan, format)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:"))
+	fmt.Fprintln(cmd.OutOrStdout(), text)
+	return nil
 }
 
 // doRelease builds a plan, confirms it (wizard when interactive), and applies it.

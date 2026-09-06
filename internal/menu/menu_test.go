@@ -39,22 +39,29 @@ func TestSelectViewReleases(t *testing.T) {
 	}
 }
 
-func TestSelectAuth(t *testing.T) {
+func TestSelectReleaseText(t *testing.T) {
 	m := send(model{}, "down", "down", "enter")
+	if m.result != ReleaseText {
+		t.Errorf("result = %v, want ReleaseText", m.result)
+	}
+}
+
+func TestSelectAuth(t *testing.T) {
+	m := send(model{}, "down", "down", "down", "enter")
 	if m.result != GitHubAuth {
 		t.Errorf("result = %v, want GitHubAuth", m.result)
 	}
 }
 
 func TestSelectHelp(t *testing.T) {
-	m := send(model{}, "down", "down", "down", "enter")
+	m := send(model{}, "down", "down", "down", "down", "enter")
 	if m.result != Help {
 		t.Errorf("result = %v, want Help", m.result)
 	}
 }
 
 func TestSelectExit(t *testing.T) {
-	m := send(model{}, "down", "down", "down", "down", "enter")
+	m := send(model{}, "down", "down", "down", "down", "down", "enter")
 	if m.result != Exit {
 		t.Errorf("result = %v, want Exit", m.result)
 	}
@@ -72,7 +79,9 @@ func TestCursorClamps(t *testing.T) {
 	if m.cursor != 0 {
 		t.Errorf("cursor = %d, want 0", m.cursor)
 	}
-	m = send(m, "down", "down", "down", "down")
+	for range items {
+		m = send(m, "down")
+	}
 	if m.cursor != len(items)-1 {
 		t.Errorf("cursor = %d, want %d", m.cursor, len(items)-1)
 	}

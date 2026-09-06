@@ -51,17 +51,26 @@ Running `go-release` with no arguments in a terminal opens the menu:
     Version, changelog, and tag from commits since the last tag
   Releases
     List every version, read its notes, or delete one
+  Release text
+    Copy-paste announcement for social posts — pick a format
   GitHub auth
     Log in with your own GitHub account (coming in v0.2.0)
+  Help
+    Every command and flag, with a one-line description
   Exit
     Leave Go Release
 
 ↑/↓ move · enter select · q quit
 ```
 
+The menu runs **one action and exits** — the result stays on screen. Run
+`go-release` again for another action.
+
 **Releases** opens a browser of every tag: move with `↑/↓` to read each
-version's changelog notes, press `d` to delete one (removes the git tag **and**
-its `CHANGELOG.md` section, after a `y/N` confirm), `q` to go back.
+version's notes (with commit hashes), press `d` to delete one (removes the git
+tag **and** its `CHANGELOG.md` section, after a `y/N` confirm), `q` to go back.
+
+**Release text** asks which format you want, then prints the announcement.
 
 In CI or when piped (no TTY), or with `--yes` / a forced bump, the menu is
 skipped and a release runs directly.

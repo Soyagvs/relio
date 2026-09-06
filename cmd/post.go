@@ -8,6 +8,7 @@ import (
 
 	"github.com/soyagvs/go-release/internal/changelog"
 	"github.com/soyagvs/go-release/internal/conventional"
+	"github.com/soyagvs/go-release/internal/pick"
 	"github.com/soyagvs/go-release/internal/release"
 	"github.com/soyagvs/go-release/internal/ui"
 )
@@ -23,8 +24,6 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 			"Experimental preview of the v0.3.0 content generator — nothing is published.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
-
 			repo, cfg, err := openRepoAndConfig(f.dir)
 			if err != nil {
 				return err
@@ -38,29 +37,43 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return nil
 			}
 
-			var text string
-			switch format {
-			case "minimal", "":
-				text = minimalPost(cfg.Project, plan)
-			case "technical", "tech":
-				text = technicalPost(cfg.Project, plan)
-			case "casual":
-				text = casualPost(cfg.Project, plan)
-			case "changelog":
-				text = plan.Section()
-			default:
-				return fmt.Errorf("unknown format %q (minimal|technical|casual|changelog)", format)
+			text, err := renderPost(cfg.Project, plan, format)
+			if err != nil {
+				return err
 			}
-
 			// Text only on stdout so it can be piped straight to the clipboard.
 			fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:"))
-			fmt.Fprintln(out, text)
+			fmt.Fprintln(cmd.OutOrStdout(), text)
 			return nil
 		},
 	}
 
 	c.Flags().StringVar(&format, "format", "minimal", "minimal | technical | casual | changelog")
 	return c
+}
+
+// postFormats is the menu of styles offered by `Release text` in the UI.
+var postFormats = []pick.Item{
+	{Label: "Minimal", Desc: "Title, version, date/time, commit count, then New / Changes / Fixes", Value: "minimal"},
+	{Label: "Technical", Desc: "Terse bullet list, for a changelog or a dev channel", Value: "technical"},
+	{Label: "Casual", Desc: "Loose tone: \"proj v1.4.0 is out. → …\"", Value: "casual"},
+	{Label: "Changelog", Desc: "The exact section that goes into CHANGELOG.md", Value: "changelog"},
+}
+
+// renderPost builds the announcement text for the given format.
+func renderPost(project string, plan release.Plan, format string) (string, error) {
+	switch format {
+	case "minimal", "":
+		return minimalPost(project, plan), nil
+	case "technical", "tech":
+		return technicalPost(project, plan), nil
+	case "casual":
+		return casualPost(project, plan), nil
+	case "changelog":
+		return plan.Section(), nil
+	default:
+		return "", fmt.Errorf("unknown format %q (minimal|technical|casual|changelog)", format)
+	}
 }
 
 // headHash is the abbreviated hash of the newest commit in the release

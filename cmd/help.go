@@ -34,6 +34,7 @@ var (
 	refMenu = []refRow{
 		{"Create a release", "Same as running `go-release` with no arguments"},
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
+		{"Release text", "Pick a post format and print copy-paste text (same as `go-release post`)"},
 		{"GitHub auth", "Preview of the v0.2.0 GitHub integration"},
 		{"Help", "This screen"},
 		{"Exit", "Leave Go Release"},

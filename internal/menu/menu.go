@@ -19,6 +19,7 @@ const (
 	None Action = iota
 	CreateRelease
 	ViewReleases
+	ReleaseText
 	GitHubAuth
 	Help
 	Exit
@@ -33,6 +34,7 @@ type item struct {
 var items = []item{
 	{"Create a release", "Version, changelog, and tag from commits since the last tag", CreateRelease},
 	{"Releases", "List every version, read its notes, or delete one", ViewReleases},
+	{"Release text", "Copy-paste announcement for social posts — pick a format", ReleaseText},
 	{"GitHub auth", "Log in with your own GitHub account (coming in v0.2.0)", GitHubAuth},
 	{"Help", "Every command and flag, with a one-line description", Help},
 	{"Exit", "Leave Go Release", Exit},
@@ -79,8 +81,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.done {
-		// Leave a one-line trace in the scrollback instead of wiping the frame.
-		return ui.Dim.Render("⬢ Go Release — menu closed") + "\n"
+		// The chosen action prints its own output next; stay quiet on exit.
+		return ""
 	}
 	var b strings.Builder
 	b.WriteString(ui.BigBanner(m.version) + "\n\n")
