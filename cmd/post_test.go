@@ -64,6 +64,33 @@ func TestMinimalPost(t *testing.T) {
 	}
 }
 
+func TestSocialPost(t *testing.T) {
+	got := socialPost("azeink", samplePlan())
+	lines := strings.Split(got, "\n")
+
+	if lines[0] != "azeink -- Release" && lines[0] != "Azeink -- Release" {
+		t.Errorf("line 1 = %q", lines[0])
+	}
+	if lines[2] != "v1.4.0 · 06.09.26 · 14:30" {
+		t.Errorf("meta line = %q", lines[2])
+	}
+	hasRow := func(typ, desc string) bool {
+		for _, ln := range lines {
+			if strings.HasPrefix(strings.TrimSpace(ln), typ) && strings.Contains(ln, desc) {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasRow("feat", "Add transaction categories") || !hasRow("fix", "Crash on empty account list") {
+		t.Errorf("expected feat/fix rows in:\n%s", got)
+	}
+	// chore is dropped, hashes never shown
+	if strings.Contains(got, "bump deps") || strings.Contains(got, "1111111") {
+		t.Errorf("social post should be filtered and hash-free:\n%s", got)
+	}
+}
+
 func TestNoHashHidesHashes(t *testing.T) {
 	ui.HideHashes = true
 	defer func() { ui.HideHashes = false }()

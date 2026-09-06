@@ -28,6 +28,7 @@ var (
 	}
 	refPostFlags = []refRow{
 		{"--format minimal", "Same output as the releases browser: project, version, date, commits, grouped notes (default)"},
+		{"--format social", "Shortest: \"Project -- Release\", version · date · time, then \"type  description\" lines"},
 		{"--format technical", "Terse bullet list, for a changelog or a dev channel"},
 		{"--format casual", "Loose tone: \"proj v1.4.0 is out. → …\""},
 		{"--format changelog", "The exact section that goes into CHANGELOG.md"},

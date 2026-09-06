@@ -47,13 +47,14 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVar(&format, "format", "minimal", "minimal | technical | casual | changelog")
+	c.Flags().StringVar(&format, "format", "minimal", "minimal | social | technical | casual | changelog")
 	return c
 }
 
 // postFormats is the menu of styles offered by `Release text` in the UI.
 var postFormats = []pick.Item{
 	{Label: "Minimal", Desc: "Same as the releases browser: project, version, date, commits, grouped notes with hashes", Value: "minimal"},
+	{Label: "Social", Desc: "Shortest: \"Project -- Release\", version · date · time, then \"type  description\" lines", Value: "social"},
 	{Label: "Technical", Desc: "Terse bullet list, for a changelog or a dev channel", Value: "technical"},
 	{Label: "Casual", Desc: "Loose tone: \"proj v1.4.0 is out. → …\"", Value: "casual"},
 	{Label: "Changelog", Desc: "The exact section that goes into CHANGELOG.md", Value: "changelog"},
@@ -64,6 +65,8 @@ func renderPost(project string, plan release.Plan, format string) (string, error
 	switch format {
 	case "minimal", "":
 		return minimalPost(project, plan), nil
+	case "social":
+		return socialPost(project, plan), nil
 	case "technical", "tech":
 		return technicalPost(project, plan), nil
 	case "casual":
@@ -71,7 +74,7 @@ func renderPost(project string, plan release.Plan, format string) (string, error
 	case "changelog":
 		return ui.Markdownish(plan.Section()), nil
 	default:
-		return "", fmt.Errorf("unknown format %q (minimal|technical|casual|changelog)", format)
+		return "", fmt.Errorf("unknown format %q (minimal|social|technical|casual|changelog)", format)
 	}
 }
 
@@ -108,6 +111,59 @@ func minimalPost(project string, p release.Plan) string {
 
 func commitMeta(p release.Plan) string {
 	return ui.ReleaseMeta(p.Now.Format("2006-01-02 15:04"), len(p.Commits))
+}
+
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// socialNotable are the commit types worth putting in a social post.
+var socialNotable = map[string]bool{
+	"feat": true, "fix": true, "perf": true, "refactor": true, "revert": true, "style": true,
+}
+
+// socialPost is the shortest format:
+//
+//	Project -- Release
+//
+//	v1.4.0 · 06.09.26 · 13:47
+//
+//	feat  Facial attendance
+//	fix   Supervisor login
+func socialPost(project string, p release.Plan) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n\n", ui.Key.Render(titleCase(project)+" -- Release"))
+	fmt.Fprintf(&b, "%s %s\n\n",
+		ui.Ok.Render(p.Next.String()),
+		ui.Dim.Render(fmt.Sprintf("· %s · %s", p.Now.Format("02.01.06"), p.Now.Format("15:04"))))
+
+	type row struct{ typ, desc string }
+	var rows []row
+	width := 0
+	for _, c := range p.Commits {
+		if !socialNotable[c.Type] {
+			continue
+		}
+		desc := c.Description
+		if desc == "" {
+			desc = c.Raw
+		}
+		rows = append(rows, row{c.Type, titleCase(strings.TrimSpace(desc))})
+		if len(c.Type) > width {
+			width = len(c.Type)
+		}
+	}
+	if len(rows) == 0 {
+		b.WriteString(ui.Dim.Render("(no notable changes)"))
+		return b.String()
+	}
+	for _, r := range rows {
+		fmt.Fprintf(&b, "%s  %s\n", ui.Key.Render(fmt.Sprintf("%-*s", width, r.typ)), r.desc)
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func technicalPost(project string, p release.Plan) string {
