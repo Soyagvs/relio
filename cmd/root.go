@@ -15,6 +15,7 @@ import (
 	"github.com/soyagvs/go-release/internal/gitrepo"
 	"github.com/soyagvs/go-release/internal/menu"
 	"github.com/soyagvs/go-release/internal/release"
+	"github.com/soyagvs/go-release/internal/releases"
 	"github.com/soyagvs/go-release/internal/semver"
 	"github.com/soyagvs/go-release/internal/ui"
 	"github.com/soyagvs/go-release/internal/wizard"
@@ -159,6 +160,10 @@ func runMenu(out io.Writer, f *releaseFlags) error {
 			fmt.Fprintln(out, ui.Info("See you next release."))
 			return nil
 
+		case menu.Help:
+			fmt.Fprintln(out, helpReference())
+			fmt.Fprintln(out)
+
 		case menu.GitHubAuth:
 			fmt.Fprintln(out, ui.Banner("", version))
 			fmt.Fprintln(out)
@@ -175,6 +180,18 @@ func runMenu(out io.Writer, f *releaseFlags) error {
 			}
 			if derr := doRelease(out, repo, cfg, f, semver.None, true); derr != nil {
 				fmt.Fprintln(out, ui.Warn.Render("✗ ")+derr.Error())
+			}
+			fmt.Fprintln(out)
+
+		case menu.ViewReleases:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				fmt.Fprintln(out, ui.Warn.Render("✗ ")+oerr.Error())
+				fmt.Fprintln(out)
+				continue
+			}
+			if rerr := releases.Run(repo, cfg); rerr != nil {
+				fmt.Fprintln(out, ui.Warn.Render("✗ ")+rerr.Error())
 			}
 			fmt.Fprintln(out)
 		}
@@ -202,6 +219,11 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	}
 
 	if interactive {
+		// Print the preview to the scrollback first so it survives the wizard
+		// clearing its own frame — the user can copy it afterwards.
+		fmt.Fprintln(out, ui.PlanView(plan))
+		fmt.Fprintln(out)
+
 		res, werr := wizard.Run(plan)
 		if werr != nil {
 			return werr

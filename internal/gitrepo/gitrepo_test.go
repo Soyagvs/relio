@@ -2,6 +2,7 @@ package gitrepo
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -90,6 +91,64 @@ func TestCommitsSinceAndTagFlow(t *testing.T) {
 	}
 	if has, _ := r.HasTag("v9.9.9"); has {
 		t.Error("HasTag(v9.9.9) = true")
+	}
+}
+
+func TestTagsAndDeleteTag(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tags, _ := r.Tags(); len(tags) != 0 {
+		t.Fatalf("fresh repo has tags: %+v", tags)
+	}
+
+	if err := r.CreateTag("v0.1.0", "release v0.1.0"); err != nil {
+		t.Fatal(err)
+	}
+	commit(t, dir, "feat: more")
+	if err := r.CreateTag("v0.2.0", "release v0.2.0"); err != nil {
+		t.Fatal(err)
+	}
+	commit(t, dir, "feat: even more")
+	if err := r.CreateTag("v0.10.0", "release v0.10.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	tags, err := r.Tags()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 3 {
+		t.Fatalf("want 3 tags, got %d: %+v", len(tags), tags)
+	}
+	// version sort, newest first: v0.10.0 > v0.2.0 > v0.1.0
+	if tags[0].Name != "v0.10.0" || tags[1].Name != "v0.2.0" || tags[2].Name != "v0.1.0" {
+		t.Errorf("bad order: %+v", tags)
+	}
+	if tags[0].Subject != "release v0.10.0" {
+		t.Errorf("subject = %q", tags[0].Subject)
+	}
+	if tags[0].Date == "" {
+		t.Errorf("date is empty")
+	}
+
+	msg, err := r.TagMessage("v0.2.0")
+	if err != nil || !strings.Contains(msg, "release v0.2.0") {
+		t.Errorf("TagMessage = %q, %v", msg, err)
+	}
+
+	if err := r.DeleteTag("v0.2.0"); err != nil {
+		t.Fatalf("DeleteTag: %v", err)
+	}
+	if has, _ := r.HasTag("v0.2.0"); has {
+		t.Error("v0.2.0 still present after delete")
+	}
+	if tags, _ := r.Tags(); len(tags) != 2 {
+		t.Errorf("want 2 tags after delete, got %d", len(tags))
 	}
 }
 

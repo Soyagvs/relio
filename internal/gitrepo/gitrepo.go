@@ -55,6 +55,54 @@ func (r *Repo) LatestTag() (tag string, ok bool, err error) {
 	return strings.TrimSpace(out), true, nil
 }
 
+// TagInfo describes one tag for listing purposes.
+type TagInfo struct {
+	Name    string
+	Date    string // YYYY-MM-DD of the tagged commit (or tag date)
+	Subject string // annotation subject, or the commit subject for lightweight tags
+}
+
+// Tags lists every tag, newest version first.
+func (r *Repo) Tags() ([]TagInfo, error) {
+	const f = "%(refname:short)" + unitSep + "%(creatordate:short)" + unitSep + "%(contents:subject)"
+	out, err := run(r.root, "for-each-ref", "--sort=-v:refname", "--format="+f, "refs/tags")
+	if err != nil {
+		return nil, err
+	}
+	var tags []TagInfo
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.SplitN(line, unitSep, 3)
+		t := TagInfo{Name: parts[0]}
+		if len(parts) > 1 {
+			t.Date = parts[1]
+		}
+		if len(parts) > 2 {
+			t.Subject = strings.TrimSpace(parts[2])
+		}
+		tags = append(tags, t)
+	}
+	return tags, nil
+}
+
+// TagMessage returns the full annotation body of a tag ("" for lightweight tags).
+func (r *Repo) TagMessage(name string) (string, error) {
+	out, err := run(r.root, "for-each-ref", "--format=%(contents)", "refs/tags/"+name)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(out, "\n"), nil
+}
+
+// DeleteTag removes a local tag.
+func (r *Repo) DeleteTag(name string) error {
+	_, err := run(r.root, "tag", "-d", name)
+	return err
+}
+
 // CommitsSince returns commits in sinceTag..HEAD, oldest first. When sinceTag is
 // empty every commit reachable from HEAD is returned.
 func (r *Repo) CommitsSince(sinceTag string) ([]conventional.Raw, error) {

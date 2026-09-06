@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/soyagvs/go-release/internal/release"
 	"github.com/soyagvs/go-release/internal/semver"
@@ -101,27 +100,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.quitting {
-		return ""
+		// The plan preview was already printed to the scrollback by the caller;
+		// leave only a short trace of the decision here.
+		if m.result.Confirmed {
+			return ui.Dim.Render("→ confirmed "+m.nextVersion().String()) + "\n"
+		}
+		return ui.Dim.Render("→ cancelled") + "\n"
 	}
 
 	var b strings.Builder
-	b.WriteString(ui.Banner(m.plan.Config.Project, "") + "\n\n")
-
-	// Version card with the live next version.
-	card := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("245")).
-		Padding(0, 2)
-	rows := []string{
-		ui.Dim.Render(fmt.Sprintf("%-16s", "Current version")) + m.plan.Current.String(),
-		ui.Dim.Render(fmt.Sprintf("%-16s", "Detected change")) + m.current.String(),
-		ui.Dim.Render(fmt.Sprintf("%-16s", "Next version")) + ui.Ok.Render(m.nextVersion().String()),
-	}
-	b.WriteString(card.Render(strings.Join(rows, "\n")) + "\n\n")
-
-	if notes := ui.Notes(m.plan.Notes); notes != "" {
-		b.WriteString(notes + "\n\n")
-	}
+	b.WriteString(ui.Key.Render(fmt.Sprintf("Release %s", m.nextVersion().String())) +
+		ui.Dim.Render(fmt.Sprintf("   (%s from %s)", m.current, m.plan.Current)) + "\n\n")
 
 	for i, c := range m.choices {
 		cursor := "  "

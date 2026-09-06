@@ -153,3 +153,58 @@ func Update(existing, section string) string {
 	before = strings.TrimRight(before, "\n")
 	return before + "\n\n" + section + "\n\n" + after + "\n"
 }
+
+// sectionBounds returns the [start, end) line indices of the "## [version]" block
+// in lines, or ok=false when it is not present. version may be given with or
+// without a leading "v".
+func sectionBounds(lines []string, version string) (start, end int, ok bool) {
+	want := "## [" + strings.TrimPrefix(version, "v") + "]"
+	start = -1
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), want) {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return 0, 0, false
+	}
+	end = len(lines)
+	for i := start + 1; i < len(lines); i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "## [") {
+			end = i
+			break
+		}
+	}
+	return start, end, true
+}
+
+// ExtractSection returns the "## [version]" block from content, trimmed, or ""
+// when that version has no section.
+func ExtractSection(content, version string) string {
+	lines := strings.Split(content, "\n")
+	start, end, ok := sectionBounds(lines, version)
+	if !ok {
+		return ""
+	}
+	return strings.TrimRight(strings.Join(lines[start:end], "\n"), "\n ")
+}
+
+// RemoveSection deletes the "## [version]" block from content. When the version
+// is absent, content is returned unchanged (aside from newline normalisation).
+func RemoveSection(content, version string) string {
+	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	start, end, ok := sectionBounds(lines, version)
+	if !ok {
+		return strings.TrimRight(content, "\n") + "\n"
+	}
+	kept := append([]string{}, lines[:start]...)
+	kept = append(kept, lines[end:]...)
+
+	out := strings.Join(kept, "\n")
+	// Collapse the 3+ newline gap left where the section was.
+	for strings.Contains(out, "\n\n\n") {
+		out = strings.ReplaceAll(out, "\n\n\n", "\n\n")
+	}
+	return strings.TrimRight(out, "\n") + "\n"
+}

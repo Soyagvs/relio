@@ -18,7 +18,9 @@ const (
 	// None means the menu was dismissed without a choice (e.g. ctrl+c).
 	None Action = iota
 	CreateRelease
+	ViewReleases
 	GitHubAuth
+	Help
 	Exit
 )
 
@@ -30,7 +32,9 @@ type item struct {
 
 var items = []item{
 	{"Create a release", "Version, changelog, and tag from commits since the last tag", CreateRelease},
+	{"Releases", "List every version, read its notes, or delete one", ViewReleases},
 	{"GitHub auth", "Log in with your own GitHub account (coming in v0.2.0)", GitHubAuth},
+	{"Help", "Every command and flag, with a one-line description", Help},
 	{"Exit", "Leave Go Release", Exit},
 }
 
@@ -75,7 +79,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.done {
-		return ""
+		// Leave a one-line trace in the scrollback instead of wiping the frame.
+		return ui.Dim.Render("⬢ Go Release — menu closed") + "\n"
 	}
 	var b strings.Builder
 	b.WriteString(ui.BigBanner(m.version) + "\n\n")

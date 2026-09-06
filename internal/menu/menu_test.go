@@ -32,15 +32,29 @@ func TestSelectCreateRelease(t *testing.T) {
 	}
 }
 
-func TestSelectAuth(t *testing.T) {
+func TestSelectViewReleases(t *testing.T) {
 	m := send(model{}, "down", "enter")
+	if m.result != ViewReleases {
+		t.Errorf("result = %v, want ViewReleases", m.result)
+	}
+}
+
+func TestSelectAuth(t *testing.T) {
+	m := send(model{}, "down", "down", "enter")
 	if m.result != GitHubAuth {
 		t.Errorf("result = %v, want GitHubAuth", m.result)
 	}
 }
 
+func TestSelectHelp(t *testing.T) {
+	m := send(model{}, "down", "down", "down", "enter")
+	if m.result != Help {
+		t.Errorf("result = %v, want Help", m.result)
+	}
+}
+
 func TestSelectExit(t *testing.T) {
-	m := send(model{}, "down", "down", "enter")
+	m := send(model{}, "down", "down", "down", "down", "enter")
 	if m.result != Exit {
 		t.Errorf("result = %v, want Exit", m.result)
 	}

@@ -83,6 +83,62 @@ func TestUpdateSeedsEmptyFile(t *testing.T) {
 	}
 }
 
+func TestExtractSection(t *testing.T) {
+	content := Header + "\n" +
+		"## [1.4.0] - 2026-09-06\n\n### Added\n\n- New thing\n\n" +
+		"## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
+
+	got := ExtractSection(content, "v1.4.0")
+	want := "## [1.4.0] - 2026-09-06\n\n### Added\n\n- New thing"
+	if got != want {
+		t.Errorf("ExtractSection(1.4.0) =\n%q\nwant\n%q", got, want)
+	}
+	if ExtractSection(content, "9.9.9") != "" {
+		t.Errorf("missing version should return empty")
+	}
+	// last section runs to EOF
+	if !strings.Contains(ExtractSection(content, "1.3.2"), "- Old bug") {
+		t.Errorf("1.3.2 section not extracted")
+	}
+}
+
+func TestRemoveSection(t *testing.T) {
+	content := Header + "\n" +
+		"## [1.4.0] - 2026-09-06\n\n### Added\n\n- New thing\n\n" +
+		"## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
+
+	got := RemoveSection(content, "1.4.0")
+	if strings.Contains(got, "## [1.4.0]") || strings.Contains(got, "- New thing") {
+		t.Errorf("1.4.0 not removed:\n%s", got)
+	}
+	if !strings.Contains(got, "## [1.3.2]") || !strings.Contains(got, "- Old bug") {
+		t.Errorf("1.3.2 lost:\n%s", got)
+	}
+	if !strings.HasPrefix(got, "# Changelog") {
+		t.Errorf("header lost:\n%s", got)
+	}
+	if strings.Contains(got, "\n\n\n") {
+		t.Errorf("blank-line run left behind:\n%s", got)
+	}
+	if !strings.HasSuffix(got, "\n") || strings.HasSuffix(got, "\n\n") {
+		t.Errorf("bad trailing newline")
+	}
+
+	// removing the last section
+	got2 := RemoveSection(content, "1.3.2")
+	if strings.Contains(got2, "## [1.3.2]") {
+		t.Errorf("1.3.2 not removed:\n%s", got2)
+	}
+	if strings.Contains(got2, "- Old bug") {
+		t.Errorf("1.3.2 body not removed:\n%s", got2)
+	}
+
+	// absent version: unchanged content
+	if RemoveSection(content, "9.9.9") != content {
+		t.Errorf("absent version changed content")
+	}
+}
+
 func TestUpdateInsertsBeforeExistingReleases(t *testing.T) {
 	existing := Header + "\n## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
 	section := RenderSection("v1.4.0", fixedDate, Build(sampleCommits()))
