@@ -4,6 +4,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"unicode/utf8"
 
@@ -27,9 +28,14 @@ var (
 	Warn  = lipgloss.NewStyle().Foreground(redCol)
 	Ok    = lipgloss.NewStyle().Foreground(Purple).Bold(true)
 
+	irisDim  = lipgloss.Color("130") // darker orange for the iris rim / roundness
+	irisMid  = lipgloss.Color("166") // mid orange, iris body between rim and highlight
+	glintCol = lipgloss.Color("223") // pale catchlight
+
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	whiteMark  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("231"))
-	glintMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("223")) // snake-eye catchlight
+	tagMark    = lipgloss.NewStyle().Foreground(dimCol).Italic(true) // banner tagline, muted grey
+	ruleDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	hash       = lipgloss.NewStyle().Foreground(Purple)
@@ -49,44 +55,121 @@ const (
 // Tagline sits under the wordmark, in purple.
 const Tagline = "turn commits into releases"
 
-// The wordmark is "RELIO" in the ANSI Shadow block style, split so "RELI"
-// renders in white and "O" in orange. The "O" carries a vertical slit so it
-// reads as a snake eye. Rows are padded to equal width at render time.
-var (
-	wordReli = []string{
-		`██████╗ ███████╗██╗     ██╗`,
-		`██╔══██╗██╔════╝██║     ██║`,
-		`██████╔╝█████╗  ██║     ██║`,
-		`██╔══██╗██╔══╝  ██║     ██║`,
-		`██║  ██║███████╗███████╗██║`,
-		`╚═╝  ╚═╝╚══════╝╚══════╝╚═╝`,
-	}
-	// A pointed orange eyeball with a hairline vertical slit carved out (the dark
-	// terminal background) and a catchlight on the iris — a reptile eye.
-	wordO = []string{
-		`  █████  `,
-		` █▪█ ███ `,
-		`████ ████`,
-		`████ ████`,
-		` ███ ███ `,
-		`  █████  `,
-	}
+// "RELI" of the wordmark, ANSI Shadow block style, rendered in white. The "O" is
+// the orange reptile eye built separately (see eyeLines).
+var wordReli = []string{
+	`██████╗ ███████╗██╗     ██╗`,
+	`██╔══██╗██╔════╝██║     ██║`,
+	`██████╔╝█████╗  ██║     ██║`,
+	`██╔══██╗██╔══╝  ██║     ██║`,
+	`██║  ██║███████╗███████╗██║`,
+	`╚═╝  ╚═╝╚══════╝╚══════╝╚═╝`,
+}
+
+// The "O" is a reptile eye. It is drawn as a small pixel grid and rendered with
+// half-block characters (▀ ▄ █), so every text row carries two pixel rows —
+// twice the vertical detail of a plain block glyph in the same height. The grid
+// is generated from a few ellipses: a shaded orange iris (dim rim, mid body,
+// bright core), a hairline lens-shaped vertical slit, and a catchlight.
+const (
+	eyeW = 15 // odd, so the slit falls on a single centre column
+	eyeH = 12 // two pixel rows per text line -> 6 lines, matching wordReli
 )
 
-// renderO colours the eyeball orange and the catchlight pale.
-func renderO(row string) string {
-	var b strings.Builder
-	for _, r := range row {
-		switch r {
-		case ' ':
-			b.WriteRune(' ')
-		case '▪':
-			b.WriteString(glintMark.Render("▪"))
-		default:
-			b.WriteString(orangeMark.Render(string(r)))
+// eyePixels builds the eyeH×eyeW grid. Cell values: 0 background, 1 dim rim,
+// 2 mid iris, 3 bright core, 4 catchlight.
+func eyePixels() [][]byte {
+	g := make([][]byte, eyeH)
+	cx, cy := float64(eyeW-1)/2, float64(eyeH-1)/2
+	rx, ry := float64(eyeW)*0.46, float64(eyeH)*0.5
+
+	for y := 0; y < eyeH; y++ {
+		g[y] = make([]byte, eyeW)
+		for x := 0; x < eyeW; x++ {
+			dx := (float64(x) - cx) / rx
+			dy := (float64(y) - cy) / ry
+			d := math.Sqrt(dx*dx + dy*dy)
+			switch {
+			case d > 1.0:
+				g[y][x] = 0
+			case d > 0.82:
+				g[y][x] = 1
+			case d > 0.45:
+				g[y][x] = 2
+			default:
+				g[y][x] = 3
+			}
 		}
 	}
-	return b.String()
+
+	// Hairline vertical slit: one column wide, stopping short of the iris edge
+	// so it reads as a pointed lens rather than a full bar.
+	for y := 0; y < eyeH; y++ {
+		t := (float64(y) - cy) / (ry * 0.82)
+		if t*t >= 1 {
+			continue
+		}
+		half := 0.7 * (1 - t*t)
+		for x := 0; x < eyeW; x++ {
+			if math.Abs(float64(x)-cx) <= half && g[y][x] != 0 {
+				g[y][x] = 0
+			}
+		}
+	}
+
+	// Catchlight: a small cluster on the iris, upper-left of the slit.
+	for _, p := range [][2]int{
+		{int(cx) - 2, int(cy) - 3},
+		{int(cx) - 1, int(cy) - 3},
+		{int(cx) - 2, int(cy) - 2},
+	} {
+		if x, y := p[0], p[1]; x >= 0 && x < eyeW && y >= 0 && y < eyeH && g[y][x] != 0 {
+			g[y][x] = 4
+		}
+	}
+	return g
+}
+
+func eyeColor(v byte) lipgloss.Color {
+	switch v {
+	case 1:
+		return irisDim
+	case 2:
+		return irisMid
+	case 4:
+		return glintCol
+	default:
+		return Orange
+	}
+}
+
+// eyeLines renders the pixel grid to eyeH/2 half-block strings. A cell packs the
+// pixel above and below it: ▀ for a lit top, ▄ for a lit bottom, █ when both
+// match, and ▀ with a background colour when the two halves differ.
+func eyeLines() []string {
+	g := eyePixels()
+	lines := make([]string, 0, eyeH/2)
+	for y := 0; y < eyeH; y += 2 {
+		top, bot := g[y], g[y+1]
+		var b strings.Builder
+		for x := 0; x < eyeW; x++ {
+			t, d := top[x], bot[x]
+			switch {
+			case t == 0 && d == 0:
+				b.WriteByte(' ')
+			case d == 0:
+				b.WriteString(lipgloss.NewStyle().Foreground(eyeColor(t)).Render("▀"))
+			case t == 0:
+				b.WriteString(lipgloss.NewStyle().Foreground(eyeColor(d)).Render("▄"))
+			case t == d:
+				b.WriteString(lipgloss.NewStyle().Foreground(eyeColor(t)).Render("█"))
+			default:
+				b.WriteString(lipgloss.NewStyle().Foreground(eyeColor(t)).Background(eyeColor(d)).Render("▀"))
+			}
+		}
+		lines = append(lines, b.String())
+	}
+	return lines
 }
 
 func padRight(s string, w int) string {
@@ -108,35 +191,43 @@ func BigBanner(version, available string) string {
 		return s
 	}
 
-	const indent = "  "
-	lw, ow := 0, 0
+	const (
+		indent = "  "
+		gap    = 1 // space between "RELI" and the eye
+	)
+	lw := 0
 	for _, l := range wordReli {
 		lw = max(lw, utf8.RuneCountInString(l))
 	}
-	for _, l := range wordO {
-		ow = max(ow, utf8.RuneCountInString(l))
-	}
-	total := lw + ow
+	eye := eyeLines()
+	total := lw + gap + eyeW
 
 	var b strings.Builder
 	b.WriteString("\n")
 
 	for i := range wordReli {
-		b.WriteString(indent +
-			whiteMark.Render(padRight(wordReli[i], lw)) +
-			renderO(wordO[i]) + "\n")
+		row := indent + whiteMark.Render(padRight(wordReli[i], lw)) + strings.Repeat(" ", gap)
+		if i < len(eye) {
+			row += eye[i]
+		}
+		b.WriteString(row + "\n")
 	}
 
-	b.WriteString(indent + Title.Render(Tagline) + "\n")
-	b.WriteString(indent + orangeMark.Render(strings.Repeat("━", total)) + "\n")
+	// Lower block: a muted grey tagline, a two-tone accent rule (a short orange
+	// lead fading into a thin grey line), then one meta line with the version
+	// and author. The update notice, when present, gets its own orange line.
+	const accent = 6
+	rule := orangeMark.Render(strings.Repeat("━", accent)) +
+		ruleDim.Render(strings.Repeat("─", max(0, total-accent)))
 
-	b.WriteString(indent + Dim.Render(versionLabel(version)))
-	if available != "" {
-		b.WriteString("   " + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available"))
-	}
 	b.WriteString("\n")
-
-	b.WriteString(indent + Dim.Render("created by ") + author.Render(Author) + "\n")
+	b.WriteString(indent + tagMark.Render(Tagline) + "\n")
+	b.WriteString(indent + rule + "\n")
+	b.WriteString(indent + Key.Render(versionLabel(version)) +
+		Dim.Render("   ·   created by ") + author.Render(Author) + "\n")
+	if available != "" {
+		b.WriteString(indent + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available") + "\n")
+	}
 
 	out := b.String()
 	bannerCache[key] = out

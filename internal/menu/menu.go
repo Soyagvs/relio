@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/soyagvs/relio/internal/ui"
 )
@@ -35,15 +36,28 @@ type item struct {
 }
 
 var items = []item{
-	{"Status", "What's unreleased since the last tag and the version it suggests", Status},
-	{"Create a release", "Version, changelog, and tag from commits since the last tag", CreateRelease},
-	{"Releases", "List every version, read its notes, or delete one", ViewReleases},
-	{"Release text", "Copy-paste announcement for social posts — pick a format", ReleaseText},
-	{"Release image", "Save a shareable PNG of a release — pick a shape", ReleaseImage},
-	{"GitHub auth", "Log in with your own GitHub account (coming in v0.2.0)", GitHubAuth},
-	{"Help", "Every command and flag, with a one-line description", Help},
+	{"Status", "Unreleased commits and the next version", Status},
+	{"Create a release", "Version, changelog, and tag", CreateRelease},
+	{"Releases", "Browse, read notes, or delete a version", ViewReleases},
+	{"Release text", "Announcement text — pick a format", ReleaseText},
+	{"Release image", "Shareable PNG — pick a shape", ReleaseImage},
+	{"GitHub auth", "Sign in with your account (v0.2.0)", GitHubAuth},
+	{"Help", "Every command and flag", Help},
 	{"Exit", "Leave Relio", Exit},
 }
+
+// Menu chrome: a fixed label column so the descriptions line up, and a faint
+// full-width bar behind the selected row.
+const (
+	labelCol = 17
+	rowWidth = 64
+)
+
+var (
+	selBar   = lipgloss.NewStyle().Background(lipgloss.Color("236")).Width(rowWidth)
+	numDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	headline = lipgloss.NewStyle().Foreground(ui.Purple).Bold(true)
+)
 
 type model struct {
 	cursor  int
@@ -60,7 +74,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	switch key.String() {
+	s := key.String()
+	switch s {
 	case "ctrl+c":
 		m.result = None
 		m.done = true
@@ -82,6 +97,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.done = true
 		return m, tea.Quit
 	}
+
+	// A digit jumps straight to that item and selects it.
+	if len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
+		if n := int(s[0] - '1'); n < len(items) {
+			m.cursor = n
+			m.result = items[n].action
+			m.done = true
+			return m, tea.Quit
+		}
+	}
 	return m, nil
 }
 
@@ -96,18 +121,23 @@ func (m model) View() string {
 		return ""
 	}
 	var b strings.Builder
+	b.WriteString("  " + headline.Render(strings.ToUpper(ui.AppName)+" menu") + "\n\n")
+
 	for i, it := range items {
-		cursor := "  "
-		label := it.label
+		num := fmt.Sprintf("%d", i+1)
+		label := it.label + strings.Repeat(" ", max(0, labelCol-len(it.label)))
+
 		if i == m.cursor {
-			cursor = ui.Key.Render("▸ ")
-			label = ui.Key.Render(label)
+			inner := fmt.Sprintf(" %s  %s  %s",
+				ui.Key.Render(num), ui.Key.Render(label), ui.Dim.Render(it.desc))
+			b.WriteString(ui.Key.Render("▸") + selBar.Render(inner) + "\n")
+			continue
 		}
-		b.WriteString(cursor + label + "\n")
-		b.WriteString("    " + ui.Dim.Render(it.desc) + "\n")
+		b.WriteString(fmt.Sprintf("  %s  %s  %s\n",
+			numDim.Render(num), label, ui.Dim.Render(it.desc)))
 	}
 
-	b.WriteString("\n" + ui.Dim.Render("↑/↓ move · enter select · q quit"))
+	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–8 jump · enter select · q quit"))
 	return b.String()
 }
 
