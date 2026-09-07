@@ -1,6 +1,6 @@
 <!-- Hero image goes here. Drop a file at docs/hero.png (≈720px wide). -->
 <p align="center">
-  <img width="2048" height="768" alt="image" src="https://github.com/user-attachments/assets/3a28d468-ab07-4024-8f39-a58c9b16ea42" />
+  <img width="2048" height="768" alt="Relio" src="https://github.com/user-attachments/assets/3a28d468-ab07-4024-8f39-a58c9b16ea42" />
 </p>
 
 <h1 align="center">Relio</h1>
@@ -24,6 +24,65 @@
 
 <p align="center"><sub>badges are cached by shields.io — <code>relio stats</code> prints the live numbers</sub></p>
 
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
+## Relio in one minute
+
+You just finished a feature. Now comes the boring part: figure out the new
+version number, write the changelog, tag the commit, remember the exact `git`
+commands. Every time. By hand.
+
+**Relio does that part for you.** It reads the commits you already wrote, works
+out what the next version should be, drafts the changelog, and creates the tag —
+and it shows you a **preview first**, so nothing changes until you say yes.
+
+```
+code  →  commit  →  push  →  relio  →  version + CHANGELOG.md + tag
+```
+
+Think of it as the assistant that fills in the release paperwork. You still
+review and sign it.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**What it reads**
+
+Your git history — the commits since your last tag, written as
+[Conventional Commits](https://www.conventionalcommits.org/)
+(`feat:`, `fix:`, …).
+
+</td>
+<td width="33%" valign="top">
+
+**What it gives back**
+
+A version number, a `CHANGELOG.md` section, and an annotated git tag — all
+previewed before anything is written.
+
+</td>
+<td width="33%" valign="top">
+
+**What it never does**
+
+Push to a remote, publish anything, or send data about you anywhere. Relio
+runs locally and hands you the `git push` to run.
+
+</td>
+</tr>
+</table>
+
+> [!NOTE]
+> Relio does **not** replace git or GitHub. It removes the repetitive work that
+> happens *after* you finish coding.
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
 <h3 align="center">Download History</h3>
 
 <p align="center">
@@ -40,19 +99,9 @@
 </details>
 </div>
 
-Relio reads a repository's git activity and turns it into a **version, a
-changelog, and a tag** — with a preview before anything is written. It does not
-try to replace git or GitHub; it removes the repetitive work that happens
-*after* you finish coding.
-
-```
-code  →  commit  →  push  →  relio  →  version + CHANGELOG.md + tag
-```
-
-Everything Relio produces comes from the real release: the commits since your
-last tag, parsed as [Conventional Commits](https://www.conventionalcommits.org/).
-
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Contents
 
@@ -71,11 +120,16 @@ last tag, parsed as [Conventional Commits](https://www.conventionalcommits.org/)
 - [Contributing](#contributing)
 - [License](#license)
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Install
 
-### Homebrew (macOS / Linux)
+Pick whichever line matches how you already install tools. All of them give you
+the same `relio` binary.
+
+### Homebrew (macOS / Linux) — recommended
 
 ```bash
 brew install soyagvs/tap/relio
@@ -88,7 +142,7 @@ prebuilt binaries from this repo's [GitHub Releases](https://github.com/soyagvs/
 ### Manual — from GitHub Releases
 
 Grab the archive for your platform from the
-[latest release](https://github.com/soyagvs/relio/releases/latest), verify it
+[latest release](https://github.com/soyagvs/relio/releases/latest), check it
 against `checksums.txt`, and drop the binary on your `PATH`:
 
 ```bash
@@ -122,9 +176,13 @@ go build -o relio .          # ./relio
 Building requires **Go 1.22+**. At runtime Relio needs the `git` binary on
 `PATH`.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Quick start
+
+Three commands, run inside the project you want to release:
 
 ```bash
 cd your-project
@@ -132,11 +190,20 @@ relio init        # writes .release.yaml (configuration only, never secrets)
 relio             # opens the interactive menu
 ```
 
-Pick **Create a release**, check the preview, confirm. Relio updates
-`CHANGELOG.md`, commits it, creates an annotated git tag on that commit, and
-tells you the `git push` to run. **Nothing is pushed for you.**
+Pick **Create a release**, read the preview, confirm. Relio then:
 
----
+1. updates `CHANGELOG.md`,
+2. commits that one file as `chore(release): vX.Y.Z`,
+3. creates an annotated git tag on that commit,
+4. prints the exact `git push` for you to run.
+
+> [!WARNING]
+> **Nothing is pushed for you.** Relio stops at the tag and tells you the push
+> command. You stay in control of what reaches the remote.
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## The interactive menu
 
@@ -177,7 +244,9 @@ value on disk and, at most once a day, refreshes it in the background; it never
 blocks the menu or sends anything about you. `relio version` shows the same hint.
 Set `RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Commands
 
@@ -423,7 +492,9 @@ The version is `dev` unless the binary was built with `HEAD` exactly on a tag
 (that's what `make install` does), or with
 `-ldflags "-X github.com/soyagvs/relio/cmd.version=…"`.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Global flags
 
@@ -434,13 +505,23 @@ Available on every command:
 | `-C, --dir <path>` | Run as if Relio was started in `<path>`. |
 | `--no-hash`         | Hide the commit hash on each release-note line (preview, Releases browser, `post`). |
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## How the version is chosen
 
-Relio reads the commits since the last tag and applies
-[SemVer](https://semver.org/): a version is `MAJOR.MINOR.PATCH`, and the number
-tells someone how safe it is to upgrade.
+A version looks like `MAJOR.MINOR.PATCH` (for example `1.4.0`). The idea behind
+[SemVer](https://semver.org/) is simple: the number tells the next person **how
+risky the upgrade is**.
+
+| Part change | Means | Example |
+| ----------- | ----- | ------- |
+| **MAJOR** | something you relied on changed or was removed — read the notes before upgrading | `1.3.2 → 2.0.0` |
+| **MINOR** | new things were added, old things still work | `1.3.2 → 1.4.0` |
+| **PATCH** | bug fixes only, safe to take | `1.3.2 → 1.3.3` |
+
+Relio reads the commits since the last tag and picks the bump for you:
 
 | Commits found | Bump | Example |
 | ------------- | ---- | ------- |
@@ -453,27 +534,32 @@ tells someone how safe it is to upgrade.
 `--patch` / `--minor` / `--major` override the inference; the wizard's
 "Change to…" options do the same interactively.
 
-> Pre-1.0 (`0.x.y`): the API is not stable yet, so breaking changes in a MINOR
-> are conventionally acceptable — Relio still bumps MAJOR if you ask it to.
+> [!TIP]
+> Pre-1.0 (`0.x.y`): the API is not stable yet, so breaking changes inside a
+> MINOR are conventionally acceptable — Relio still bumps MAJOR if you ask it to.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## How the changelog is built
 
 Each commit's Conventional Commit **type** maps to a Keep-a-Changelog section:
 
-| Commit type | Section |
-| ----------- | ------- |
+| Commit type | Changelog section |
+| ----------- | ----------------- |
 | `feat` | **Added** |
 | `fix` | **Fixed** |
 | `perf`, `refactor`, `revert`, `style` | **Changed** |
-| `docs`, `chore`, `test`, `build`, `ci`, unknown | *omitted from the changelog* |
+| `docs`, `chore`, `test`, `build`, `ci`, unknown | *left out of the changelog* |
 
 A `BREAKING CHANGE:` footer or a `!` before the colon also adds the line to
 **Changed**, prefixed with `**Breaking:**`. The scope, if any, is kept:
 `fix(kiosk): header alignment` → `- kiosk: Header alignment`.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Configuration — `.release.yaml`
 
@@ -502,7 +588,9 @@ Missing fields fall back to these defaults, so a minimal file with just
 `project:` works. Unknown `versioning` / `commits` values are rejected with a
 clear error.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Non-interactive / CI usage
 
@@ -542,7 +630,9 @@ you set once: **`HOMEBREW_TAP_TOKEN`** — a PAT with write access to
 `Soyagvs/homebrew-tap` (the repo's own `GITHUB_TOKEN` covers the Release
 itself).
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Project layout
 
@@ -555,6 +645,7 @@ main.go
   workflows/stats.yml     daily -> record a download/star snapshot, rebuild the SVGs
   stats/downloads.json    the recorded history (one {date,total,stars} row per day)
 assets/
+  divider.svg            the orange rule used across this README
   download-history.svg    generated from stats/downloads.json — never hand-edited
   star-history.svg        generated the same way
 cmd/                 Cobra command wiring (root, status, stats, init, post, image, auth, version)
@@ -581,7 +672,9 @@ internal/
 
 `gitrepo` shells out to the system `git` — no CGO, no `go-git`.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Roadmap
 
@@ -591,16 +684,21 @@ internal/
 - **v0.4.0** — plugin API (`BeforeRelease` / `AfterRelease` / `OnTagCreated` / `OnReleasePublished`)
 - **v1.0.0** — `relio init` → `relio auth login` → `relio`, polished
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## Contributing
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)**. In short: Go 1.22+, `make test`
-must stay green, `gofmt` everything, and commit with
+New here? See **[CONTRIBUTING.md](CONTRIBUTING.md)** — it walks you from clone to
+pull request. The short version: Go 1.22+, `make test` stays green, `gofmt`
+everything, and commit with
 [Conventional Commits](https://www.conventionalcommits.org/) — Relio dogfoods
 its own release flow.
 
----
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
 
 ## License
 
