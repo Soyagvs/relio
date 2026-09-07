@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 5 on 2026-09-07">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 15 on 2026-09-07">
 <style>text{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;fill:#8b8b8b}</style>
 <text x="56" y="18" font-size="12">Relio downloads</text>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.18"/>
 <text x="48" y="250" text-anchor="end">0</text>
 <line x1="56" y1="137" x2="856" y2="137" stroke="#8b8b8b" stroke-opacity="0.18"/>
-<text x="48" y="141" text-anchor="end">2</text>
+<text x="48" y="141" text-anchor="end">10</text>
 <line x1="56" y1="28" x2="856" y2="28" stroke="#8b8b8b" stroke-opacity="0.18"/>
-<text x="48" y="32" text-anchor="end">5</text>
-<circle cx="456" cy="28" r="3" fill="#F5872B"/>
+<text x="48" y="32" text-anchor="end">20</text>
+<circle cx="456" cy="83" r="3" fill="#F5872B"/>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.4"/>
 <text x="56" y="264" text-anchor="start">Sep 7</text>
 <text x="856" y="14" text-anchor="end" fill="#F5872B" fill-opacity="0.55" font-size="10">relio</text>
