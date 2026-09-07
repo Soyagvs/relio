@@ -1,6 +1,7 @@
 package menu
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -56,6 +57,17 @@ func TestQuitKeyIsExit(t *testing.T) {
 	m := send(model{}, "q")
 	if m.result != Exit || !m.done {
 		t.Errorf("q: result=%v done=%v", m.result, m.done)
+	}
+}
+
+func TestNoticeShownUnderBanner(t *testing.T) {
+	with := model{version: "1.0.0", notice: "▲ relio 1.1.0 is available"}
+	if !strings.Contains(with.View(), "1.1.0 is available") {
+		t.Error("View() should include the update notice")
+	}
+	without := model{version: "1.0.0"}
+	if strings.Contains(without.View(), "is available") {
+		t.Error("View() should be clean when there is no notice")
 	}
 }
 

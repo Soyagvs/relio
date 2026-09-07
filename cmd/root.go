@@ -19,6 +19,7 @@ import (
 	"github.com/soyagvs/relio/internal/releases"
 	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/ui"
+	"github.com/soyagvs/relio/internal/update"
 	"github.com/soyagvs/relio/internal/wizard"
 )
 
@@ -158,7 +159,7 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
 
-	action, err := menu.Run(version)
+	action, err := menu.Run(version, update.Notice(version))
 	if err != nil {
 		return err
 	}

@@ -47,6 +47,7 @@ var items = []item{
 type model struct {
 	cursor  int
 	version string
+	notice  string // "a newer relio is available" line, or "" when current
 	result  Action
 	done    bool
 }
@@ -91,6 +92,10 @@ func (m model) View() string {
 	var b strings.Builder
 	b.WriteString(ui.BigBanner(m.version) + "\n\n")
 
+	if m.notice != "" {
+		b.WriteString(ui.Key.Render(m.notice) + "\n\n")
+	}
+
 	for i, it := range items {
 		cursor := "  "
 		label := it.label
@@ -107,9 +112,10 @@ func (m model) View() string {
 	return b.String()
 }
 
-// Run shows the menu once and returns the chosen Action.
-func Run(version string) (Action, error) {
-	final, err := tea.NewProgram(model{version: version}).Run()
+// Run shows the menu once and returns the chosen Action. notice, when non-empty,
+// is shown under the banner (e.g. "a newer relio is available").
+func Run(version, notice string) (Action, error) {
+	final, err := tea.NewProgram(model{version: version, notice: notice}).Run()
 	if err != nil {
 		return None, err
 	}
