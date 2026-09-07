@@ -8,18 +8,19 @@
 <p align="center"><i>turn commits into releases</i></p>
 
 <!--
-  One badge identity: charcoal label (labelColor=1c1c1c), Relio orange (F5872B)
-  for the growth metrics, neutral grey (8b8b8b) for the static facts, and green
-  reserved for CI passing (shields colours that side on its own).
+  One badge identity: rounded "flat" pills, scaled up with height=28, charcoal
+  label (labelColor=1c1c1c) + Relio orange (F5872B) across the board so the row
+  reads as one Relio object. CI keeps shields' own pass/fail colour — a green
+  check that can turn red is worth more than cohesion there.
 -->
 <p align="center">
-  <a href="https://github.com/Soyagvs/relio/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=F5872B&label=release"></a>
-  <a href="https://github.com/Soyagvs/relio/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/Soyagvs/relio/total?style=flat-square&labelColor=1c1c1c&color=F5872B&label=downloads"></a>
-  <a href="https://github.com/Soyagvs/homebrew-tap"><img alt="homebrew tap" src="https://img.shields.io/badge/brew-soyagvs%2Ftap%2Frelio-F5872B?style=flat-square&labelColor=1c1c1c"></a>
+  <a href="https://github.com/Soyagvs/relio/releases/latest"><img height="28" alt="latest release" src="https://img.shields.io/github/v/release/Soyagvs/relio?style=flat&labelColor=1c1c1c&color=F5872B&label=release"></a>
+  <a href="https://github.com/Soyagvs/relio/releases"><img height="28" alt="downloads" src="https://img.shields.io/github/downloads/Soyagvs/relio/total?style=flat&labelColor=1c1c1c&color=F5872B&label=downloads"></a>
+  <a href="https://github.com/Soyagvs/homebrew-tap"><img height="28" alt="homebrew tap" src="https://img.shields.io/badge/brew-soyagvs%2Ftap%2Frelio-F5872B?style=flat&labelColor=1c1c1c"></a>
   <br>
-  <a href="https://github.com/Soyagvs/relio/actions/workflows/ci.yml"><img alt="ci status" src="https://img.shields.io/github/actions/workflow/status/Soyagvs/relio/ci.yml?branch=main&style=flat-square&labelColor=1c1c1c&label=ci"></a>
-  <a href="https://github.com/Soyagvs/relio/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=F5872B"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=8b8b8b"></a>
+  <a href="https://github.com/Soyagvs/relio/actions/workflows/ci.yml"><img height="28" alt="ci status" src="https://img.shields.io/github/actions/workflow/status/Soyagvs/relio/ci.yml?branch=main&style=flat&labelColor=1c1c1c&label=ci"></a>
+  <a href="https://github.com/Soyagvs/relio/stargazers"><img height="28" alt="stars" src="https://img.shields.io/github/stars/Soyagvs/relio?style=flat&labelColor=1c1c1c&color=F5872B"></a>
+  <a href="LICENSE"><img height="28" alt="license" src="https://img.shields.io/github/license/Soyagvs/relio?style=flat&labelColor=1c1c1c&color=F5872B"></a>
 </p>
 
 <p align="center"><sub>badges are cached by shields.io — <code>relio stats</code> prints the live numbers</sub></p>
