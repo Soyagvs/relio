@@ -7,16 +7,38 @@
 
 <p align="center"><i>turn commits into releases</i></p>
 
+<!--
+  One badge identity: charcoal label (labelColor=1c1c1c), Relio orange (F5872B)
+  for the growth metrics, neutral grey (8b8b8b) for the static facts, and green
+  reserved for CI passing (shields colours that side on its own).
+-->
 <p align="center">
-  <a href="https://github.com/Soyagvs/relio/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/Soyagvs/relio?style=flat-square&color=F5872B&label=release"></a>
-  <a href="https://github.com/Soyagvs/relio/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/Soyagvs/relio/total?style=flat-square&color=F5872B&label=downloads"></a>
-  <a href="https://github.com/Soyagvs/homebrew-tap"><img alt="homebrew" src="https://img.shields.io/badge/brew-soyagvs%2Ftap%2Frelio-F5872B?style=flat-square"></a>
-  <a href="https://github.com/Soyagvs/relio/actions/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/github/actions/workflow/status/Soyagvs/relio/ci.yml?branch=main&style=flat-square&label=ci"></a>
-  <a href="https://github.com/Soyagvs/relio/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Soyagvs/relio?style=flat-square&color=F5872B"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/Soyagvs/relio?style=flat-square"></a>
+  <a href="https://github.com/Soyagvs/relio/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=F5872B&label=release"></a>
+  <a href="https://github.com/Soyagvs/relio/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/Soyagvs/relio/total?style=flat-square&labelColor=1c1c1c&color=F5872B&label=downloads"></a>
+  <a href="https://github.com/Soyagvs/homebrew-tap"><img alt="homebrew tap" src="https://img.shields.io/badge/brew-soyagvs%2Ftap%2Frelio-F5872B?style=flat-square&labelColor=1c1c1c"></a>
+  <br>
+  <a href="https://github.com/Soyagvs/relio/actions/workflows/ci.yml"><img alt="ci status" src="https://img.shields.io/github/actions/workflow/status/Soyagvs/relio/ci.yml?branch=main&style=flat-square&labelColor=1c1c1c&label=ci"></a>
+  <a href="https://github.com/Soyagvs/relio/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=F5872B"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/Soyagvs/relio?style=flat-square&labelColor=1c1c1c&color=8b8b8b"></a>
 </p>
 
-<p align="center"><sub>badges are cached by shields.io — <code>relio stats</code> shows the live numbers</sub></p>
+<p align="center"><sub>badges are cached by shields.io — <code>relio stats</code> prints the live numbers</sub></p>
+
+<h3 align="center">Download History</h3>
+
+<p align="center">
+  <img src="assets/download-history.svg" alt="Relio cumulative downloads over time" width="100%">
+</p>
+
+<p align="center"><sub>real snapshots, recorded daily into <a href=".github/stats/downloads.json"><code>.github/stats/downloads.json</code></a> — release-asset downloads, not unique installs</sub></p>
+
+<div align="center">
+<details>
+<summary>Star history</summary>
+<br>
+<img src="assets/star-history.svg" alt="Relio stars over time" width="100%">
+</details>
+</div>
 
 Relio reads a repository's git activity and turns it into a **version, a
 changelog, and a tag** — with a preview before anything is written. It does not
@@ -146,6 +168,12 @@ another action.
 
 In CI or when the output is piped (no TTY), or with `--yes` / a forced bump, the
 menu is skipped and a release runs directly.
+
+If a newer Relio has been published, the menu shows a single line under the
+banner (`▲ relio x.y.z is available — run: brew upgrade relio`). The check reads
+one cached value on disk and, at most once a day, refreshes it in the background
+— it never blocks the menu or sends anything about you. Set
+`RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
 
 ---
 
@@ -515,7 +543,17 @@ itself).
 ```
 main.go
 .goreleaser.yaml     GoReleaser: build matrix, archives, checksums, GitHub Release, Homebrew tap
+.github/
+  workflows/ci.yml       vet · gofmt · test -race
+  workflows/release.yml   tag push -> GoReleaser
+  workflows/stats.yml     daily -> record a download/star snapshot, rebuild the SVGs
+  stats/downloads.json    the recorded history (one {date,total,stars} row per day)
+assets/
+  download-history.svg    generated from stats/downloads.json — never hand-edited
+  star-history.svg        generated the same way
 cmd/                 Cobra command wiring (root, status, stats, init, post, image, auth, version)
+tools/
+  statsnap/          one-shot job behind stats.yml: fetch counts, upsert a row, redraw the SVGs
 internal/
   conventional/      Conventional Commits parser
   semver/            version parsing + bump rules
@@ -524,6 +562,8 @@ internal/
   gitrepo/           thin wrapper over the git binary
   release/           orchestration: build a plan, apply it
   ghstats/           read-only GitHub REST client for `relio stats`
+  update/            best-effort "newer relio available" check for the menu (cached, non-blocking)
+  statchart/         tiny dependency-free line-chart -> SVG string
   ui/                lipgloss palette, banner, non-interactive views
   menu/              Bubble Tea main menu
   wizard/            Bubble Tea release confirmation

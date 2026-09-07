@@ -1,0 +1,44 @@
+name: stats
+
+# Records one dated snapshot of Relio's public download and star counts and
+# rebuilds the history SVGs. Public GitHub data only — no analytics, no
+# third-party services. See tools/statsnap.
+
+on:
+  schedule:
+    - cron: "17 5 * * *" # daily, ~05:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Record snapshot and rebuild charts
+        run: go run ./tools/statsnap .
+
+      - name: Commit when something changed
+        run: |
+          paths=".github/stats/downloads.json assets/download-history.svg assets/star-history.svg"
+          if git diff --quiet -- $paths; then
+            echo "no stat changes"
+            exit 0
+          fi
+          git config user.name  "relio-bot"
+          git config user.email "relio-bot@users.noreply.github.com"
+          git add $paths
+          git commit -m "chore: update download stats"
+          git push
