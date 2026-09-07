@@ -61,15 +61,15 @@ var (
 		`██║  ██║███████╗███████╗██║`,
 		`╚═╝  ╚═╝╚══════╝╚══════╝╚═╝`,
 	}
-	// A solid orange eyeball with a lens-shaped vertical slit carved out (the
-	// dark terminal background) and a small catchlight — a snake eye.
+	// A pointed orange eyeball with a hairline vertical slit carved out (the dark
+	// terminal background) and a catchlight on the iris — a reptile eye.
 	wordO = []string{
-		` ███████ `,
+		`  █████  `,
+		` █▪█ ███ `,
 		`████ ████`,
-		`███ ▪ ███`,
-		`███   ███`,
 		`████ ████`,
-		` ███████ `,
+		` ███ ███ `,
+		`  █████  `,
 	}
 )
 
