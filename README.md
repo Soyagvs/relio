@@ -1,6 +1,6 @@
 <!-- Hero image goes here. Drop a file at docs/hero.png (≈720px wide). -->
 <p align="center">
-  <img src="docs/hero.png" alt="Relio" width="720">
+  <img width="547" height="372" alt="image" src="https://github.com/user-attachments/assets/72571312-22e5-4cd6-9953-c0b02d760192" />
 </p>
 
 <h1 align="center">Relio</h1>
