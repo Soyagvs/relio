@@ -62,12 +62,24 @@ func TestQuitKeyIsExit(t *testing.T) {
 
 func TestUpdateShownInBanner(t *testing.T) {
 	with := model{version: "1.0.0", update: "1.1.0"}
-	if !strings.Contains(with.View(), "v1.1.0 available") {
-		t.Error("View() should surface the newer version")
+	if !strings.Contains(with.banner(), "v1.1.0 available") {
+		t.Error("banner() should surface the newer version")
 	}
 	without := model{version: "1.0.0"}
-	if strings.Contains(without.View(), "available") {
-		t.Error("View() should be clean when the build is current")
+	if strings.Contains(without.banner(), "available") {
+		t.Error("banner() should be clean when the build is current")
+	}
+}
+
+// The banner is printed once before the program starts; the live View() must
+// stay short so it fits a small terminal without the top scrolling off.
+func TestViewOmitsBanner(t *testing.T) {
+	v := model{version: "1.0.0", update: "1.1.0"}.View()
+	if strings.Contains(v, "█") {
+		t.Error("View() must not embed the big wordmark banner")
+	}
+	if got := strings.Count(v, "\n") + 1; got > 20 {
+		t.Errorf("View() is %d lines, too tall for a small terminal", got)
 	}
 }
 

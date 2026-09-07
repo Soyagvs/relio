@@ -4,6 +4,7 @@
 package menu
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -84,34 +85,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// banner is the big entry banner. It is printed once by Run before the program
+// starts (so it lands in scrollback), never inside View, which must stay short
+// enough to fit a small terminal without the top scrolling off.
+func (m model) banner() string { return ui.BigBanner(m.version, m.update) }
+
 func (m model) View() string {
 	if m.done {
 		// The chosen action prints its own output next; stay quiet on exit.
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(ui.BigBanner(m.version, m.update) + "\n\n")
-
 	for i, it := range items {
 		cursor := "  "
 		label := it.label
-		desc := ui.Dim.Render(it.desc)
 		if i == m.cursor {
 			cursor = ui.Key.Render("▸ ")
 			label = ui.Key.Render(label)
 		}
 		b.WriteString(cursor + label + "\n")
-		b.WriteString("    " + desc + "\n\n")
+		b.WriteString("    " + ui.Dim.Render(it.desc) + "\n")
 	}
 
-	b.WriteString(ui.Dim.Render("↑/↓ move · enter select · q quit"))
+	b.WriteString("\n" + ui.Dim.Render("↑/↓ move · enter select · q quit"))
 	return b.String()
 }
 
 // Run shows the menu once and returns the chosen Action. update, when non-empty,
 // is a bare newer version ("1.2.3") shown next to the current one in the banner.
 func Run(version, update string) (Action, error) {
-	final, err := tea.NewProgram(model{version: version, update: update}).Run()
+	m := model{version: version, update: update}
+	fmt.Print(m.banner() + "\n")
+	final, err := tea.NewProgram(m).Run()
 	if err != nil {
 		return None, err
 	}
