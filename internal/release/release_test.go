@@ -167,6 +167,53 @@ func TestApplyWritesChangelogAndTag(t *testing.T) {
 	}
 }
 
+func TestApplyCommitsChangelogBeforeTag(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.0.0")
+	commit(t, dir, "feat: add categories")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := p.Apply(r)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if !res.Committed {
+		t.Error("res.Committed = false, want true")
+	}
+	if clean, _ := r.IsClean(); !clean {
+		t.Error("work tree should be clean: the changelog must be committed")
+	}
+
+	subject, err := gitOut(dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subject != "chore(release): v1.1.0" {
+		t.Errorf("release commit subject = %q", subject)
+	}
+
+	// The tag must point at the commit that already carries the changelog entry.
+	tagged, err := gitOut(dir, "show", "v1.1.0:CHANGELOG.md")
+	if err != nil {
+		t.Fatalf("reading CHANGELOG.md at the tag: %v", err)
+	}
+	if !strings.Contains(tagged, "## [1.1.0] - 2026-09-06") {
+		t.Errorf("tagged CHANGELOG.md missing the 1.1.0 section:\n%s", tagged)
+	}
+}
+
+func gitOut(dir string, args ...string) (string, error) {
+	c := exec.Command("git", args...)
+	c.Dir = dir
+	out, err := c.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
 func TestApplyRefusesDuplicateTag(t *testing.T) {
 	dir, r := newRepo(t)
 	commit(t, dir, "chore: init")

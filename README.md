@@ -133,8 +133,8 @@ relio             # opens the interactive menu
 ```
 
 Pick **Create a release**, check the preview, confirm. Relio updates
-`CHANGELOG.md`, creates an annotated git tag, and tells you the `git push` to
-run. **Nothing is pushed for you.**
+`CHANGELOG.md`, commits it, creates an annotated git tag on that commit, and
+tells you the `git push` to run. **Nothing is pushed for you.**
 
 ---
 
@@ -145,12 +145,12 @@ Running `relio` with no arguments in a terminal opens a one-shot menu — it run
 another action.
 
 ```
-  ██████╗ ███████╗██╗     ██╗ ███████╗
-  ██╔══██╗██╔════╝██║     ██║████ ████
-  ██████╔╝█████╗  ██║     ██║███ ▪ ███
-  ██╔══██╗██╔══╝  ██║     ██║███   ███
-  ██║  ██║███████╗███████╗██║████ ████
-  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝ ███████
+  ██████╗ ███████╗██╗     ██╗  █████
+  ██╔══██╗██╔════╝██║     ██║ █▪█ ███
+  ██████╔╝█████╗  ██║     ██║████ ████
+  ██╔══██╗██╔══╝  ██║     ██║████ ████
+  ██║  ██║███████╗███████╗██║ ███ ███
+  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  █████
   turn commits into releases
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   v1.1.0   ▲ v1.2.0 available
@@ -215,6 +215,7 @@ last tag and applies it.
 
    ```
    ✓ CHANGELOG.md updated
+   ✓ CHANGELOG.md committed
    ✓ git tag v1.4.0 created
    ✓ release ready
 
@@ -223,14 +224,17 @@ last tag and applies it.
 
 `CHANGELOG.md` gets a new `## [x.y.z] - YYYY-MM-DD` section at the top of the
 release history, in the [Keep a Changelog](https://keepachangelog.com/) format.
-The git tag is **annotated** and created at `HEAD`.
+It is committed on its own as `chore(release): vX.Y.Z` (nothing else in the work
+tree is touched), and the **annotated** git tag is created on that commit — so
+the tag always carries its own changelog section. With `--no-tag` the changelog
+is written but not committed, leaving the commit and tag to you.
 
 | Flag                        | Meaning |
 | --------------------------- | ------- |
 | `--patch` `--minor` `--major` | Force the bump instead of inferring it from the commits (only one at a time). |
 | `-y, --yes`                  | Skip the menu and the confirmation. Required in CI / a non-interactive shell. |
 | `--no-changelog`             | Do not touch the changelog file. |
-| `--no-tag`                   | Do not create the git tag. |
+| `--no-tag`                   | Do not commit the changelog or create the git tag. |
 
 ```bash
 relio                 # interactive

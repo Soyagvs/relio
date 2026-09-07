@@ -1,7 +1,9 @@
 package gitrepo
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -163,5 +165,42 @@ func TestIsClean(t *testing.T) {
 	clean, err := r.IsClean()
 	if err != nil || !clean {
 		t.Errorf("IsClean = %v,%v want true,nil", clean, err)
+	}
+}
+
+func TestCommitPathsCommitsOnlyGivenFiles(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, _ := Open(dir)
+
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("CHANGELOG.md", "# Changelog\n")
+	write("other.txt", "untracked, must stay out of the release commit\n")
+
+	if err := r.CommitPaths("chore(release): v1.0.0", "CHANGELOG.md"); err != nil {
+		t.Fatalf("CommitPaths: %v", err)
+	}
+
+	subject, err := run(dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(subject) != "chore(release): v1.0.0" {
+		t.Errorf("subject = %q", strings.TrimSpace(subject))
+	}
+	files, err := run(dir, "show", "--name-only", "--format=", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(files); got != "CHANGELOG.md" {
+		t.Errorf("committed files = %q, want just CHANGELOG.md", got)
+	}
+	if clean, _ := r.IsClean(); clean {
+		t.Error("other.txt should still be uncommitted")
 	}
 }

@@ -178,6 +178,20 @@ func (r *Repo) CreateTag(name, message string) error {
 	return err
 }
 
+// CommitPaths stages the given pathspecs and commits only them, leaving any
+// other staged or unstaged changes untouched.
+func (r *Repo) CommitPaths(message string, paths ...string) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("git commit: no paths given")
+	}
+	if _, err := run(r.root, append([]string{"add", "--"}, paths...)...); err != nil {
+		return err
+	}
+	args := append([]string{"commit", "-m", message, "--"}, paths...)
+	_, err := run(r.root, args...)
+	return err
+}
+
 // RemoteURL returns the URL configured for the given remote (usually "origin").
 func (r *Repo) RemoteURL(remote string) (string, error) {
 	out, err := run(r.root, "remote", "get-url", remote)

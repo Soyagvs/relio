@@ -304,6 +304,9 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	if applied.ChangelogPath != "" {
 		done = append(done, fmt.Sprintf("%s updated", cfg.Release.ChangelogFile))
 	}
+	if applied.Committed {
+		done = append(done, fmt.Sprintf("%s committed", cfg.Release.ChangelogFile))
+	}
 	if applied.TagName != "" {
 		done = append(done, fmt.Sprintf("git tag %s created", applied.TagName))
 	}

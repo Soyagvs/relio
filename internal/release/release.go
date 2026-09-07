@@ -1,5 +1,5 @@
 // Package release orchestrates the read side (build a Plan from repo state) and
-// the write side (apply a Plan: changelog + tag).
+// the write side (apply a Plan: write the changelog, commit it, then tag).
 package release
 
 import (
@@ -114,12 +114,28 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 // ApplyResult reports what Apply actually changed.
 type ApplyResult struct {
 	ChangelogPath string
+	Committed     bool
 	TagName       string
 }
 
-// Apply writes the changelog file and creates the git tag, per the plan's flags.
+// Apply writes the changelog file, commits it, and creates the git tag, per the
+// plan's flags. When both the changelog and the tag are enabled the changelog is
+// committed first, so the tag points at a commit that already carries its own
+// changelog section.
 func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 	var res ApplyResult
+
+	// Fail before touching anything if the target tag is already taken.
+	name := p.TagName()
+	if p.TagUpdate {
+		exists, err := repo.HasTag(name)
+		if err != nil {
+			return res, err
+		}
+		if exists {
+			return res, fmt.Errorf("tag %s already exists", name)
+		}
+	}
 
 	if p.ChangelogUpdate {
 		path := filepath.Join(repo.Root(), p.Config.Release.ChangelogFile)
@@ -132,17 +148,17 @@ func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 			return res, fmt.Errorf("writing %s: %w", p.Config.Release.ChangelogFile, err)
 		}
 		res.ChangelogPath = path
+
+		if p.TagUpdate {
+			msg := fmt.Sprintf("chore(release): %s", name)
+			if err := repo.CommitPaths(msg, p.Config.Release.ChangelogFile); err != nil {
+				return res, fmt.Errorf("committing %s: %w", p.Config.Release.ChangelogFile, err)
+			}
+			res.Committed = true
+		}
 	}
 
 	if p.TagUpdate {
-		name := p.TagName()
-		exists, err := repo.HasTag(name)
-		if err != nil {
-			return res, err
-		}
-		if exists {
-			return res, fmt.Errorf("tag %s already exists", name)
-		}
 		msg := fmt.Sprintf("release %s", name)
 		if err := repo.CreateTag(name, msg); err != nil {
 			return res, err
