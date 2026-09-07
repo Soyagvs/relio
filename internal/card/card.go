@@ -16,12 +16,21 @@ import (
 
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/gomonobold"
 	"golang.org/x/image/font/gofont/goregular"
 )
+
+// ssaa is the supersampling factor. The card is drawn at ssaa× the target
+// resolution and then downscaled with a high-quality filter. This is what keeps
+// the text and thin strokes crisp instead of soft — gg rasterises at 1× with no
+// hinting of its own, so drawing straight to the final size looks blurry. 2× is
+// the sweet spot: it clears the visible aliasing while keeping the render fast
+// and its peak memory modest (3× roughly doubled both for a marginal gain).
+const ssaa = 2
 
 // ---------- public API ----------
 
@@ -198,8 +207,10 @@ type renderer struct {
 
 func newRenderer(c Card, s Shape, opt Options) *renderer {
 	w, h := s.size()
-	r := &renderer{c: c, s: s, opt: opt, W: float64(w), H: float64(h), accent: accentOf(opt.Theme)}
-	r.dc = gg.NewContext(w, h)
+	// Everything below is derived from r.W / r.H / r.u, so drawing at ssaa× just
+	// works — only a few absolute pixel constants need the same factor applied.
+	r := &renderer{c: c, s: s, opt: opt, W: float64(w * ssaa), H: float64(h * ssaa), accent: accentOf(opt.Theme)}
+	r.dc = gg.NewContext(w*ssaa, h*ssaa)
 
 	switch s {
 	case Horizontal:
@@ -220,7 +231,12 @@ func (r *renderer) draw() image.Image {
 	r.background()
 	r.fitUnit()
 	r.content()
-	return r.dc.Image()
+
+	// Downscale the supersampled canvas to the real target size.
+	w, h := r.s.size()
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.CatmullRom.Scale(out, out.Bounds(), r.dc.Image(), r.dc.Image().Bounds(), xdraw.Src, nil)
+	return out
 }
 
 func (r *renderer) background() {
@@ -238,7 +254,7 @@ func (r *renderer) background() {
 	gap := r.H / 18
 	for y := gap; y < r.H; y += gap {
 		for x := gap; x < r.W; x += gap {
-			dc.DrawCircle(x, y, 1.1)
+			dc.DrawCircle(x, y, 1.1*ssaa)
 			dc.Fill()
 		}
 	}
@@ -253,7 +269,7 @@ func (r *renderer) background() {
 
 	// Thin rounded border around the whole card.
 	dc.SetColor(colBorder)
-	dc.SetLineWidth(2)
+	dc.SetLineWidth(2 * ssaa)
 	m := r.pad * 0.42
 	dc.DrawRoundedRectangle(m, m, r.W-2*m, r.H-2*m, r.u*0.9)
 	dc.Stroke()
@@ -347,7 +363,7 @@ func (r *renderer) content() {
 	grad.AddColorStop(0, alpha(r.accent, 220))
 	grad.AddColorStop(1, alpha(r.accent, 0))
 	dc.SetStrokeStyle(grad)
-	dc.SetLineWidth(2)
+	dc.SetLineWidth(2 * ssaa)
 	dc.DrawLine(x, y, x+dx, y)
 	dc.Stroke()
 	y += r.u * 1.3

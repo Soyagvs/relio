@@ -63,6 +63,18 @@ func TestRenderDimensionsEveryShapeAndTheme(t *testing.T) {
 	}
 }
 
+func TestRenderSupersamplesThenDownscales(t *testing.T) {
+	if ssaa < 2 {
+		t.Fatalf("ssaa = %d: supersampling is off, the card will render soft", ssaa)
+	}
+	// The card is drawn big internally but the returned image must still be the
+	// exact target size — the downscale is what makes it crisp, not larger.
+	img := Render(sample(), Horizontal, Options{})
+	if b := img.Bounds(); b.Dx() != 1200 || b.Dy() != 630 {
+		t.Fatalf("got %dx%d, want 1200x630 after downscale", b.Dx(), b.Dy())
+	}
+}
+
 func TestRenderHandlesManyItemsWithoutOverflow(t *testing.T) {
 	c := sample()
 	for i := 0; i < 40; i++ {
