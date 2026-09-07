@@ -99,9 +99,12 @@ func padRight(s string, w int) string {
 var bannerCache = map[string]string{}
 
 // BigBanner is the entry banner: the "RELIO" block wordmark (white "RELI",
-// orange "O" drawn as a snake eye), the tagline, a rule, and the author credit.
-func BigBanner(version string) string {
-	if s, ok := bannerCache[version]; ok {
+// orange "O" drawn as a snake eye) stands on its own as the title; the tagline,
+// a rule, the current version — with the newer version beside it when available
+// (a bare "1.2.3") — and the author credit all sit flush left below it.
+func BigBanner(version, available string) string {
+	key := version + "\x00" + available
+	if s, ok := bannerCache[key]; ok {
 		return s
 	}
 
@@ -115,11 +118,6 @@ func BigBanner(version string) string {
 	}
 	total := lw + ow
 
-	// lead centres a line of the given visible width within the wordmark.
-	lead := func(visibleWidth int) string {
-		return strings.Repeat(" ", max(0, (total-visibleWidth)/2))
-	}
-
 	var b strings.Builder
 	b.WriteString("\n")
 
@@ -128,23 +126,31 @@ func BigBanner(version string) string {
 			whiteMark.Render(padRight(wordReli[i], lw)) +
 			renderO(wordO[i]) + "\n")
 	}
-	b.WriteString(indent + lead(utf8.RuneCountInString(Tagline)) + Title.Render(Tagline) + "\n")
+
+	b.WriteString(indent + Title.Render(Tagline) + "\n")
 	b.WriteString(indent + orangeMark.Render(strings.Repeat("━", total)) + "\n")
 
-	creditText := "created by " + Author
-	if version != "" {
-		creditText += "   " + version
-	}
-	b.WriteString(indent + lead(utf8.RuneCountInString(creditText)) +
-		Dim.Render("created by ") + author.Render(Author))
-	if version != "" {
-		b.WriteString(Dim.Render("   " + version))
+	b.WriteString(indent + Dim.Render(versionLabel(version)))
+	if available != "" {
+		b.WriteString("   " + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available"))
 	}
 	b.WriteString("\n")
 
+	b.WriteString(indent + Dim.Render("created by ") + author.Render(Author) + "\n")
+
 	out := b.String()
-	bannerCache[version] = out
+	bannerCache[key] = out
 	return out
+}
+
+// versionLabel formats the build version for display: "v1.2.3", or "dev build"
+// for an unstamped local build.
+func versionLabel(version string) string {
+	v := strings.TrimSpace(version)
+	if v == "" || v == "dev" {
+		return "dev build"
+	}
+	return "v" + strings.TrimPrefix(v, "v")
 }
 
 // Banner is the small header printed at the top of a command run.

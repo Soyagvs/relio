@@ -53,11 +53,12 @@ type cache struct {
 	Latest    string    `json:"latest"`
 }
 
-// Notice returns a short "a newer version is available" line for the menu, or ""
-// when the build is current, the check is disabled, or nothing is cached yet. It
-// never makes a blocking network call; a stale or missing cache is refreshed in
-// the background so the notice appears on the following run.
-func Notice(current string) string {
+// Available returns the latest published version as a bare "1.2.3" (no "v") when
+// it is newer than current, or "" when the build is current, the check is
+// disabled, or nothing is cached yet. It never makes a blocking network call; a
+// stale or missing cache is refreshed in the background so the result appears on
+// the following run.
+func Available(current string) string {
 	if !enabled(current) {
 		return ""
 	}
@@ -80,10 +81,7 @@ func Notice(current string) string {
 	if !curOK || !latOK || !less(cur, lat) {
 		return ""
 	}
-
-	return fmt.Sprintf("▲  relio %s is available (you have %s) — run: brew upgrade relio",
-		strings.TrimPrefix(strings.TrimSpace(c.Latest), "v"),
-		strings.TrimPrefix(strings.TrimSpace(current), "v"))
+	return strings.TrimPrefix(strings.TrimSpace(c.Latest), "v")
 }
 
 // enabled reports whether the check should run for this build at all.

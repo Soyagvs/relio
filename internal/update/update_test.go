@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -80,48 +79,41 @@ func seedCache(t *testing.T, c cache) {
 	}
 }
 
-func TestNoticeFreshCache(t *testing.T) {
+func TestAvailableFreshCache(t *testing.T) {
 	isolate(t)
 	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v1.5.0"})
 
-	if got := Notice("v1.5.0"); got != "" {
+	if got := Available("v1.5.0"); got != "" {
 		t.Errorf("same version: got %q, want \"\"", got)
 	}
-	if got := Notice("v2.0.0"); got != "" {
+	if got := Available("v2.0.0"); got != "" {
 		t.Errorf("ahead of latest: got %q, want \"\"", got)
 	}
-
-	got := Notice("v1.4.9")
-	if got == "" {
-		t.Fatal("behind latest: got \"\", want a notice")
-	}
-	for _, sub := range []string{"1.5.0", "1.4.9", "brew upgrade relio"} {
-		if !contains(got, sub) {
-			t.Errorf("notice %q missing %q", got, sub)
-		}
+	if got := Available("v1.4.9"); got != "1.5.0" {
+		t.Errorf("behind latest: got %q, want \"1.5.0\" (bare, no v)", got)
 	}
 }
 
-func TestNoticeDisabled(t *testing.T) {
+func TestAvailableDisabled(t *testing.T) {
 	isolate(t)
 	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
 
 	t.Setenv(disableEnv, "1")
-	if got := Notice("v0.1.0"); got != "" {
+	if got := Available("v0.1.0"); got != "" {
 		t.Errorf("RELIO_NO_UPDATE_CHECK set: got %q, want \"\"", got)
 	}
 }
 
-func TestNoticeDevBuildNeverChecks(t *testing.T) {
+func TestAvailableDevBuildNeverChecks(t *testing.T) {
 	isolate(t)
 	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
 
-	if got := Notice("dev"); got != "" {
+	if got := Available("dev"); got != "" {
 		t.Errorf("dev build: got %q, want \"\"", got)
 	}
 }
 
-func TestNoticeNoCacheRefreshesInline(t *testing.T) {
+func TestAvailableNoCacheRefreshesInline(t *testing.T) {
 	isolate(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/repos/soyagvs/relio/releases/latest" {
@@ -132,26 +124,25 @@ func TestNoticeNoCacheRefreshesInline(t *testing.T) {
 	defer srv.Close()
 	APIBase = srv.URL
 
-	// First call: cache is empty, so it refreshes inline and then renders.
-	got := Notice("v3.0.0")
-	if !contains(got, "3.1.0") {
-		t.Fatalf("after inline refresh: got %q, want a 3.1.0 notice", got)
+	// First call: cache is empty, so it refreshes inline and then reports.
+	if got := Available("v3.0.0"); got != "3.1.0" {
+		t.Fatalf("after inline refresh: got %q, want \"3.1.0\"", got)
 	}
 
 	// The refresh must have persisted, so a second call needs no server.
 	APIBase = "http://127.0.0.1:0"
-	if got := Notice("v3.0.0"); !contains(got, "3.1.0") {
+	if got := Available("v3.0.0"); got != "3.1.0" {
 		t.Errorf("second call (cached): got %q", got)
 	}
 }
 
-func TestNoticeStaleCacheStillShowsWhileRefreshing(t *testing.T) {
+func TestAvailableStaleCacheStillShowsWhileRefreshing(t *testing.T) {
 	isolate(t)
 	APIBase = "http://127.0.0.1:0" // refresh will fail; stale value must survive
 	seedCache(t, cache{CheckedAt: time.Now().Add(-48 * time.Hour), Latest: "v2.0.0"})
 
-	if got := Notice("v1.0.0"); !contains(got, "2.0.0") {
-		t.Errorf("stale cache: got %q, want the stale 2.0.0 notice", got)
+	if got := Available("v1.0.0"); got != "2.0.0" {
+		t.Errorf("stale cache: got %q, want the stale \"2.0.0\"", got)
 	}
 }
 
@@ -198,5 +189,3 @@ func TestCacheRoundTrip(t *testing.T) {
 		t.Errorf("stray %s", filepath.Base(p)+".tmp")
 	}
 }
-
-func contains(s, sub string) bool { return strings.Contains(s, sub) }

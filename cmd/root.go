@@ -159,7 +159,7 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
 
-	action, err := menu.Run(version, update.Notice(version))
+	action, err := menu.Run(version, update.Available(version))
 	if err != nil {
 		return err
 	}

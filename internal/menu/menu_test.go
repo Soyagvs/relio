@@ -60,14 +60,14 @@ func TestQuitKeyIsExit(t *testing.T) {
 	}
 }
 
-func TestNoticeShownUnderBanner(t *testing.T) {
-	with := model{version: "1.0.0", notice: "▲ relio 1.1.0 is available"}
-	if !strings.Contains(with.View(), "1.1.0 is available") {
-		t.Error("View() should include the update notice")
+func TestUpdateShownInBanner(t *testing.T) {
+	with := model{version: "1.0.0", update: "1.1.0"}
+	if !strings.Contains(with.View(), "v1.1.0 available") {
+		t.Error("View() should surface the newer version")
 	}
 	without := model{version: "1.0.0"}
-	if strings.Contains(without.View(), "is available") {
-		t.Error("View() should be clean when there is no notice")
+	if strings.Contains(without.View(), "available") {
+		t.Error("View() should be clean when the build is current")
 	}
 }
 

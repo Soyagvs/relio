@@ -151,8 +151,10 @@ another action.
   ██╔══██╗██╔══╝  ██║     ██║███   ███
   ██║  ██║███████╗███████╗██║████ ████
   ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝ ███████
-        turn commits into releases
+  turn commits into releases
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  v1.1.0   ▲ v1.2.0 available
+  created by SOYAGVS
 
 ▸ Status              What's unreleased since the last tag, and the suggested version
   Create a release    Version, changelog, and tag from commits since the last tag
@@ -169,11 +171,11 @@ another action.
 In CI or when the output is piped (no TTY), or with `--yes` / a forced bump, the
 menu is skipped and a release runs directly.
 
-If a newer Relio has been published, the menu shows a single line under the
-banner (`▲ relio x.y.z is available — run: brew upgrade relio`). The check reads
-one cached value on disk and, at most once a day, refreshes it in the background
-— it never blocks the menu or sends anything about you. Set
-`RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
+The banner shows the current version, and — when a newer Relio has been
+published — `▲ vX.Y.Z available` right next to it. The check reads one cached
+value on disk and, at most once a day, refreshes it in the background; it never
+blocks the menu or sends anything about you. `relio version` shows the same hint.
+Set `RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
 
 ---
 
