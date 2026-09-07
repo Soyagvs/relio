@@ -129,6 +129,8 @@ runs locally and hands you the `git push` to run.
 Pick whichever line matches how you already install tools. All of them give you
 the same `relio` binary.
 
+> Every version and its binaries: **[github.com/soyagvs/relio/releases](https://github.com/soyagvs/relio/releases)**
+
 ### Homebrew (macOS / Linux) — recommended
 
 ```bash
