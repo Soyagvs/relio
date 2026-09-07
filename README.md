@@ -441,11 +441,17 @@ fix       Supervisor login
 
 ### `relio image`
 
-Renders a dark, developer-styled **release card** as a PNG into the current
-directory (`relio-<version>-<shape>.png`). Everything on it comes from the real
-release. In a terminal it prompts for the release, the shape, the colour, and
-whether to upload; the flags below skip those prompts (and prompts are skipped
-automatically with no TTY — defaults are latest tag / horizontal / orange).
+Renders a dark, developer-styled **release card**. Everything on it comes from
+the real release. In a terminal it prompts for the release, the shape, the
+colour, and then **what to do with the image**:
+
+- **Save + download link** — write `relio-<version>-<shape>.png` to the current
+  directory *and* upload it for a link + QR.
+- **Save only** — just write the file.
+- **Download link only** — upload it for a link + QR, write nothing to disk.
+
+The flags below skip those prompts. With no TTY and no flags it just saves the
+PNG to the current directory (latest tag / horizontal / orange).
 
 | Flag        | Values |
 | ----------- | ------ |
@@ -453,12 +459,14 @@ automatically with no TTY — defaults are latest tag / horizontal / orange).
 | `--shape`   | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
 | `--theme`   | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added green / Changed amber / Fixed coral) are fixed. |
 | `--hash`    | Prefix each line with its short commit hash. Off by default. |
-| `--upload`  | Also upload the PNG to a temporary public host (litterbox, 72h; catbox as fallback) and print the URL **plus a QR code**. Handy for getting it onto a phone over `mosh` — only text crosses the wire. The local file is always kept. |
+| `--upload`  | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
+| `--link-only` | Upload for the URL + QR **without** writing a file to disk. |
 
 ```bash
 relio image                                   # prompts for everything
 relio image --shape square --theme green
 relio image --version v1.4.0 --shape vertical --upload
+relio image --link-only                        # just give me the link
 ```
 
 If a changelog line is long it wraps onto the next line; if there are too many

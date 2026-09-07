@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,11 +22,12 @@ import (
 )
 
 type imageFlags struct {
-	version string
-	shape   string
-	theme   string
-	hash    bool
-	upload  bool
+	version  string
+	shape    string
+	theme    string
+	hash     bool
+	upload   bool
+	linkOnly bool
 }
 
 func newImageCmd(f *releaseFlags) *cobra.Command {
@@ -33,13 +35,17 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "image",
-		Short: "Save a shareable PNG of a release",
-		Long: "Render a dark, developer-styled release card as a PNG in the current\n" +
-			"directory. Everything on it comes from the real release.\n\n" +
-			"Flags skip the prompts (prompts are also skipped with no TTY):\n" +
-			"  --version   release tag            --shape   horizontal|vertical|square\n" +
-			"  --theme     orange|green|purple    --hash    show commit hashes\n" +
-			"  --upload    send it to a temp host (litterbox, 72h) and print a link + QR",
+		Short: "Make a shareable image of a release",
+		Long: "Render a dark, developer-styled release card. Everything on it comes\n" +
+			"from the real release.\n\n" +
+			"In a terminal, Relio asks what to do with it: save it to the current\n" +
+			"directory, upload it for a QR + link, or both. With no TTY and no flags\n" +
+			"it just saves to the current directory.\n\n" +
+			"Flags skip the prompts:\n" +
+			"  --version    release tag            --shape   horizontal|vertical|square\n" +
+			"  --theme      orange|green|purple    --hash    show commit hashes\n" +
+			"  --upload     also upload to a temp host (litterbox, 72h): link + QR\n" +
+			"  --link-only  upload only — do not write a file to disk",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
@@ -54,7 +60,8 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 	c.Flags().StringVar(&im.shape, "shape", "", "horizontal | vertical | square (default: horizontal)")
 	c.Flags().StringVar(&im.theme, "theme", "", "orange | green | purple (default: orange)")
 	c.Flags().BoolVar(&im.hash, "hash", false, "show the commit hash on each line")
-	c.Flags().BoolVar(&im.upload, "upload", false, "upload to a temp host (litterbox 72h) and show a link + QR")
+	c.Flags().BoolVar(&im.upload, "upload", false, "also upload to a temp host (litterbox 72h) and show a link + QR")
+	c.Flags().BoolVar(&im.linkOnly, "link-only", false, "upload for a link + QR without writing a local file")
 	return c
 }
 
@@ -158,37 +165,94 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	}
 	opt := card.Options{Theme: theme, ShowHash: im.hash}
 
-	path := filepath.Join(".", fmt.Sprintf("relio-%s-%s.png", version, shape))
-	if err := card.Save(card.Render(c, shape, opt), path); err != nil {
-		return err
+	img := card.Render(c, shape, opt)
+	localPath := filepath.Join(".", fmt.Sprintf("relio-%s-%s.png", version, shape))
+	destDir := "."
+	if a, aerr := filepath.Abs(localPath); aerr == nil {
+		destDir = filepath.Dir(a)
 	}
-	abs, _ := filepath.Abs(path)
 
-	fmt.Fprintln(out, ui.Success([]string{"saved " + path}))
-	fmt.Fprintln(out, ui.Dim.Render("  "+abs))
-
-	// When run interactively without --upload, offer it (handy on a phone).
-	doUpload := im.upload
-	if !doUpload && interactive {
-		ans, ok, _ := pick.Run("Upload it for a phone link?", []pick.Item{
-			{Label: "Yes", Desc: "Upload to a temp host and show a QR + link", Value: "y"},
-			{Label: "No", Desc: "Just keep the file", Value: "n"},
+	// Decide what to do with the image: save it, upload it for a link, or both.
+	save, link, ask := imageDest(im, interactive)
+	if ask {
+		ans, ok, perr := pick.Run("What should Relio do with the image?", []pick.Item{
+			{Label: "Save + download link", Desc: "Write it to " + destDir + " and upload for a QR + link", Value: "both"},
+			{Label: "Save only", Desc: "Write it to " + destDir, Value: "save"},
+			{Label: "Download link only", Desc: "Upload for a QR + link — nothing written to disk", Value: "link"},
 		})
-		doUpload = ok && ans == "y"
+		if perr != nil || !ok {
+			return perr
+		}
+		save, link = destFromAnswer(ans)
 	}
 
-	if doUpload {
-		fmt.Fprintln(out)
-		url, uerr := upload.Upload(path)
+	uploadSrc := ""
+	if save {
+		if err := card.Save(img, localPath); err != nil {
+			return err
+		}
+		abs, _ := filepath.Abs(localPath)
+		fmt.Fprintln(out, ui.Success([]string{"saved " + localPath}))
+		fmt.Fprintln(out, ui.Dim.Render("  "+abs))
+		uploadSrc = localPath
+	}
+
+	if link {
+		// No local copy to send — render to a temp file just for the upload.
+		if uploadSrc == "" {
+			tmp, terr := os.CreateTemp("", "relio-*.png")
+			if terr != nil {
+				return terr
+			}
+			tmp.Close()
+			defer os.Remove(tmp.Name())
+			if err := card.Save(img, tmp.Name()); err != nil {
+				return err
+			}
+			uploadSrc = tmp.Name()
+		}
+
+		if save {
+			fmt.Fprintln(out)
+		}
+		url, uerr := upload.Upload(uploadSrc)
 		if uerr != nil {
 			fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error())
-			fmt.Fprintln(out, ui.Dim.Render("  the image is still saved locally"))
+			if save {
+				fmt.Fprintln(out, ui.Dim.Render("  the image is still saved locally"))
+			}
 			return nil
 		}
 		fmt.Fprint(out, qrBlock(url))
 		fmt.Fprintln(out, "  "+ui.Key.Render(url))
 	}
 	return nil
+}
+
+// imageDest reads the flags and TTY state to decide what to do with the render.
+// When ask is true the caller runs the interactive save/link/both prompt.
+//
+//	--link-only        -> upload only
+//	--upload           -> save and upload
+//	interactive, else  -> ask
+//	no TTY, no flags    -> save only (keeps scripts working)
+func imageDest(im imageFlags, interactive bool) (save, link, ask bool) {
+	switch {
+	case im.linkOnly:
+		return false, true, false
+	case im.upload:
+		return true, true, false
+	case interactive:
+		return false, false, true
+	default:
+		return true, false, false
+	}
+}
+
+// destFromAnswer maps the prompt's Value ("both" / "save" / "link") to the
+// save and link switches.
+func destFromAnswer(ans string) (save, link bool) {
+	return ans == "both" || ans == "save", ans == "both" || ans == "link"
 }
 
 // qrBlock renders an ANSI QR of s (black/white cells so it scans on any terminal

@@ -17,7 +17,7 @@ var (
 		{"relio stats", "Relio's public GitHub download stats (read-only, no telemetry)"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
-		{"relio image", "Render a PNG release card (--shape, --theme orange|green|purple, --hash, --upload)"},
+		{"relio image", "Make a release card image — save it, upload it for a link, or both (--shape, --theme, --hash, --upload, --link-only)"},
 		{"relio auth", "GitHub login — placeholder, lands in v0.2.0"},
 		{"relio version", "Print the Relio version"},
 	}
@@ -40,14 +40,15 @@ var (
 		{"--shape", "horizontal (1200×630) | vertical (1080×1920) | square (1080×1080)"},
 		{"--theme", "orange (default) | green | purple accent"},
 		{"--hash", "show the commit hash on each line"},
-		{"--upload", "upload to a temp host (litterbox 72h) and print a link + QR"},
+		{"--upload", "also upload to a temp host (litterbox 72h) and print a link + QR"},
+		{"--link-only", "upload for a link + QR without writing a local file"},
 	}
 	refMenu = []refRow{
 		{"Status", "What's unreleased and the suggested version (same as `relio status`)"},
 		{"Create a release", "Same as running `relio` with no arguments"},
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
 		{"Release text", "Pick a post format and print copy-paste text (same as `relio post`)"},
-		{"Release image", "Pick a release + shape and save a PNG card (same as `relio image`)"},
+		{"Release image", "Pick a release + shape, then save the card, upload it for a link, or both (same as `relio image`)"},
 		{"GitHub auth", "Preview of the v0.2.0 GitHub integration"},
 		{"Help", "This screen"},
 		{"Exit", "Leave Relio"},
