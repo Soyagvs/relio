@@ -52,14 +52,20 @@ func buildSteps(ctx Context) []step {
 	if ctx.HasConfig {
 		steps = append(steps, step{
 			title: "Set up `.release.yaml`",
-			body: fmt.Sprintf("Already set up (project: %s). The file holds configuration only — "+
-				"changelog file, tag prefix, version_files, hooks — never secrets.", ctx.Project),
+			body: fmt.Sprintf("Already set up (project: %s), so you can skip `relio init`. This is "+
+				"Relio's own config at the repo root — not your package.json / pyproject.toml. "+
+				"Configuration only, never secrets: changelog file, tag prefix, and optionally "+
+				"version_files and hooks.", ctx.Project),
 		})
 	} else {
 		s := step{
 			title: "Set up `.release.yaml`",
-			body: "Relio reads `.release.yaml` at the repo root: changelog file, tag prefix, " +
-				"version_files, hooks. Configuration only — never secrets. Create it with `relio init`.",
+			body: "Relio needs its own file, `.release.yaml`, at the repo root — separate from any " +
+				"version file your language already has (package.json, pyproject.toml, …), and always " +
+				"read from the project root no matter where you run relio from. Configuration only, " +
+				"never secrets: changelog file, tag prefix, and optionally version_files (list those " +
+				"language files here to keep them in sync) and hooks. Create it with `relio init`, or " +
+				"hand-write a minimal one — just `project: <name>` works.",
 		}
 		if ctx.RunInit != nil {
 			s.actionLabel, s.action = "run relio init now", ctx.RunInit
