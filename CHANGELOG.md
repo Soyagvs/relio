@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.6.0] - 2026-09-08
+
+### Added
+
+- check: Add `relio check` to lint commits before releasing
+- github: Publish the GitHub Release after tagging
+- menu: Animate banner eye inside the menu
+- menu: Draw faint rules between menu sections
+- menu: Rework the menu for full parity and add `relio guide`
+- release: Run before/after shell hooks from .release.yaml
+- release: Sync the version into declared project files
+- semver: Support release candidates with `relio --rc`
+- ui: Repo URL in the banner and a one-shot glint on the eye
+
+### Changed
+
+- banner: Tighten the eye against the RELI wordmark
+
+### Fixed
+
+- config: Default changelog and tag to on when the key is omitted
+- menu: Stop the redraw jump, drop Stats, make q go back from sub-choices
+
 ## [1.5.0] - 2026-09-07
 
 ### Added
