@@ -66,6 +66,40 @@ func TestLoadFillsDefaults(t *testing.T) {
 	}
 }
 
+func TestGitHubConfigRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	want := Default("x")
+	want.GitHub.Enabled = true
+	want.GitHub.Repo = "acme/relio"
+	want.GitHub.Release = true
+
+	if err := want.Save(dir); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.GitHub != want.GitHub {
+		t.Errorf("GitHub = %+v, want %+v", got.GitHub, want.GitHub)
+	}
+}
+
+func TestLoadWithoutGitHubFields(t *testing.T) {
+	dir := t.TempDir()
+	old := "project: legacy\nrelease:\n  changelog: true\n  tag: true\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.GitHub.Enabled || got.GitHub.Repo != "" || got.GitHub.Release {
+		t.Errorf("GitHub should default to zero values, got %+v", got.GitHub)
+	}
+}
+
 func TestLoadRejectsUnsupportedVersioning(t *testing.T) {
 	dir := t.TempDir()
 	bad := "project: x\nversioning: calver\n"

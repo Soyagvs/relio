@@ -27,6 +27,7 @@ type Plan struct {
 	Notes           changelog.Notes
 	ChangelogUpdate bool
 	TagUpdate       bool
+	PublishGitHub   bool
 	Now             time.Time
 }
 
@@ -50,6 +51,16 @@ func (p Plan) Section() string {
 
 // NothingToRelease reports whether there are no commits since the last tag.
 func (p Plan) NothingToRelease() bool { return len(p.Commits) == 0 }
+
+// ReleaseBody is the changelog notes for this release without the
+// "## [x.y.z] - date" heading line — the text to send as a GitHub Release body.
+func (p Plan) ReleaseBody() string {
+	section := p.Section()
+	if i := strings.IndexByte(section, '\n'); i >= 0 {
+		return strings.TrimSpace(section[i+1:])
+	}
+	return ""
+}
 
 // Options tune plan construction.
 type Options struct {
@@ -107,6 +118,7 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		Notes:           changelog.Build(commits),
 		ChangelogUpdate: cfg.Release.Changelog,
 		TagUpdate:       cfg.Release.Tag,
+		PublishGitHub:   cfg.GitHub.Release,
 		Now:             now,
 	}, nil
 }

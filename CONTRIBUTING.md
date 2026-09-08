@@ -150,3 +150,7 @@ git push --follow-tags
 
 Then CI takes over and attaches the cross-platform binaries to the GitHub
 Release.
+
+With a `GITHUB_TOKEN` in the environment (or `gh auth login`), `relio --publish`
+does the push and creates the GitHub Release in the same run — it asks first
+unless `--yes` is also set.

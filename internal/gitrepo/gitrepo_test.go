@@ -158,6 +158,60 @@ func TestTagsAndDeleteTag(t *testing.T) {
 	}
 }
 
+func TestCurrentBranch(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	br, err := r.CurrentBranch()
+	if err != nil {
+		t.Fatalf("CurrentBranch: %v", err)
+	}
+	if br != "main" && br != "master" {
+		t.Errorf("CurrentBranch = %q, want main or master", br)
+	}
+}
+
+func TestPush(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bare := t.TempDir()
+	if out, err := exec.Command("git", "init", "--bare", "-q", bare).CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %v: %s", err, out)
+	}
+	if _, err := run(dir, "remote", "add", "origin", bare); err != nil {
+		t.Fatalf("remote add: %v", err)
+	}
+
+	branch, err := r.CurrentBranch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push("origin", branch); err != nil {
+		t.Fatalf("Push branch: %v", err)
+	}
+	if out, err := exec.Command("git", "--git-dir", bare, "rev-parse", branch).CombinedOutput(); err != nil {
+		t.Fatalf("bare repo has no %s after push: %v: %s", branch, err, out)
+	}
+
+	if err := r.CreateTag("v0.1.0", "release v0.1.0"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push("origin", "v0.1.0"); err != nil {
+		t.Fatalf("Push tag: %v", err)
+	}
+	if out, err := exec.Command("git", "--git-dir", bare, "rev-parse", "refs/tags/v0.1.0").CombinedOutput(); err != nil {
+		t.Fatalf("bare repo has no tag after push: %v: %s", err, out)
+	}
+}
+
 func TestIsClean(t *testing.T) {
 	dir := gitInit(t)
 	commit(t, dir, "chore: initial")

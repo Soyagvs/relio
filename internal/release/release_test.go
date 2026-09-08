@@ -207,6 +207,58 @@ func TestApplyCommitsChangelogBeforeTag(t *testing.T) {
 	}
 }
 
+func TestBuildPlanCarriesPublishIntent(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "feat: x")
+
+	cfg := config.Default("x")
+	cfg.GitHub.Release = true
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.PublishGitHub {
+		t.Error("PublishGitHub = false, want true from cfg.GitHub.Release")
+	}
+
+	cfg.GitHub.Release = false
+	p, err = BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.PublishGitHub {
+		t.Error("PublishGitHub = true, want false")
+	}
+}
+
+func TestReleaseBodyStripsHeading(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.0.0")
+	commit(t, dir, "feat: add categories")
+	commit(t, dir, "fix: dashboard crash")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := p.ReleaseBody()
+	if strings.Contains(body, "## [1.1.0]") || strings.HasPrefix(body, "## [") {
+		t.Errorf("body still carries the heading line:\n%s", body)
+	}
+	if !strings.HasPrefix(body, "### Added") {
+		t.Errorf("body should start at the first section:\n%s", body)
+	}
+	if !strings.Contains(body, "Add categories") || !strings.Contains(body, "Dashboard crash") {
+		t.Errorf("body missing notes:\n%s", body)
+	}
+	// The full section still keeps its heading — ReleaseBody must not mutate it.
+	if !strings.Contains(p.Section(), "## [1.1.0] - 2026-09-06") {
+		t.Errorf("Section() lost its heading: %s", p.Section())
+	}
+}
+
 func gitOut(dir string, args ...string) (string, error) {
 	c := exec.Command("git", args...)
 	c.Dir = dir

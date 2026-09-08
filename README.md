@@ -201,8 +201,9 @@ Pick **Create a release**, read the preview, confirm. Relio then:
 4. prints the exact `git push` for you to run.
 
 > [!WARNING]
-> **Nothing is pushed for you.** Relio stops at the tag and tells you the push
-> command. You stay in control of what reaches the remote.
+> **Nothing is pushed for you** by default. Relio stops at the tag and tells you
+> the push command. You stay in control of what reaches the remote — opt in with
+> `--publish` when you want Relio to push and create the GitHub Release too.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -231,7 +232,7 @@ another action.
   Releases            List every version, read its notes, or delete one
   Release text        Copy-paste announcement for social posts — pick a format
   Release image       Save a shareable PNG of a release — pick a shape
-  GitHub auth         Log in with your own GitHub account (coming in v0.2.0)
+  GitHub auth         Token-based auth — check it with `relio auth status`
   Help                Every command and flag, with a one-line description
   Exit
 
@@ -301,18 +302,28 @@ tree is touched), and the **annotated** git tag is created on that commit — so
 the tag always carries its own changelog section. With `--no-tag` the changelog
 is written but not committed, leaving the commit and tag to you.
 
+**Publishing to GitHub** is opt-in. With `--publish` (or `github.release: true`
+in `.release.yaml`), once the local tag exists Relio asks to push the branch and
+tag to `origin` and create the GitHub Release, using the new changelog section
+as the body. It needs a token — `GITHUB_TOKEN` or `gh auth login` (see
+[`relio auth`](#relio-auth)). Without one, or if you decline the prompt, the
+local release is untouched and Relio just prints the `git push` you can run
+yourself.
+
 | Flag                        | Meaning |
 | --------------------------- | ------- |
 | `--patch` `--minor` `--major` | Force the bump instead of inferring it from the commits (only one at a time). |
 | `-y, --yes`                  | Skip the menu and the confirmation. Required in CI / a non-interactive shell. |
 | `--no-changelog`             | Do not touch the changelog file. |
 | `--no-tag`                   | Do not commit the changelog or create the git tag. |
+| `--publish`                  | After tagging, push the branch and tag to `origin` and create the GitHub Release. |
 
 ```bash
 relio                 # interactive
 relio --yes           # apply the inferred bump, no prompts
 relio --minor --yes   # force a minor bump
 relio --no-tag        # write the changelog only
+relio --publish       # also push and create the GitHub Release
 ```
 
 ---
@@ -486,9 +497,22 @@ q      back
 
 ### `relio auth`
 
-Placeholder for the v0.2.0 GitHub integration (per-user OAuth Device Flow, tokens
-in the OS keychain — never in `.release.yaml`). The subcommands
-(`login` / `status` / `logout`) currently just print a "lands in v0.2.0" note.
+Relio talks to GitHub with a **personal access token**, not a login of its own.
+It checks `RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN` and `GH_TOKEN` in that order, then
+falls back to `gh auth token` when the [GitHub CLI](https://cli.github.com/) is
+signed in. The token is only ever sent to `api.github.com` in the
+`Authorization` header — nothing is written to disk.
+
+```
+$ relio auth status
+· logged in as octocat (via GITHUB_TOKEN)
+```
+
+`relio auth status` resolves the token and prints who it belongs to (or
+`not authenticated` when none is found). `login` / `logout` are short notes: set
+`GITHUB_TOKEN` to a PAT with `repo` scope — or run `gh auth login` — and unset
+those vars (or `gh auth logout`) to drop it. A device-flow login with keychain
+storage is still planned.
 
 ---
 
@@ -589,7 +613,9 @@ release:
     tag_prefix: v                # "" for bare 1.4.0 tags
 
 github:
-    enabled: false         # reserved for v0.2.0
+    enabled: false         # reserved
+    repo: ""               # "owner/name" override; empty = derive from the origin remote
+    release: false         # on `relio`, also push and create the GitHub Release (same as --publish)
 
 content:
     enabled: false         # reserved for v0.3.0
@@ -615,7 +641,9 @@ relio post --format changelog        # plain text on stdout
 relio image --shape horizontal       # latest tag, default theme, saved to cwd
 ```
 
-Relio never pushes; wire the `git push` into your pipeline.
+By default Relio never pushes — wire the `git push` into your pipeline. Pass
+`--publish` with `--yes` and a `GITHUB_TOKEN` in the environment to have Relio
+push the branch and tag and create the GitHub Release itself, no prompt.
 
 ### Publishing Relio itself
 
@@ -690,7 +718,7 @@ internal/
 ## Roadmap
 
 - **v0.1.x** — local git tool: parse, version, changelog, tag, preview · status · post · image *(current)*
-- **v0.2.0** — GitHub: per-user OAuth Device Flow, keychain storage, push the tag, create the GitHub Release
+- **v0.2.0** — GitHub: token-based Release creation — push the branch and tag, create the GitHub Release from the changelog *(done)*; per-user OAuth Device Flow + keychain storage still to come
 - **v0.3.0** — content: `relio post` templates, clipboard, publish hooks
 - **v0.4.0** — plugin API (`BeforeRelease` / `AfterRelease` / `OnTagCreated` / `OnReleasePublished`)
 - **v1.0.0** — `relio init` → `relio auth login` → `relio`, polished

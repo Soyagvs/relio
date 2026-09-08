@@ -178,6 +178,24 @@ func (r *Repo) CreateTag(name, message string) error {
 	return err
 }
 
+// CurrentBranch returns the name of the branch HEAD points at (e.g. "main"). It
+// returns "HEAD" when the work tree is in a detached-HEAD state.
+func (r *Repo) CurrentBranch() (string, error) {
+	out, err := run(r.root, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// Push runs `git push <remote> [refs...]`. With no refs it is a bare
+// `git push <remote>`, letting git's own push configuration decide what goes.
+func (r *Repo) Push(remote string, refs ...string) error {
+	args := append([]string{"push", remote}, refs...)
+	_, err := run(r.root, args...)
+	return err
+}
+
 // CommitPaths stages the given pathspecs and commits only them, leaving any
 // other staged or unstaged changes untouched.
 func (r *Repo) CommitPaths(message string, paths ...string) error {

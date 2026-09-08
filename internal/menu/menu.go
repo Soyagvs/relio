@@ -41,7 +41,7 @@ var items = []item{
 	{"Releases", "Browse, read notes, or delete a version", ViewReleases},
 	{"Release text", "Announcement text — pick a format", ReleaseText},
 	{"Release image", "Shareable PNG — pick a shape", ReleaseImage},
-	{"GitHub auth", "Sign in with your account (v0.2.0)", GitHubAuth},
+	{"GitHub auth", "Token-based; check it with `relio auth status`", GitHubAuth},
 	{"Help", "Every command and flag", Help},
 	{"Exit", "Leave Relio", Exit},
 }

@@ -39,6 +39,7 @@ type releaseFlags struct {
 	noChangelog bool
 	noTag       bool
 	noHash      bool
+	publish     bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -78,6 +79,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVarP(&f.yes, "yes", "y", false, "skip the interactive menu and confirmation")
 	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
+	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
 
 	root.AddCommand(newStatusCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
@@ -182,8 +184,8 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	case menu.GitHubAuth:
 		fmt.Fprintln(out, ui.Banner("", version))
 		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info("GitHub auth lands in v0.2.0: per-user OAuth Device Flow,"))
-		fmt.Fprintln(out, ui.Info("tokens stored in the OS keychain — never in .release.yaml."))
+		fmt.Fprintln(out, ui.Info("Relio talks to GitHub with a personal access token — set GITHUB_TOKEN"))
+		fmt.Fprintln(out, ui.Info("(or run `gh auth login`). Run `relio auth status` to see the active one."))
 		return nil
 
 	case menu.CreateRelease:
@@ -314,7 +316,16 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, ui.Success(done))
-	if applied.TagName != "" {
+
+	printedNext := false
+	if plan.PublishGitHub && applied.TagName != "" {
+		printedNext, err = publishGitHubRelease(out, repo, cfg, plan, applied, interactive, f.yes)
+		if err != nil {
+			return err
+		}
+	}
+
+	if applied.TagName != "" && !printedNext {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, ui.Dim.Render("  next:  git push && git push origin "+applied.TagName))
 	}
@@ -327,5 +338,8 @@ func applyFlagOverrides(p *release.Plan, f *releaseFlags) {
 	}
 	if f.noTag {
 		p.TagUpdate = false
+	}
+	if f.publish {
+		p.PublishGitHub = true
 	}
 }

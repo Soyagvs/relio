@@ -34,9 +34,12 @@ type ReleaseConfig struct {
 	TagPrefix     string `yaml:"tag_prefix"`
 }
 
-// GitHubConfig is a placeholder for the v0.2.0 GitHub integration.
+// GitHubConfig controls the opt-in GitHub Release step: pushing the branch and
+// tag to origin and creating the Release with the changelog notes as its body.
 type GitHubConfig struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled bool   `yaml:"enabled"`
+	Repo    string `yaml:"repo"`    // "owner/name" override; empty = derive from origin
+	Release bool   `yaml:"release"` // publish a GitHub Release automatically on `relio`
 }
 
 // ContentConfig is a placeholder for the v0.3.0 content generator.

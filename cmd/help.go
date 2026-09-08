@@ -18,7 +18,7 @@ var (
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
 		{"relio image", "Make a release card image — save it, upload it for a link, or both (--shape, --theme, --hash, --upload, --link-only)"},
-		{"relio auth", "GitHub login — placeholder, lands in v0.2.0"},
+		{"relio auth", "Inspect the GitHub token relio will use (`relio auth status`)"},
 		{"relio version", "Print the Relio version"},
 	}
 	refReleaseFlags = []refRow{
@@ -26,6 +26,7 @@ var (
 		{"-y, --yes", "Skip the menu and the confirmation (required in CI or a non-interactive shell)"},
 		{"--no-changelog", "Do not modify the changelog file"},
 		{"--no-tag", "Do not create the git tag"},
+		{"--publish", "After tagging, push the branch and tag to origin and create the GitHub Release"},
 		{"--no-hash", "Hide the commit hash on each release-note line"},
 		{"-C, --dir <path>", "Run as if Relio was started in <path>"},
 	}
@@ -49,7 +50,7 @@ var (
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
 		{"Release text", "Pick a post format and print copy-paste text (same as `relio post`)"},
 		{"Release image", "Pick a release + shape, then save the card, upload it for a link, or both (same as `relio image`)"},
-		{"GitHub auth", "Preview of the v0.2.0 GitHub integration"},
+		{"GitHub auth", "Token-based GitHub auth — see `relio auth status`"},
 		{"Help", "This screen"},
 		{"Exit", "Leave Relio"},
 	}
