@@ -170,7 +170,7 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 // quitting; q/esc at the menu quits; ctrl+c anywhere hard-quits.
 func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprint(out, ui.BigBanner(version, update.Available(version)))
+	ui.BannerIntro(out, version, update.Available(version), stdoutIsTTY())
 
 	for {
 		action, err := menu.Run()

@@ -4,8 +4,12 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"math"
+	"os"
+	"runtime"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
@@ -46,10 +50,12 @@ var (
 		Padding(0, 2)
 )
 
-// AppName and Author are shown on the big entry banner.
+// AppName and Author are shown on the big entry banner. RepoURL is the project's
+// GitHub home ("Soyagvs" is the account name — capital S is intentional).
 const (
 	AppName = "Relio"
 	Author  = "SOYAGVS"
+	RepoURL = "github.com/Soyagvs/relio"
 )
 
 // Tagline sits under the wordmark, in purple.
@@ -76,9 +82,15 @@ const (
 	eyeH = 12 // two pixel rows per text line -> 6 lines, matching wordReli
 )
 
+// restGlint is the eye's resting catchlight position — upper-left-ish, roughly
+// where the static catchlight sat before the one-shot sweep was added.
+const restGlint = 0.30
+
 // eyePixels builds the eyeH×eyeW grid. Cell values: 0 background, 1 dim rim,
-// 2 mid iris, 3 bright core, 4 catchlight.
-func eyePixels() [][]byte {
+// 2 mid iris, 3 bright core, 4 catchlight. glint is a normalized sweep position:
+// the catchlight rides left→right across the upper iris as it goes 0→1, and is
+// off-frame at the extremes.
+func eyePixels(glint float64) [][]byte {
 	g := make([][]byte, eyeH)
 	cx, cy := float64(eyeW-1)/2, float64(eyeH-1)/2
 	rx, ry := float64(eyeW)*0.46, float64(eyeH)*0.5
@@ -117,14 +129,30 @@ func eyePixels() [][]byte {
 		}
 	}
 
-	// Catchlight: a small cluster on the iris, upper-left of the slit.
-	for _, p := range [][2]int{
-		{int(cx) - 2, int(cy) - 3},
-		{int(cx) - 1, int(cy) - 3},
-		{int(cx) - 2, int(cy) - 2},
-	} {
-		if x, y := p[0], p[1]; x >= 0 && x < eyeW && y >= 0 && y < eyeH && g[y][x] != 0 {
-			g[y][x] = 4
+	// Catchlight: a bright spot that rides left→right across the upper iris as
+	// glint sweeps 0→1. Off-frame at the extremes; a brief bloom near mid-sweep,
+	// a tighter dot near the ends. Painted only where the cell is already on the
+	// iris, so the light never spills past the rim.
+	if glint > 0.02 && glint < 0.98 {
+		gx := 1.5 + glint*(float64(eyeW)-3.0)
+		gy := cy - ry*0.5
+		radius := 1.4
+		switch {
+		case glint >= 0.35 && glint <= 0.65:
+			radius = 1.8
+		case glint < 0.15 || glint > 0.85:
+			radius = 1.0
+		}
+		for y := 0; y < eyeH; y++ {
+			for x := 0; x < eyeW; x++ {
+				if g[y][x] == 0 {
+					continue
+				}
+				gdx, gdy := float64(x)-gx, float64(y)-gy
+				if math.Sqrt(gdx*gdx+gdy*gdy) <= radius {
+					g[y][x] = 4
+				}
+			}
 		}
 	}
 	return g
@@ -146,8 +174,8 @@ func eyeColor(v byte) lipgloss.Color {
 // eyeLines renders the pixel grid to eyeH/2 half-block strings. A cell packs the
 // pixel above and below it: ▀ for a lit top, ▄ for a lit bottom, █ when both
 // match, and ▀ with a background colour when the two halves differ.
-func eyeLines() []string {
-	g := eyePixels()
+func eyeLines(glint float64) []string {
+	g := eyePixels(glint)
 	lines := make([]string, 0, eyeH/2)
 	for y := 0; y < eyeH; y += 2 {
 		top, bot := g[y], g[y+1]
@@ -181,57 +209,117 @@ func padRight(s string, w int) string {
 
 var bannerCache = map[string]string{}
 
-// BigBanner is the entry banner: the "RELIO" block wordmark (white "RELI",
-// orange "O" drawn as a snake eye) stands on its own as the title; the tagline,
-// a rule, the current version — with the newer version beside it when available
-// (a bare "1.2.3") — and the author credit all sit flush left below it.
-func BigBanner(version, available string) string {
-	key := version + "\x00" + available
-	if s, ok := bannerCache[key]; ok {
-		return s
-	}
+const (
+	bannerIndent = "  "
+	bannerGap    = 0 // the eye grid already carries a blank edge column; no extra space
+	bannerAccent = 6 // orange lead length of the two-tone rule
+)
 
-	const (
-		indent = "  "
-		gap    = 0 // the eye grid already carries a blank edge column; no extra space
-	)
-	lw := 0
+// wordmarkWidth is the rune width of the widest wordReli row (all six are equal
+// today), computed once.
+var wordmarkWidth = func() int {
+	w := 0
 	for _, l := range wordReli {
-		lw = max(lw, utf8.RuneCountInString(l))
+		w = max(w, utf8.RuneCountInString(l))
 	}
-	eye := eyeLines()
-	total := lw + gap + eyeW
+	return w
+}()
 
+// bannerWordmark builds the leading newline plus the six wordmark rows: the
+// white "RELI" blocks with the orange eye — its catchlight at sweep position
+// glint — beside them.
+func bannerWordmark(glint float64) string {
+	eye := eyeLines(glint)
 	var b strings.Builder
 	b.WriteString("\n")
-
 	for i := range wordReli {
-		row := indent + whiteMark.Render(padRight(wordReli[i], lw)) + strings.Repeat(" ", gap)
+		row := bannerIndent + whiteMark.Render(padRight(wordReli[i], wordmarkWidth)) + strings.Repeat(" ", bannerGap)
 		if i < len(eye) {
 			row += eye[i]
 		}
 		b.WriteString(row + "\n")
 	}
+	return b.String()
+}
 
-	// Lower block: a muted grey tagline, a two-tone accent rule (a short orange
-	// lead fading into a thin grey line), then one meta line with the version
-	// and author. The update notice, when present, gets its own orange line.
-	const accent = 6
-	rule := orangeMark.Render(strings.Repeat("━", accent)) +
-		ruleDim.Render(strings.Repeat("─", max(0, total-accent)))
+// bannerLower builds the block under the wordmark: a blank line, a muted grey
+// tagline, a two-tone accent rule (a short orange lead fading into a thin grey
+// line), one meta line with the version and author, the repo URL, and — when
+// available is set — an orange update notice on its own line.
+func bannerLower(version, available string) string {
+	total := wordmarkWidth + bannerGap + eyeW
+	rule := orangeMark.Render(strings.Repeat("━", bannerAccent)) +
+		ruleDim.Render(strings.Repeat("─", max(0, total-bannerAccent)))
 
+	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(indent + tagMark.Render(Tagline) + "\n")
-	b.WriteString(indent + rule + "\n")
-	b.WriteString(indent + Key.Render(versionLabel(version)) +
+	b.WriteString(bannerIndent + tagMark.Render(Tagline) + "\n")
+	b.WriteString(bannerIndent + rule + "\n")
+	b.WriteString(bannerIndent + Key.Render(versionLabel(version)) +
 		Dim.Render("   ·   created by ") + author.Render(Author) + "\n")
+	b.WriteString(bannerIndent + Dim.Render(RepoURL) + "\n")
 	if available != "" {
-		b.WriteString(indent + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available") + "\n")
+		b.WriteString(bannerIndent + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available") + "\n")
 	}
+	return b.String()
+}
 
-	out := b.String()
+// BigBanner is the entry banner: the "RELIO" block wordmark (white "RELI",
+// orange "O" drawn as a snake eye) stands on its own as the title; the tagline,
+// a rule, the current version — with the newer version beside it when available
+// (a bare "1.2.3") — the repo URL, and the author credit all sit flush left
+// below it.
+func BigBanner(version, available string) string {
+	key := version + "\x00" + available
+	if s, ok := bannerCache[key]; ok {
+		return s
+	}
+	out := bannerWordmark(restGlint) + bannerLower(version, available)
 	bannerCache[key] = out
 	return out
+}
+
+// introFrameDelay is the pause between sweep frames. A package var so tests can
+// zero it.
+var introFrameDelay = 55 * time.Millisecond
+
+// BannerIntro prints the entry banner. When animate is true and the environment
+// allows it, the eye plays a one-shot light sweep before the rest of the banner
+// prints; otherwise it is identical to BigBanner. The sweep is skipped on
+// Windows and when NO_COLOR or RELIO_NO_ANIM is set.
+func BannerIntro(w io.Writer, version, available string, animate bool) {
+	if !animate || runtime.GOOS == "windows" ||
+		os.Getenv("NO_COLOR") != "" || os.Getenv("RELIO_NO_ANIM") != "" {
+		fmt.Fprint(w, BigBanner(version, available))
+		return
+	}
+
+	// The eye with no catchlight; the cursor ends on the line below row 6.
+	fmt.Fprint(w, bannerWordmark(0))
+
+	// Nine linear steps sweeping just off the left rim to just off the right,
+	// then two easing back to the resting position.
+	const sweepSteps = 9
+	schedule := make([]float64, 0, sweepSteps+2)
+	for i := 0; i < sweepSteps; i++ {
+		t := float64(i) / float64(sweepSteps-1)
+		schedule = append(schedule, 0.06+t*(1.02-0.06))
+	}
+	schedule = append(schedule, 0.55, restGlint)
+
+	for _, g := range schedule {
+		fmt.Fprint(w, "\x1b[6A") // back up over the six wordmark rows
+		// bannerWordmark starts with "\n", so field 0 is empty; rows 1..6 are the
+		// wordmark rows.
+		rows := strings.Split(bannerWordmark(g), "\n")
+		for _, row := range rows[1:7] {
+			fmt.Fprint(w, "\r\x1b[2K"+row+"\n")
+		}
+		time.Sleep(introFrameDelay)
+	}
+
+	// The eye is now at restGlint and the cursor is below the six rows.
+	fmt.Fprint(w, bannerLower(version, available))
 }
 
 // versionLabel formats the build version for display: "v1.2.3", or "dev build"
