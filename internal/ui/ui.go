@@ -355,8 +355,25 @@ func PlanView(p release.Plan) string {
 	if notes := Notes(p.Notes); notes != "" {
 		parts = append(parts, notes, "")
 	}
+	if vf := versionFiles(p); vf != "" {
+		parts = append(parts, vf, "")
+	}
 	parts = append(parts, Dim.Render(fmt.Sprintf("%d commits since %s", len(p.Commits), commitBase(p))))
 	return strings.Join(parts, "\n")
+}
+
+// versionFiles renders the compact "Version files" section for the preview:
+// one "  <rel>   <old> → <new>" line per pending edit.
+func versionFiles(p release.Plan) string {
+	if len(p.VersionChanges) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(group.Render("Version files") + "\n")
+	for _, c := range p.VersionChanges {
+		b.WriteString("  " + c.Rel + "   " + Dim.Render(c.Old+" → "+c.New) + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func commitBase(p release.Plan) string {

@@ -14,6 +14,7 @@ import (
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/semver"
+	"github.com/soyagvs/relio/internal/versionfile"
 )
 
 // Plan is a proposed release, fully computed but not yet applied.
@@ -28,7 +29,12 @@ type Plan struct {
 	ChangelogUpdate bool
 	TagUpdate       bool
 	PublishGitHub   bool
-	Now             time.Time
+	// VersionChanges are the edits to keep release.version_files in sync; empty
+	// when the feature is unused. VersionFilesUpdate gates whether Apply makes
+	// them (cleared by --no-version-files).
+	VersionChanges     []versionfile.Change
+	VersionFilesUpdate bool
+	Now                time.Time
 }
 
 // TagName is the git tag the plan will create, honouring the configured prefix.
@@ -108,18 +114,33 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		bump = semver.Patch
 	}
 
+	next := current.Next(bump)
+
+	var versionChanges []versionfile.Change
+	versionFilesUpdate := false
+	if len(cfg.Release.VersionFiles) > 0 {
+		versionChanges, err = versionfile.Plan(
+			repo.Root(), cfg.Release.VersionTargets(), strings.TrimPrefix(next.String(), "v"))
+		if err != nil {
+			return Plan{}, err
+		}
+		versionFilesUpdate = true
+	}
+
 	return Plan{
-		Config:          cfg,
-		Current:         current,
-		Next:            current.Next(bump),
-		Bump:            bump,
-		BumpForced:      forced,
-		Commits:         commits,
-		Notes:           changelog.Build(commits),
-		ChangelogUpdate: cfg.Release.Changelog,
-		TagUpdate:       cfg.Release.Tag,
-		PublishGitHub:   cfg.GitHub.Release,
-		Now:             now,
+		Config:             cfg,
+		Current:            current,
+		Next:               next,
+		Bump:               bump,
+		BumpForced:         forced,
+		Commits:            commits,
+		Notes:              changelog.Build(commits),
+		ChangelogUpdate:    cfg.Release.Changelog,
+		TagUpdate:          cfg.Release.Tag,
+		PublishGitHub:      cfg.GitHub.Release,
+		VersionChanges:     versionChanges,
+		VersionFilesUpdate: versionFilesUpdate,
+		Now:                now,
 	}, nil
 }
 
@@ -128,12 +149,13 @@ type ApplyResult struct {
 	ChangelogPath string
 	Committed     bool
 	TagName       string
+	VersionFiles  []string // Rel paths of the version files written
 }
 
-// Apply writes the changelog file, commits it, and creates the git tag, per the
-// plan's flags. When both the changelog and the tag are enabled the changelog is
-// committed first, so the tag points at a commit that already carries its own
-// changelog section.
+// Apply writes the changelog file, syncs any declared version files, commits
+// them together, and creates the git tag, per the plan's flags. The changelog
+// and version files are written before the single "chore(release): vX.Y.Z"
+// commit, so the tag points at a commit where every file agrees on the version.
 func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 	var res ApplyResult
 
@@ -149,6 +171,11 @@ func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 		}
 	}
 
+	// commitPaths accumulates every file that must ride in the release commit —
+	// the changelog first, then any version files — so the tag points at a
+	// commit where they all agree on the version.
+	var commitPaths []string
+
 	if p.ChangelogUpdate {
 		path := filepath.Join(repo.Root(), p.Config.Release.ChangelogFile)
 		existing, err := os.ReadFile(path)
@@ -160,14 +187,25 @@ func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 			return res, fmt.Errorf("writing %s: %w", p.Config.Release.ChangelogFile, err)
 		}
 		res.ChangelogPath = path
+		commitPaths = append(commitPaths, p.Config.Release.ChangelogFile)
+	}
 
-		if p.TagUpdate {
-			msg := fmt.Sprintf("chore(release): %s", name)
-			if err := repo.CommitPaths(msg, p.Config.Release.ChangelogFile); err != nil {
-				return res, fmt.Errorf("committing %s: %w", p.Config.Release.ChangelogFile, err)
-			}
-			res.Committed = true
+	if p.VersionFilesUpdate && len(p.VersionChanges) > 0 {
+		if err := versionfile.Apply(p.VersionChanges); err != nil {
+			return res, err
 		}
+		for _, c := range p.VersionChanges {
+			res.VersionFiles = append(res.VersionFiles, c.Rel)
+			commitPaths = append(commitPaths, c.Rel)
+		}
+	}
+
+	if p.TagUpdate && len(commitPaths) > 0 {
+		msg := fmt.Sprintf("chore(release): %s", name)
+		if err := repo.CommitPaths(msg, commitPaths...); err != nil {
+			return res, fmt.Errorf("committing release files: %w", err)
+		}
+		res.Committed = true
 	}
 
 	if p.TagUpdate {

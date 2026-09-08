@@ -31,15 +31,16 @@ var (
 )
 
 type releaseFlags struct {
-	dir         string
-	patch       bool
-	minor       bool
-	major       bool
-	yes         bool
-	noChangelog bool
-	noTag       bool
-	noHash      bool
-	publish     bool
+	dir            string
+	patch          bool
+	minor          bool
+	major          bool
+	yes            bool
+	noChangelog    bool
+	noTag          bool
+	noHash         bool
+	noVersionFiles bool
+	publish        bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -79,6 +80,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVarP(&f.yes, "yes", "y", false, "skip the interactive menu and confirmation")
 	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
+	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, "do not update the files listed in version_files")
 	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
 
 	root.AddCommand(newStatusCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
@@ -306,6 +308,9 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	if applied.ChangelogPath != "" {
 		done = append(done, fmt.Sprintf("%s updated", cfg.Release.ChangelogFile))
 	}
+	if len(applied.VersionFiles) > 0 {
+		done = append(done, fmt.Sprintf("%d version file(s) updated", len(applied.VersionFiles)))
+	}
 	if applied.Committed {
 		done = append(done, fmt.Sprintf("%s committed", cfg.Release.ChangelogFile))
 	}
@@ -338,6 +343,9 @@ func applyFlagOverrides(p *release.Plan, f *releaseFlags) {
 	}
 	if f.noTag {
 		p.TagUpdate = false
+	}
+	if f.noVersionFiles {
+		p.VersionFilesUpdate = false
 	}
 	if f.publish {
 		p.PublishGitHub = true

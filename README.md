@@ -114,6 +114,7 @@ runs locally and hands you the `git push` to run.
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
+- [Syncing the version into project files](#syncing-the-version-into-project-files)
 - [Configuration — `.release.yaml`](#configuration--releaseyaml)
 - [Non-interactive / CI usage](#non-interactive--ci-usage)
 - [Project layout](#project-layout)
@@ -316,6 +317,7 @@ yourself.
 | `-y, --yes`                  | Skip the menu and the confirmation. Required in CI / a non-interactive shell. |
 | `--no-changelog`             | Do not touch the changelog file. |
 | `--no-tag`                   | Do not commit the changelog or create the git tag. |
+| `--no-version-files`         | Do not update the files listed in `version_files`. |
 | `--publish`                  | After tagging, push the branch and tag to `origin` and create the GitHub Release. |
 
 ```bash
@@ -596,6 +598,38 @@ A `BREAKING CHANGE:` footer or a `!` before the colon also adds the line to
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
 
+## Syncing the version into project files
+
+By default `relio` writes the next version only into the git tag and the
+changelog. Opt in to keeping other files in sync by listing them under
+`release.version_files` — each one gets the new version written into it **in the
+same `chore(release): vX.Y.Z` commit** as the changelog, so the tag points at a
+commit where every file agrees on the version.
+
+```yaml
+release:
+    version_files:
+        - package.json                       # known filename — built-in rule
+        - VERSION                             # whole-file version token
+        - Cargo.toml                          # first `version = "…"` line
+        - { path: src/app/__init__.py, pattern: '__version__ = "([^"]+)"' }
+```
+
+Known filenames need no pattern: `package.json`, any `*.toml` (`Cargo.toml`,
+`pyproject.toml`, …), and `VERSION` / `version.txt`. For anything else give a
+`{ path, pattern }` entry whose `pattern` is a Go regexp with **exactly one
+capture group** wrapping the version substring.
+
+Replacement is regex-based — Relio never reformats the file, it swaps the matched
+span and leaves every other byte (indentation, key order, trailing newline)
+untouched. The value written is the **bare number**, no leading `v`
+(`1.6.0`). A re-run when a file is already at the target version is a no-op.
+Pass `--no-version-files` to skip the whole step for one run.
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
 ## Configuration — `.release.yaml`
 
 Written by `relio init`, read from the repository root. **Configuration only —
@@ -611,6 +645,9 @@ release:
     changelog_file: CHANGELOG.md  # which file
     tag: true                    # create the git tag on release
     tag_prefix: v                # "" for bare 1.4.0 tags
+    version_files: []            # files to sync to the new version, e.g.
+                                 #   - package.json
+                                 #   - { path: foo.py, pattern: '__version__ = "([^"]+)"' }
 
 github:
     enabled: false         # reserved

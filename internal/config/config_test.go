@@ -100,6 +100,79 @@ func TestLoadWithoutGitHubFields(t *testing.T) {
 	}
 }
 
+func TestVersionFilesMixedListLoads(t *testing.T) {
+	dir := t.TempDir()
+	yml := "project: x\nrelease:\n" +
+		"  version_files:\n" +
+		"    - package.json\n" +
+		"    - {path: pyproject.toml, pattern: 'version = \"([^\"]+)\"'}\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	vf := got.Release.VersionFiles
+	if len(vf) != 2 {
+		t.Fatalf("VersionFiles = %+v, want 2", vf)
+	}
+	if vf[0].Path != "package.json" || vf[0].Pattern != "" {
+		t.Errorf("vf[0] = %+v, want {package.json, \"\"}", vf[0])
+	}
+	if vf[1].Path != "pyproject.toml" || vf[1].Pattern != `version = "([^"]+)"` {
+		t.Errorf("vf[1] = %+v", vf[1])
+	}
+
+	targets := got.Release.VersionTargets()
+	if len(targets) != 2 || targets[0].Path != "package.json" || targets[1].Pattern != `version = "([^"]+)"` {
+		t.Errorf("VersionTargets = %+v", targets)
+	}
+}
+
+func TestVersionFilesRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	want := Default("x")
+	want.Release.VersionFiles = []VersionFile{
+		{Path: "package.json"},
+		{Path: "src/app.py", Pattern: `__version__ = "([^"]+)"`},
+	}
+	if err := want.Save(dir); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Release.VersionFiles) != 2 {
+		t.Fatalf("VersionFiles = %+v", got.Release.VersionFiles)
+	}
+	if got.Release.VersionFiles[0] != (VersionFile{Path: "package.json"}) {
+		t.Errorf("vf[0] = %+v", got.Release.VersionFiles[0])
+	}
+	if got.Release.VersionFiles[1] != (VersionFile{Path: "src/app.py", Pattern: `__version__ = "([^"]+)"`}) {
+		t.Errorf("vf[1] = %+v", got.Release.VersionFiles[1])
+	}
+}
+
+func TestLoadWithoutVersionFiles(t *testing.T) {
+	dir := t.TempDir()
+	old := "project: legacy\nrelease:\n  changelog: true\n  tag: true\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Release.VersionFiles != nil {
+		t.Errorf("VersionFiles = %+v, want nil", got.Release.VersionFiles)
+	}
+	if got.Release.VersionTargets() != nil {
+		t.Errorf("VersionTargets = %+v, want nil", got.Release.VersionTargets())
+	}
+}
+
 func TestLoadRejectsUnsupportedVersioning(t *testing.T) {
 	dir := t.TempDir()
 	bad := "project: x\nversioning: calver\n"

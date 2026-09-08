@@ -259,6 +259,138 @@ func TestReleaseBodyStripsHeading(t *testing.T) {
 	}
 }
 
+func writeFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBuildPlanPopulatesVersionChanges(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	writeFile(t, dir, "package.json", `{"name":"x","version":"1.5.0"}`)
+	commit(t, dir, "feat: something")
+
+	cfg := config.Default("x")
+	cfg.Release.VersionFiles = []config.VersionFile{{Path: "package.json"}}
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.VersionFilesUpdate {
+		t.Error("VersionFilesUpdate = false, want true")
+	}
+	if len(p.VersionChanges) != 1 {
+		t.Fatalf("VersionChanges = %+v", p.VersionChanges)
+	}
+	c := p.VersionChanges[0]
+	if c.Rel != "package.json" || c.Old != "1.5.0" || c.New != "1.6.0" {
+		t.Errorf("change = %+v, want package.json 1.5.0 -> 1.6.0", c)
+	}
+}
+
+func TestBuildPlanVersionFileErrorFailsEarly(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	commit(t, dir, "feat: something")
+
+	cfg := config.Default("x")
+	cfg.Release.VersionFiles = []config.VersionFile{{Path: "package.json"}} // never created
+
+	if _, err := BuildPlan(r, cfg, Options{Now: fixedNow}); err == nil ||
+		!strings.Contains(err.Error(), "file not found") {
+		t.Fatalf("err = %v, want 'file not found'", err)
+	}
+}
+
+func TestApplyWritesVersionFilesInReleaseCommit(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	writeFile(t, dir, "package.json", `{"name":"x","version":"1.5.0"}`)
+	if out, err := gitOut(dir, "add", "package.json"); err != nil {
+		t.Fatalf("git add: %v: %s", err, out)
+	}
+	commit(t, dir, "feat: something")
+
+	cfg := config.Default("x")
+	cfg.Release.VersionFiles = []config.VersionFile{{Path: "package.json"}}
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := p.Apply(r)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if len(res.VersionFiles) != 1 || res.VersionFiles[0] != "package.json" {
+		t.Errorf("res.VersionFiles = %+v", res.VersionFiles)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "package.json"))
+	if !strings.Contains(string(data), `"version":"1.6.0"`) {
+		t.Errorf("package.json not updated:\n%s", data)
+	}
+	if clean, _ := r.IsClean(); !clean {
+		t.Error("work tree should be clean: the version file must be committed")
+	}
+	stat, err := gitOut(dir, "show", "--stat", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stat, "package.json") || !strings.Contains(stat, "CHANGELOG.md") {
+		t.Errorf("release commit does not carry both files:\n%s", stat)
+	}
+	if subject, _ := gitOut(dir, "log", "-1", "--format=%s"); subject != "chore(release): v1.6.0" {
+		t.Errorf("release commit subject = %q", subject)
+	}
+	tagged, err := gitOut(dir, "show", "v1.6.0:package.json")
+	if err != nil || !strings.Contains(tagged, "1.6.0") {
+		t.Errorf("tagged package.json missing new version: %v\n%s", err, tagged)
+	}
+}
+
+func TestApplyVersionFilesDisabledOverride(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	writeFile(t, dir, "package.json", `{"name":"x","version":"1.5.0"}`)
+	if out, err := gitOut(dir, "add", "package.json"); err != nil {
+		t.Fatalf("git add: %v: %s", err, out)
+	}
+	commit(t, dir, "feat: something")
+
+	cfg := config.Default("x")
+	cfg.Release.VersionFiles = []config.VersionFile{{Path: "package.json"}}
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.VersionFilesUpdate = false // what --no-version-files does
+
+	res, err := p.Apply(r)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(res.VersionFiles) != 0 {
+		t.Errorf("res.VersionFiles = %+v, want none", res.VersionFiles)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "package.json"))
+	if !strings.Contains(string(data), `"version":"1.5.0"`) {
+		t.Errorf("package.json should be untouched:\n%s", data)
+	}
+	stat, _ := gitOut(dir, "show", "--stat", "HEAD")
+	if strings.Contains(stat, "package.json") {
+		t.Errorf("package.json must not be in the release commit:\n%s", stat)
+	}
+}
+
 func gitOut(dir string, args ...string) (string, error) {
 	c := exec.Command("git", args...)
 	c.Dir = dir

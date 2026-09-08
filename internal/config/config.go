@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/soyagvs/relio/internal/versionfile"
 )
 
 // FileName is the config file expected at the repository root.
@@ -28,10 +30,62 @@ type Config struct {
 
 // ReleaseConfig controls what a `release` run touches.
 type ReleaseConfig struct {
-	Changelog     bool   `yaml:"changelog"`
-	ChangelogFile string `yaml:"changelog_file"`
-	Tag           bool   `yaml:"tag"`
-	TagPrefix     string `yaml:"tag_prefix"`
+	Changelog     bool          `yaml:"changelog"`
+	ChangelogFile string        `yaml:"changelog_file"`
+	Tag           bool          `yaml:"tag"`
+	TagPrefix     string        `yaml:"tag_prefix"`
+	VersionFiles  []VersionFile `yaml:"version_files,omitempty"`
+}
+
+// VersionFile is one entry in release.version_files. In YAML it accepts either a
+// bare string (the path, matched by a built-in rule) or a mapping with an
+// explicit regexp: `- {path: foo.py, pattern: '__version__ = "([^"]+)"'}`.
+type VersionFile struct {
+	Path    string
+	Pattern string
+}
+
+type versionFileAlias struct {
+	Path    string `yaml:"path"`
+	Pattern string `yaml:"pattern,omitempty"`
+}
+
+// UnmarshalYAML accepts a scalar (path only) or a mapping.
+func (v *VersionFile) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		return node.Decode(&v.Path)
+	case yaml.MappingNode:
+		var a versionFileAlias
+		if err := node.Decode(&a); err != nil {
+			return err
+		}
+		v.Path, v.Pattern = a.Path, a.Pattern
+		return nil
+	default:
+		return fmt.Errorf("config: version_files entry must be a string or a {path, pattern} map")
+	}
+}
+
+// MarshalYAML emits a bare string when there is no explicit pattern, so a clean
+// config round-trips without noise.
+func (v VersionFile) MarshalYAML() (any, error) {
+	if v.Pattern == "" {
+		return v.Path, nil
+	}
+	return versionFileAlias{Path: v.Path, Pattern: v.Pattern}, nil
+}
+
+// VersionTargets converts the configured version_files into versionfile targets.
+func (c ReleaseConfig) VersionTargets() []versionfile.Target {
+	if len(c.VersionFiles) == 0 {
+		return nil
+	}
+	ts := make([]versionfile.Target, len(c.VersionFiles))
+	for i, vf := range c.VersionFiles {
+		ts[i] = versionfile.Target{Path: vf.Path, Pattern: vf.Pattern}
+	}
+	return ts
 }
 
 // GitHubConfig controls the opt-in GitHub Release step: pushing the branch and
