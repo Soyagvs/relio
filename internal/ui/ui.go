@@ -193,7 +193,7 @@ func BigBanner(version, available string) string {
 
 	const (
 		indent = "  "
-		gap    = 1 // space between "RELI" and the eye
+		gap    = 0 // the eye grid already carries a blank edge column; no extra space
 	)
 	lw := 0
 	for _, l := range wordReli {
