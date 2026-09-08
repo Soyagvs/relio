@@ -55,6 +55,26 @@ func (r *Repo) LatestTag() (tag string, ok bool, err error) {
 	return strings.TrimSpace(out), true, nil
 }
 
+// LatestStableTag returns the highest-versioned tag whose name carries no
+// pre-release marker ("-"). ok is false when the repository has no stable tag.
+func (r *Repo) LatestStableTag() (tag string, ok bool, err error) {
+	out, err := run(r.root, "for-each-ref", "--sort=-v:refname",
+		"--format=%(refname:short)", "refs/tags")
+	if err != nil {
+		return "", false, err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		name := strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if name == "" {
+			continue
+		}
+		if !strings.Contains(name, "-") {
+			return name, true, nil
+		}
+	}
+	return "", false, nil
+}
+
 // TagInfo describes one tag for listing purposes.
 type TagInfo struct {
 	Name     string

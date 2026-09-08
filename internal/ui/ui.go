@@ -263,10 +263,17 @@ func PlanBox(p release.Plan) string {
 	if p.BumpForced {
 		bumpLabel += Dim.Render(" (forced)")
 	}
+	nextLine := Ok.Render(p.Next.String())
+	if p.Prerelease {
+		nextLine += Dim.Render(" (pre-release)")
+	}
+	if p.Finalizing {
+		nextLine += Dim.Render(" (finalize)")
+	}
 	lines := []string{
 		row("Current version", p.Current.String()),
 		row("Detected change", bumpLabel),
-		row("Next version", Ok.Render(p.Next.String())),
+		row("Next version", nextLine),
 	}
 	return box.Render(strings.Join(lines, "\n"))
 }

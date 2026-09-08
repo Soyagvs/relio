@@ -41,6 +41,32 @@ func TestPlanViewWithoutVersionFiles(t *testing.T) {
 	}
 }
 
+func TestPlanViewMarksPrerelease(t *testing.T) {
+	p := release.Plan{
+		Current:    semver.Version{Major: 1, Minor: 5, Prefix: "v"},
+		Next:       semver.Version{Major: 1, Minor: 6, Prefix: "v", Pre: "rc.1"},
+		Bump:       semver.Minor,
+		Prerelease: true,
+	}
+	out := PlanView(p)
+	if !strings.Contains(out, "v1.6.0-rc.1") || !strings.Contains(out, "(pre-release)") {
+		t.Errorf("missing pre-release marker:\n%s", out)
+	}
+}
+
+func TestPlanViewMarksFinalize(t *testing.T) {
+	p := release.Plan{
+		Current:    semver.Version{Major: 1, Minor: 6, Prefix: "v", Pre: "rc.2"},
+		Next:       semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+		Bump:       semver.Minor,
+		Finalizing: true,
+	}
+	out := PlanView(p)
+	if !strings.Contains(out, "(finalize)") {
+		t.Errorf("missing finalize marker:\n%s", out)
+	}
+}
+
 func TestNotesShowsCommitHash(t *testing.T) {
 	n := changelog.Notes{Groups: map[changelog.Group][]changelog.Item{
 		changelog.Fixed: {

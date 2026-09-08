@@ -70,6 +70,11 @@ func runStatus(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error 
 		return nil
 	}
 	row("Suggested", ui.Ok.Render(plan.Next.String())+ui.Dim.Render("  ("+plan.Bump.String()+")"))
+	if plan.Current.IsPrerelease() {
+		fmt.Fprintln(out, ui.Dim.Render(fmt.Sprintf(
+			"on a pre-release — `relio` finalizes %s, `relio --rc` cuts the next rc",
+			plan.Current.Core().String())))
+	}
 	fmt.Fprintln(out)
 
 	if clean, cerr := repo.IsClean(); cerr == nil && !clean {

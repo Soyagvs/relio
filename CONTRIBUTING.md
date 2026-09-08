@@ -145,6 +145,7 @@ Relio releases itself:
 ```bash
 relio status          # sanity-check what's unreleased
 relio                 # or `relio --minor` / `relio --major` to force the bump
+relio --rc            # cut a release candidate first (vX.Y.Z-rc.N); run `relio` with no flag to finalize it
 git push --follow-tags
 ```
 

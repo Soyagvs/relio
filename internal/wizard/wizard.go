@@ -55,7 +55,16 @@ func newModel(p release.Plan) model {
 
 func (m model) Init() tea.Cmd { return nil }
 
-func (m model) nextVersion() semver.Version { return m.plan.Current.Next(m.current) }
+// nextVersion is the version shown in the wizard header. While the user keeps
+// the plan's own bump it shows plan.Next verbatim, so a pre-release or a
+// finalising run reads correctly; once they pick a different bump it previews
+// that bump's core off the current version.
+func (m model) nextVersion() semver.Version {
+	if m.current == m.plan.Bump {
+		return m.plan.Next
+	}
+	return m.plan.Current.Next(m.current)
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)

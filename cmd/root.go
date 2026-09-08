@@ -41,6 +41,7 @@ type releaseFlags struct {
 	noHash         bool
 	noVersionFiles bool
 	publish        bool
+	rc             bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -82,6 +83,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
 	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, "do not update the files listed in version_files")
 	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
+	lf.BoolVar(&f.rc, "rc", false, "cut a release candidate (vX.Y.Z-rc.N) instead of the final version")
 
 	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
@@ -265,7 +267,7 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	fmt.Fprintln(out, ui.Banner(cfg.Project, version))
 	fmt.Fprintln(out)
 
-	plan, err := release.BuildPlan(repo, cfg, release.Options{ForceBump: force})
+	plan, err := release.BuildPlan(repo, cfg, release.Options{ForceBump: force, Prerelease: f.rc})
 	if err != nil {
 		return err
 	}
@@ -295,7 +297,7 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			return nil
 		}
 		if res.Bump != plan.Bump {
-			plan, err = release.BuildPlan(repo, cfg, release.Options{ForceBump: res.Bump})
+			plan, err = release.BuildPlan(repo, cfg, release.Options{ForceBump: res.Bump, Prerelease: f.rc})
 			if err != nil {
 				return err
 			}
@@ -332,6 +334,15 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, ui.Success(done))
+
+	if plan.Prerelease {
+		fmt.Fprintln(out, ui.Dim.Render(fmt.Sprintf(
+			"  this is a pre-release — run `relio` (no --rc) when you're ready to finalize %s",
+			plan.Next.Core().String())))
+	}
+	if plan.Finalizing {
+		fmt.Fprintln(out, ui.Dim.Render("  finalized from "+plan.Current.String()))
+	}
 
 	printedNext := false
 	if plan.PublishGitHub && applied.TagName != "" {

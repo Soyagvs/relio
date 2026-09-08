@@ -97,6 +97,43 @@ func TestCommitsSinceAndTagFlow(t *testing.T) {
 	}
 }
 
+func TestLatestStableTag(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// No tags at all.
+	if _, ok, err := r.LatestStableTag(); err != nil || ok {
+		t.Fatalf("empty repo: tag,ok,err = _,%v,%v", ok, err)
+	}
+
+	// Only a pre-release tag.
+	if err := r.CreateTag("v0.1.0-rc.1", "rc"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := r.LatestStableTag(); err != nil || ok {
+		t.Fatalf("rc-only repo: tag,ok,err = _,%v,%v", ok, err)
+	}
+
+	// Stable tags mixed with a newer pre-release: the newest stable wins.
+	if err := r.CreateTag("v1.0.0", "release"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.CreateTag("v1.1.0", "release"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.CreateTag("v1.2.0-rc.1", "rc"); err != nil {
+		t.Fatal(err)
+	}
+	tag, ok, err := r.LatestStableTag()
+	if err != nil || !ok || tag != "v1.1.0" {
+		t.Fatalf("LatestStableTag = %q,%v,%v want v1.1.0,true,nil", tag, ok, err)
+	}
+}
+
 func TestTagsAndDeleteTag(t *testing.T) {
 	dir := gitInit(t)
 	commit(t, dir, "chore: initial")

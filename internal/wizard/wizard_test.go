@@ -63,6 +63,20 @@ func TestOverrideToMajorThenConfirm(t *testing.T) {
 	}
 }
 
+func TestNextVersionShowsPlanNextForPrerelease(t *testing.T) {
+	p := release.Plan{
+		Config:     config.Default("azeink"),
+		Current:    semver.Version{Major: 1, Minor: 5, Prefix: "v"},
+		Next:       semver.Version{Major: 1, Minor: 6, Prefix: "v", Pre: "rc.1"},
+		Bump:       semver.Minor,
+		Prerelease: true,
+	}
+	m := newModel(p)
+	if got := m.nextVersion().String(); got != "v1.6.0-rc.1" {
+		t.Errorf("nextVersion = %s, want v1.6.0-rc.1 (plan.Next verbatim)", got)
+	}
+}
+
 func TestYKeyConfirmsImmediately(t *testing.T) {
 	m := send(newModel(basePlan()), "y")
 	if !m.result.Confirmed {

@@ -320,6 +320,7 @@ yourself.
 | `--no-tag`                   | Do not commit the changelog or create the git tag. |
 | `--no-version-files`         | Do not update the files listed in `version_files`. |
 | `--publish`                  | After tagging, push the branch and tag to `origin` and create the GitHub Release. |
+| `--rc`                       | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
 
 ```bash
 relio                 # interactive
@@ -327,6 +328,7 @@ relio --yes           # apply the inferred bump, no prompts
 relio --minor --yes   # force a minor bump
 relio --no-tag        # write the changelog only
 relio --publish       # also push and create the GitHub Release
+relio --rc            # cut the next release candidate
 ```
 
 ---
@@ -356,6 +358,10 @@ Ready to release.
 
 When there are no new commits: `Suggested —` and `Nothing to release.`
 Also available as the **Status** menu entry.
+
+When the current version is a pre-release, `status` adds one hint line under the
+`Suggested` row: `` on a pre-release — `relio` finalizes v1.6.0, `relio --rc`
+cuts the next rc ``.
 
 ---
 
@@ -607,6 +613,29 @@ Relio reads the commits since the last tag and picks the bump for you:
 > [!TIP]
 > Pre-1.0 (`0.x.y`): the API is not stable yet, so breaking changes inside a
 > MINOR are conventionally acceptable — Relio still bumps MAJOR if you ask it to.
+
+### Pre-releases
+
+`relio --rc` cuts a **release candidate** — a `vX.Y.Z-rc.N` tag — instead of the
+final version. The typical flow:
+
+1. On stable `v1.5.0` with a `feat:` since, `relio --rc` cuts `v1.6.0-rc.1`.
+2. More commits land — `relio --rc` cuts `v1.6.0-rc.2` (same core, counter up).
+3. Ready to ship — `relio` (no flag) finalizes `v1.6.0`.
+4. If a commit since the last rc escalates the target (a `feat!`, say),
+   `relio --rc` moves the core up and restarts the counter: `v2.0.0-rc.1`.
+
+The pre-release value carries all the way through: the git tag, the changelog
+section heading, and any `version_files`. Finalizing summarises the **whole
+span** since the last stable tag, so the `v1.6.0` section covers every commit
+made across `rc.1`, `rc.2`, and anything after.
+
+GoReleaser already treats a tag with a `-` as a pre-release: `.goreleaser.yaml`
+carries `prerelease: auto` (marks the GitHub Release as a pre-release) and
+`skip_upload: auto` (skips the Homebrew tap bump) — no config change needed.
+
+`relio --rc` still opens the interactive menu in a TTY; it does not imply
+`--yes`.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">

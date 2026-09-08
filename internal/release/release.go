@@ -34,7 +34,13 @@ type Plan struct {
 	// them (cleared by --no-version-files).
 	VersionChanges     []versionfile.Change
 	VersionFilesUpdate bool
-	Now                time.Time
+	// Prerelease reports that Next is a release candidate (vX.Y.Z-rc.N).
+	Prerelease bool
+	// Finalizing reports that this run drops a pre-release to ship its core
+	// (e.g. v1.6.0-rc.2 -> v1.6.0), summarising the whole span since the last
+	// stable tag.
+	Finalizing bool
+	Now        time.Time
 }
 
 // TagName is the git tag the plan will create, honouring the configured prefix.
@@ -56,7 +62,13 @@ func (p Plan) Section() string {
 }
 
 // NothingToRelease reports whether there are no commits since the last tag.
-func (p Plan) NothingToRelease() bool { return len(p.Commits) == 0 }
+// Finalising a pre-release is always a release, even with no new commits.
+func (p Plan) NothingToRelease() bool {
+	if p.Finalizing {
+		return false
+	}
+	return len(p.Commits) == 0
+}
 
 // Lint splits the plan's commits into conventional and not, preserving order.
 func (p Plan) Lint() (ok, notConventional []conventional.Commit) {
@@ -84,6 +96,9 @@ func (p Plan) ReleaseBody() string {
 type Options struct {
 	// ForceBump overrides the computed bump when not semver.None.
 	ForceBump semver.Bump
+	// Prerelease cuts a release candidate (vX.Y.Z-rc.N) instead of a final
+	// version.
+	Prerelease bool
 	// Now is injectable for deterministic tests; defaults to time.Now().
 	Now time.Time
 }
@@ -95,20 +110,59 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		now = time.Now()
 	}
 
-	tag, hasTag, err := repo.LatestTag()
+	latest, hasTag, err := repo.LatestTag()
 	if err != nil {
 		return Plan{}, err
 	}
 
-	current := semver.Zero()
+	var latestV semver.Version
 	if hasTag {
-		current, err = semver.Parse(tag)
+		latestV, err = semver.Parse(latest)
 		if err != nil {
-			return Plan{}, fmt.Errorf("latest tag %q is not semver: %w", tag, err)
+			return Plan{}, fmt.Errorf("latest tag %q is not semver: %w", latest, err)
 		}
 	}
 
-	raw, err := repo.CommitsSince(tag)
+	// baseV is the stable version this release builds on. When the latest tag is
+	// itself a pre-release we look past it to the newest stable tag.
+	var (
+		baseV      semver.Version
+		stableBase string
+	)
+	switch {
+	case hasTag && latestV.IsPrerelease():
+		sb, hasSB, _ := repo.LatestStableTag()
+		if hasSB {
+			stableBase = sb
+			baseV, err = semver.Parse(sb)
+			if err != nil {
+				return Plan{}, fmt.Errorf("stable tag %q is not semver: %w", sb, err)
+			}
+		} else {
+			baseV = semver.Zero()
+		}
+	case hasTag:
+		baseV = latestV
+	default:
+		baseV = semver.Zero()
+	}
+
+	finalizing := !opts.Prerelease && hasTag && latestV.IsPrerelease()
+
+	// rangeFrom is where the commit scan starts. When finalising a pre-release
+	// we summarise the whole span since the last stable tag; otherwise it is the
+	// latest tag (or the start of history).
+	var rangeFrom string
+	switch {
+	case finalizing:
+		rangeFrom = stableBase
+	case hasTag:
+		rangeFrom = latest
+	default:
+		rangeFrom = ""
+	}
+
+	raw, err := repo.CommitsSince(rangeFrom)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -126,7 +180,34 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		bump = semver.Patch
 	}
 
-	next := current.Next(bump)
+	// coreTarget is the stable version this run aims at.
+	coreTarget := baseV.Next(bump)
+	if finalizing {
+		coreTarget = latestV.Core()
+	}
+
+	current := semver.Zero()
+	if hasTag {
+		current = latestV
+	}
+
+	var next semver.Version
+	prerelease := false
+	switch {
+	case opts.Prerelease:
+		prerelease = true
+		if hasTag && latestV.IsPrerelease() &&
+			semver.Compare(coreTarget, latestV.Core()) <= 0 {
+			// Same core as the current rc — just bump the counter.
+			next = latestV.NextPre()
+		} else {
+			// First rc for this core (stable -> rc, or an escalated core).
+			next = coreTarget.WithPre("rc.1")
+		}
+	default:
+		// Finalising -> the rc's core; normal path -> today's behaviour.
+		next = coreTarget
+	}
 
 	var versionChanges []versionfile.Change
 	versionFilesUpdate := false
@@ -152,6 +233,8 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		PublishGitHub:      cfg.GitHub.Release,
 		VersionChanges:     versionChanges,
 		VersionFilesUpdate: versionFilesUpdate,
+		Prerelease:         prerelease,
+		Finalizing:         finalizing,
 		Now:                now,
 	}, nil
 }

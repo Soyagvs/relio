@@ -428,6 +428,140 @@ func TestPlanLintAllConventional(t *testing.T) {
 	}
 }
 
+// --- pre-release / release-candidate flow -----------------------------------
+
+func TestBuildPlanRCFromStable(t *testing.T) {
+	// On stable v1.5.0 with a feat since -> `relio --rc` cuts v1.6.0-rc.1.
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	commit(t, dir, "feat: something")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow, Prerelease: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v1.6.0-rc.1" {
+		t.Errorf("Next = %s, want v1.6.0-rc.1", p.Next)
+	}
+	if !p.Prerelease || p.Finalizing {
+		t.Errorf("flags: Prerelease=%v Finalizing=%v", p.Prerelease, p.Finalizing)
+	}
+	if p.NothingToRelease() {
+		t.Error("NothingToRelease() = true")
+	}
+}
+
+func TestBuildPlanRCBumpsCounter(t *testing.T) {
+	// On v1.6.0-rc.1 with only a fix since -> `relio --rc` cuts v1.6.0-rc.2,
+	// NOT v1.5.1-rc.1 (Compare guards the core against the current rc's core).
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	commit(t, dir, "feat: something")
+	tag(t, dir, "v1.6.0-rc.1")
+	commit(t, dir, "fix: a bug")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow, Prerelease: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v1.6.0-rc.2" {
+		t.Errorf("Next = %s, want v1.6.0-rc.2", p.Next)
+	}
+	if p.Current.String() != "v1.6.0-rc.1" {
+		t.Errorf("Current = %s, want v1.6.0-rc.1", p.Current)
+	}
+}
+
+func TestBuildPlanRCEscalatesCore(t *testing.T) {
+	// On v1.6.0-rc.1 with a feat! since -> `relio --rc` moves the core up and
+	// restarts the counter -> v2.0.0-rc.1.
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	commit(t, dir, "feat: something")
+	tag(t, dir, "v1.6.0-rc.1")
+	commit(t, dir, "feat!: overhaul the api")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow, Prerelease: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v2.0.0-rc.1" {
+		t.Errorf("Next = %s, want v2.0.0-rc.1", p.Next)
+	}
+}
+
+func TestBuildPlanFinalizeRC(t *testing.T) {
+	// On v1.6.0-rc.2, `relio` (no flag) with 0 new commits finalizes v1.6.0.
+	// The commit range starts at the stable base, so the section summarises the
+	// whole span: 2 commits made before rc.1.
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+	commit(t, dir, "feat: one")
+	commit(t, dir, "fix: two")
+	tag(t, dir, "v1.6.0-rc.1")
+	tag(t, dir, "v1.6.0-rc.2")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v1.6.0" {
+		t.Errorf("Next = %s, want v1.6.0", p.Next)
+	}
+	if !p.Finalizing || p.Prerelease {
+		t.Errorf("flags: Finalizing=%v Prerelease=%v", p.Finalizing, p.Prerelease)
+	}
+	if p.NothingToRelease() {
+		t.Error("NothingToRelease() = true, want false when finalizing")
+	}
+	if len(p.Commits) != 2 {
+		t.Errorf("Commits = %d, want 2 (whole span since the stable base)", len(p.Commits))
+	}
+}
+
+func TestBuildPlanRCNoTagsFirstRC(t *testing.T) {
+	// No tags + `--rc` + a feat -> v0.1.0-rc.1.
+	dir, r := newRepo(t)
+	commit(t, dir, "feat: first")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow, Prerelease: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v0.1.0-rc.1" {
+		t.Errorf("Next = %s, want v0.1.0-rc.1", p.Next)
+	}
+}
+
+func TestBuildPlanRCNothingToRelease(t *testing.T) {
+	// Stable v1.5.0 + 0 commits + `--rc` -> NothingToRelease() stays true.
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.5.0")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow, Prerelease: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.NothingToRelease() {
+		t.Error("NothingToRelease() = false, want true")
+	}
+}
+
+func TestTagNamePrerelease(t *testing.T) {
+	p := Plan{
+		Config: config.Default("x"),
+		Next:   semver.Version{Major: 1, Minor: 6, Prefix: "v", Pre: "rc.1"},
+	}
+	if got := p.TagName(); got != "v1.6.0-rc.1" {
+		t.Errorf("TagName() = %q, want v1.6.0-rc.1", got)
+	}
+}
+
 func gitOut(dir string, args ...string) (string, error) {
 	c := exec.Command("git", args...)
 	c.Dir = dir
