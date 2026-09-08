@@ -58,6 +58,18 @@ func (p Plan) Section() string {
 // NothingToRelease reports whether there are no commits since the last tag.
 func (p Plan) NothingToRelease() bool { return len(p.Commits) == 0 }
 
+// Lint splits the plan's commits into conventional and not, preserving order.
+func (p Plan) Lint() (ok, notConventional []conventional.Commit) {
+	for _, c := range p.Commits {
+		if c.IsConventional() {
+			ok = append(ok, c)
+		} else {
+			notConventional = append(notConventional, c)
+		}
+	}
+	return ok, notConventional
+}
+
 // ReleaseBody is the changelog notes for this release without the
 // "## [x.y.z] - date" heading line — the text to send as a GitHub Release body.
 func (p Plan) ReleaseBody() string {

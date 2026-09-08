@@ -83,7 +83,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, "do not update the files listed in version_files")
 	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
 
-	root.AddCommand(newStatusCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
 }
 
@@ -178,6 +178,17 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			return oerr
 		}
 		return runStatus(cmd, repo, cfg)
+
+	case menu.Check:
+		repo, cfg, oerr := openRepoAndConfig(f.dir)
+		if oerr != nil {
+			return oerr
+		}
+		plan, perr := release.BuildPlan(repo, cfg, release.Options{})
+		if perr != nil {
+			return perr
+		}
+		return runCheck(cmd, repo, cfg, plan, false)
 
 	case menu.Help:
 		fmt.Fprintln(out, helpReference())

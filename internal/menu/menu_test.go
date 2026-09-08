@@ -46,10 +46,28 @@ func selectAction(a Action) model {
 }
 
 func TestSelectEveryAction(t *testing.T) {
-	for _, a := range []Action{Status, CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
+	for _, a := range []Action{Status, Check, CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
 		if got := selectAction(a).result; got != a {
 			t.Errorf("selecting %v gave %v", a, got)
 		}
+	}
+}
+
+func TestCheckItemPresent(t *testing.T) {
+	found := false
+	for _, it := range items {
+		if it.action == Check {
+			found = true
+			if it.label != "Check" {
+				t.Errorf("Check label = %q", it.label)
+			}
+			if it.desc == "" {
+				t.Error("Check needs a description")
+			}
+		}
+	}
+	if !found {
+		t.Error("no menu item wired to Check")
 	}
 }
 

@@ -110,7 +110,7 @@ runs locally and hands you the `git push` to run.
 - [Quick start](#quick-start)
 - [The interactive menu](#the-interactive-menu)
 - [Commands](#commands)
-  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
+  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
@@ -229,6 +229,7 @@ another action.
   created by SOYAGVS
 
 ▸ Status              What's unreleased since the last tag, and the suggested version
+  Check               Lint the commits since the last tag — Conventional Commits and the bump
   Create a release    Version, changelog, and tag from commits since the last tag
   Releases            List every version, read its notes, or delete one
   Release text        Copy-paste announcement for social posts — pick a format
@@ -355,6 +356,38 @@ Ready to release.
 
 When there are no new commits: `Suggested —` and `Nothing to release.`
 Also available as the **Status** menu entry.
+
+---
+
+### `relio check`
+
+Lints the commits since the last tag: how many are
+[Conventional Commits](https://www.conventionalcommits.org/), which are not, and
+the bump they add up to. Read-only — no prompts, no writes, safe anywhere.
+
+```
+$ relio check
+
+azeink
+
+8 commits since v1.5.0
+  ✓ 5 conventional
+  ✗ 3 not conventional:
+      a1b2c3d  add login screen
+      d4e5f6a  dashboard fix
+      f7g8h9i  wip
+
+Detected bump: minor  →  v1.6.0
+```
+
+When every commit is conventional the `✗` block is dropped. With no commits since
+the tag it prints `Nothing to check …` and exits 0.
+
+| Flag       | Meaning |
+| ---------- | ------- |
+| `--strict` | Exit non-zero when at least one commit is not a Conventional Commit. Handy in a pre-release CI gate. |
+
+Also available as the **Check** menu entry.
 
 ---
 
@@ -540,7 +573,7 @@ Available on every command:
 | Flag              | Meaning |
 | ----------------- | ------- |
 | `-C, --dir <path>` | Run as if Relio was started in `<path>`. |
-| `--no-hash`         | Hide the commit hash on each release-note line (preview, Releases browser, `post`). |
+| `--no-hash`         | Hide the commit hash on each release-note line (preview, Releases browser, `post`, `check`). |
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">

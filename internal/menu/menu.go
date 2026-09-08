@@ -20,6 +20,7 @@ const (
 	// None means the menu was dismissed without a choice (e.g. ctrl+c).
 	None Action = iota
 	Status
+	Check
 	CreateRelease
 	ViewReleases
 	ReleaseText
@@ -37,6 +38,7 @@ type item struct {
 
 var items = []item{
 	{"Status", "Unreleased commits and the next version", Status},
+	{"Check", "Lint the commits since the last tag — which are Conventional Commits, and the bump", Check},
 	{"Create a release", "Version, changelog, and tag", CreateRelease},
 	{"Releases", "Browse, read notes, or delete a version", ViewReleases},
 	{"Release text", "Announcement text — pick a format", ReleaseText},
@@ -137,7 +139,7 @@ func (m model) View() string {
 			numDim.Render(num), label, ui.Dim.Render(it.desc)))
 	}
 
-	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–8 jump · enter select · q quit"))
+	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–9 jump · enter select · q quit"))
 	return b.String()
 }
 

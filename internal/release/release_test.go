@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/semver"
 )
@@ -388,6 +389,42 @@ func TestApplyVersionFilesDisabledOverride(t *testing.T) {
 	stat, _ := gitOut(dir, "show", "--stat", "HEAD")
 	if strings.Contains(stat, "package.json") {
 		t.Errorf("package.json must not be in the release commit:\n%s", stat)
+	}
+}
+
+func TestPlanLint(t *testing.T) {
+	p := Plan{Commits: []conventional.Commit{
+		{Type: "feat", Description: "a", Raw: "feat: a"},
+		{Raw: "just some wip"},
+		{Type: "fix", Scope: "kiosk", Description: "b", Raw: "fix(kiosk): b"},
+		{Raw: "another loose one"},
+		{Type: "chore", Description: "c", Raw: "chore: c"},
+	}}
+
+	conv, nonConv := p.Lint()
+
+	if len(conv) != 3 || len(nonConv) != 2 {
+		t.Fatalf("split = %d conventional, %d not; want 3 and 2", len(conv), len(nonConv))
+	}
+	if conv[0].Type != "feat" || conv[1].Type != "fix" || conv[2].Type != "chore" {
+		t.Errorf("conventional order not preserved: %+v", conv)
+	}
+	if nonConv[0].Raw != "just some wip" || nonConv[1].Raw != "another loose one" {
+		t.Errorf("non-conventional order not preserved: %+v", nonConv)
+	}
+}
+
+func TestPlanLintAllConventional(t *testing.T) {
+	p := Plan{Commits: []conventional.Commit{
+		{Type: "feat", Raw: "feat: a"},
+		{Type: "fix", Raw: "fix: b"},
+	}}
+	conv, nonConv := p.Lint()
+	if len(conv) != 2 {
+		t.Errorf("conv = %d, want 2", len(conv))
+	}
+	if len(nonConv) != 0 {
+		t.Errorf("nonConv = %d, want 0", len(nonConv))
 	}
 }
 
