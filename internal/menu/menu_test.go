@@ -133,6 +133,35 @@ func TestViewLineCountStableAcrossCursor(t *testing.T) {
 	}
 }
 
+// A faint rule is drawn at every group boundary; the count must match the
+// number of transitions in the items list and not depend on the cursor.
+func TestViewHasGroupSeparators(t *testing.T) {
+	boundaries := 0
+	for i := 1; i < len(items); i++ {
+		if items[i].group != items[i-1].group {
+			boundaries++
+		}
+	}
+	if boundaries == 0 {
+		t.Fatal("no group boundaries in items — the test is meaningless")
+	}
+	for _, cur := range []int{0, 5, len(items) - 1} {
+		v := model{width: 80, cursor: cur}.View()
+		if got := strings.Count(v, "─"); got == 0 {
+			t.Errorf("cursor %d: View() has no separator rule", cur)
+		}
+		lines := 0
+		for _, ln := range strings.Split(v, "\n") {
+			if strings.Contains(ln, "─") {
+				lines++
+			}
+		}
+		if lines != boundaries {
+			t.Errorf("cursor %d: %d separator lines, want %d", cur, lines, boundaries)
+		}
+	}
+}
+
 func TestCursorClamps(t *testing.T) {
 	m := send(model{}, "up", "up")
 	if m.cursor != 0 {

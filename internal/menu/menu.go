@@ -37,20 +37,21 @@ type item struct {
 	label  string
 	desc   string
 	action Action
+	group  int // a faint rule is drawn wherever this changes between rows
 }
 
 var items = []item{
-	{"Release", "Create a release — final or rc, and optionally push + publish", Release},
-	{"Status", "What's unreleased and the version it suggests", Status},
-	{"Check", "Which commits since the last tag are Conventional Commits", Check},
-	{"Releases", "Browse versions, read notes, delete one", ViewReleases},
-	{"Announcement", "Copy-paste release text — pick a format", ReleaseText},
-	{"Release image", "Save or share a PNG release card", ReleaseImage},
-	{"Auth", "GitHub connection — status and how to link", Auth},
-	{"Setup", "Create or inspect .release.yaml", Setup},
-	{"Guide", "Step-by-step walkthrough of the whole flow", Guide},
-	{"Help", "Every command and flag", Help},
-	{"Exit", "Leave Relio", Exit},
+	{"Release", "Create a release — final or rc, and optionally push + publish", Release, 1},
+	{"Status", "What's unreleased and the version it suggests", Status, 1},
+	{"Check", "Which commits since the last tag are Conventional Commits", Check, 1},
+	{"Releases", "Browse versions, read notes, delete one", ViewReleases, 2},
+	{"Announcement", "Copy-paste release text — pick a format", ReleaseText, 2},
+	{"Release image", "Save or share a PNG release card", ReleaseImage, 2},
+	{"Auth", "GitHub connection — status and how to link", Auth, 3},
+	{"Setup", "Create or inspect .release.yaml", Setup, 3},
+	{"Guide", "Step-by-step walkthrough of the whole flow", Guide, 3},
+	{"Help", "Every command and flag", Help, 3},
+	{"Exit", "Leave Relio", Exit, 4},
 }
 
 // digitRows is how many leading items answer to a 1–9 keypress; the rest
@@ -67,6 +68,7 @@ const (
 var (
 	selBar   = lipgloss.NewStyle().Background(lipgloss.Color("236"))
 	numDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	sepDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
 	headline = lipgloss.NewStyle().Foreground(ui.Purple).Bold(true)
 )
 
@@ -189,6 +191,11 @@ func (m model) View() string {
 	b.WriteString("  " + headline.Render(truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
 
 	for i, it := range items {
+		// A faint rule wherever the group changes, so the menu reads in bands.
+		if i > 0 && it.group != items[i-1].group {
+			b.WriteString("  " + sepDim.Render(strings.Repeat("─", max(0, rowW-2))) + "\n")
+		}
+
 		num := fmt.Sprintf("%d", i+1)
 		marker := "  "
 		if i == m.cursor {
