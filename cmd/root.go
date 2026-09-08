@@ -3,15 +3,19 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/ghrelease"
+	"github.com/soyagvs/relio/internal/ghstats"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/menu"
 	"github.com/soyagvs/relio/internal/pick"
@@ -87,7 +91,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.rc, "rc", false, "cut a release candidate (vX.Y.Z-rc.N) instead of the final version")
 	lf.BoolVar(&f.noHooks, "no-hooks", false, "skip the before/after hooks in .release.yaml for this run")
 
-	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
 }
 
@@ -176,6 +180,9 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	case menu.Exit, menu.None:
 		return nil
 
+	case menu.Release:
+		return runMenuRelease(cmd, f)
+
 	case menu.Status:
 		repo, cfg, oerr := openRepoAndConfig(f.dir)
 		if oerr != nil {
@@ -193,24 +200,6 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			return perr
 		}
 		return runCheck(cmd, repo, cfg, plan, false)
-
-	case menu.Help:
-		fmt.Fprintln(out, helpReference())
-		return nil
-
-	case menu.GitHubAuth:
-		fmt.Fprintln(out, ui.Banner("", version))
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info("Relio talks to GitHub with a personal access token — set GITHUB_TOKEN"))
-		fmt.Fprintln(out, ui.Info("(or run `gh auth login`). Run `relio auth status` to see the active one."))
-		return nil
-
-	case menu.CreateRelease:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		return doRelease(out, repo, cfg, f, semver.None, true)
 
 	case menu.ViewReleases:
 		repo, cfg, oerr := openRepoAndConfig(f.dir)
@@ -232,8 +221,142 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			return oerr
 		}
 		return runReleaseImage(cmd, repo, cfg, imageFlags{})
+
+	case menu.Stats:
+		return runMenuStats(cmd, f)
+
+	case menu.Auth:
+		return runMenuAuth(cmd)
+
+	case menu.Setup:
+		return runMenuSetup(cmd, f)
+
+	case menu.Guide:
+		return runGuide(cmd, f)
+
+	case menu.Help:
+		fmt.Fprintln(out, helpReference())
+		return nil
 	}
 	return nil
+}
+
+// runMenuRelease is the menu's Release entry: two quick picks (final vs rc, and
+// whether to publish) that stand in for the --rc / --publish flags, then the
+// normal interactive release.
+func runMenuRelease(cmd *cobra.Command, f *releaseFlags) error {
+	repo, cfg, err := openRepoAndConfig(f.dir)
+	if err != nil {
+		return err
+	}
+
+	relType, chosen, err := pick.Run("Release type", []pick.Item{
+		{Label: "Final release", Desc: "the next stable version", Value: "final"},
+		{Label: "Release candidate (rc.N)", Desc: "a pre-release you can iterate on, then finalize", Value: "rc"},
+	})
+	if err != nil {
+		return err
+	}
+	if !chosen {
+		return nil
+	}
+
+	pub, chosen, err := pick.Run("Publish to GitHub?", []pick.Item{
+		{Label: "Just tag locally", Desc: "write the changelog, commit, and tag — nothing leaves your machine", Value: "local"},
+		{Label: "Push and create the GitHub Release", Desc: "needs a GitHub token (GITHUB_TOKEN / GH_TOKEN or `gh auth login`)", Value: "publish"},
+	})
+	if err != nil {
+		return err
+	}
+	if !chosen {
+		return nil
+	}
+
+	f.rc = relType == "rc"
+	f.publish = pub == "publish"
+	return doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
+}
+
+// runMenuStats is the menu's Stats entry: fetch and print the public numbers for
+// the origin repo when it is a github.com remote, otherwise for Relio itself.
+func runMenuStats(cmd *cobra.Command, f *releaseFlags) error {
+	target := defaultRepo
+	if repo, err := gitrepo.Open(f.dir); err == nil {
+		if url, uerr := repo.RemoteURL("origin"); uerr == nil {
+			if name, perr := ghrelease.ParseRepo(url); perr == nil {
+				target = name
+			}
+		}
+	}
+
+	s, err := ghstats.Fetch(cmd.Context(), nil, target)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), renderStats(s, false))
+	return nil
+}
+
+// runMenuAuth is the menu's Auth entry: show the resolved sign-in status, or
+// explain how to connect a token.
+func runMenuAuth(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+
+	choice, chosen, err := pick.Run("Auth", []pick.Item{
+		{Label: "Show sign-in status", Desc: "which token relio found and who it belongs to", Value: "status"},
+		{Label: "How to connect", Desc: "env vars or `gh auth login`", Value: "how"},
+	})
+	if err != nil {
+		return err
+	}
+	if !chosen {
+		return nil
+	}
+
+	if choice == "status" {
+		return authStatus(out)
+	}
+
+	fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN"))
+	fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in."))
+	fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one."))
+	fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing."))
+	return nil
+}
+
+// runMenuSetup is the menu's Setup entry: point at an existing .release.yaml, or
+// run the `relio init` flow with a prompted project name.
+func runMenuSetup(cmd *cobra.Command, f *releaseFlags) error {
+	out := cmd.OutOrStdout()
+
+	repo, err := gitrepo.Open(f.dir)
+	if err != nil {
+		fmt.Fprintln(out, ui.Info("not a git repository — run this inside a repo, or pass -C <path>"))
+		return nil
+	}
+	root := repo.Root()
+
+	if config.Exists(root) {
+		fmt.Fprintln(out, ui.Info(config.Path(root)+" already exists"))
+		fmt.Fprintln(out, ui.Dim.Render("  Edit it by hand; see the README for every field."))
+		return nil
+	}
+
+	name := promptLine(cmd.InOrStdin(), out, "Project name", guessProjectName(repo, root))
+	return runInit(out, repo, name)
+}
+
+// promptLine writes "<prompt> [<def>]: " and reads one line from r, returning def
+// when the line is blank or unreadable.
+func promptLine(r io.Reader, w io.Writer, prompt, def string) string {
+	fmt.Fprintf(w, "%s [%s]: ", prompt, def)
+	sc := bufio.NewScanner(r)
+	if sc.Scan() {
+		if v := strings.TrimSpace(sc.Text()); v != "" {
+			return v
+		}
+	}
+	return def
 }
 
 // runReleaseText asks for a post format, then prints the text (stdout only).

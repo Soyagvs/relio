@@ -26,10 +26,10 @@ func send(m model, keys ...string) model {
 	return m
 }
 
-func TestFirstItemIsStatus(t *testing.T) {
+func TestFirstItemIsRelease(t *testing.T) {
 	m := send(model{}, "enter")
-	if m.result != Status {
-		t.Errorf("result = %v, want Status (the first item)", m.result)
+	if m.result != Release {
+		t.Errorf("result = %v, want Release (the first item)", m.result)
 	}
 }
 
@@ -46,10 +46,29 @@ func selectAction(a Action) model {
 }
 
 func TestSelectEveryAction(t *testing.T) {
-	for _, a := range []Action{Status, Check, CreateRelease, ViewReleases, ReleaseText, ReleaseImage, GitHubAuth, Help, Exit} {
+	for _, a := range []Action{
+		Release, Status, Check, ViewReleases, ReleaseText, ReleaseImage,
+		Stats, Auth, Setup, Guide, Help, Exit,
+	} {
 		if got := selectAction(a).result; got != a {
 			t.Errorf("selecting %v gave %v", a, got)
 		}
+	}
+}
+
+func TestHelpAndGuideKeys(t *testing.T) {
+	if m := send(model{}, "?"); m.result != Help || !m.done {
+		t.Errorf("? key: result=%v done=%v, want Help", m.result, m.done)
+	}
+	if m := send(model{}, "g"); m.result != Guide || !m.done {
+		t.Errorf("g key: result=%v done=%v, want Guide", m.result, m.done)
+	}
+}
+
+// Rows 1–9 answer to a digit; rows 10–12 (Guide, Help, Exit) are arrow-only.
+func TestDigitJumpStopsAtRowNine(t *testing.T) {
+	if m := send(model{}, "9"); m.result != Setup {
+		t.Errorf(`"9" => %v, want Setup (row 9)`, m.result)
 	}
 }
 

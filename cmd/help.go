@@ -14,6 +14,8 @@ var (
 	refCommands = []refRow{
 		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
 		{"relio status", "Show what's unreleased since the last tag and the version it suggests"},
+		{"relio check", "List which commits since the last tag are Conventional Commits (--strict)"},
+		{"relio guide", "Walk through the whole release flow step by step"},
 		{"relio stats", "Relio's public GitHub download stats (read-only, no telemetry)"},
 		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
 		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
@@ -26,6 +28,7 @@ var (
 		{"-y, --yes", "Skip the menu and the confirmation (required in CI or a non-interactive shell)"},
 		{"--no-changelog", "Do not modify the changelog file"},
 		{"--no-tag", "Do not create the git tag"},
+		{"--rc", "Cut a release candidate (vX.Y.Z-rc.N); run `relio` on an rc to finalize it"},
 		{"--publish", "After tagging, push the branch and tag to origin and create the GitHub Release"},
 		{"--no-hash", "Hide the commit hash on each release-note line"},
 		{"-C, --dir <path>", "Run as if Relio was started in <path>"},
@@ -45,12 +48,16 @@ var (
 		{"--link-only", "upload for a link + QR without writing a local file"},
 	}
 	refMenu = []refRow{
+		{"Release", "Pick final vs rc and whether to publish, then run `relio`"},
 		{"Status", "What's unreleased and the suggested version (same as `relio status`)"},
-		{"Create a release", "Same as running `relio` with no arguments"},
+		{"Check", "Which commits since the last tag are Conventional Commits (same as `relio check`)"},
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
-		{"Release text", "Pick a post format and print copy-paste text (same as `relio post`)"},
+		{"Announcement", "Pick a post format and print copy-paste text (same as `relio post`)"},
 		{"Release image", "Pick a release + shape, then save the card, upload it for a link, or both (same as `relio image`)"},
-		{"GitHub auth", "Token-based GitHub auth — see `relio auth status`"},
+		{"Stats", "Public download and star numbers (same as `relio stats`)"},
+		{"Auth", "GitHub connection — status and how to link (see `relio auth status`)"},
+		{"Setup", "Create or inspect .release.yaml (same as `relio init`)"},
+		{"Guide", "Step-by-step walkthrough (same as `relio guide`)"},
 		{"Help", "This screen"},
 		{"Exit", "Leave Relio"},
 	}

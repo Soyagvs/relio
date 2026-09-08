@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -10,6 +11,28 @@ import (
 	"github.com/soyagvs/relio/internal/ghrelease"
 	"github.com/soyagvs/relio/internal/ui"
 )
+
+// lookupToken resolves the GitHub token relio will use. It is a package var so
+// tests can stub token resolution without touching the environment or `gh`.
+var lookupToken = ghrelease.Token
+
+// authStatus reports which GitHub token relio found and who it belongs to. It is
+// the shared body of `relio auth status` and the menu's Auth entry.
+func authStatus(w io.Writer) error {
+	token, source := lookupToken()
+	if token == "" {
+		fmt.Fprintln(w, ui.Info("not authenticated (set GITHUB_TOKEN or run `gh auth login`)"))
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	login, err := ghrelease.AuthenticatedUser(ctx, nil, token)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(w, ui.Info(fmt.Sprintf("logged in as %s (via %s)", login, source)))
+	return nil
+}
 
 // newAuthCmd groups the GitHub token helpers. Relio has no login of its own yet:
 // it reads a personal access token from RELIO_GITHUB_TOKEN / GITHUB_TOKEN /
@@ -29,20 +52,7 @@ func newAuthCmd() *cobra.Command {
 		Short: "Show which token relio found and who it belongs to",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
-			token, source := ghrelease.Token()
-			if token == "" {
-				fmt.Fprintln(out, ui.Info("not authenticated (set GITHUB_TOKEN or run `gh auth login`)"))
-				return nil
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			login, err := ghrelease.AuthenticatedUser(ctx, nil, token)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintln(out, ui.Info(fmt.Sprintf("logged in as %s (via %s)", login, source)))
-			return nil
+			return authStatus(cmd.OutOrStdout())
 		},
 	}
 

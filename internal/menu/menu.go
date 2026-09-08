@@ -19,13 +19,16 @@ type Action int
 const (
 	// None means the menu was dismissed without a choice (e.g. ctrl+c).
 	None Action = iota
+	Release
 	Status
 	Check
-	CreateRelease
 	ViewReleases
 	ReleaseText
 	ReleaseImage
-	GitHubAuth
+	Stats
+	Auth
+	Setup
+	Guide
 	Help
 	Exit
 )
@@ -37,16 +40,23 @@ type item struct {
 }
 
 var items = []item{
-	{"Status", "Unreleased commits and the next version", Status},
-	{"Check", "Lint the commits since the last tag — which are Conventional Commits, and the bump", Check},
-	{"Create a release", "Version, changelog, and tag", CreateRelease},
-	{"Releases", "Browse, read notes, or delete a version", ViewReleases},
-	{"Release text", "Announcement text — pick a format", ReleaseText},
-	{"Release image", "Shareable PNG — pick a shape", ReleaseImage},
-	{"GitHub auth", "Token-based; check it with `relio auth status`", GitHubAuth},
+	{"Release", "Create a release — final or rc, and optionally push + publish", Release},
+	{"Status", "What's unreleased and the version it suggests", Status},
+	{"Check", "Which commits since the last tag are Conventional Commits", Check},
+	{"Releases", "Browse versions, read notes, delete one", ViewReleases},
+	{"Announcement", "Copy-paste release text — pick a format", ReleaseText},
+	{"Release image", "Save or share a PNG release card", ReleaseImage},
+	{"Stats", "Public download and star numbers", Stats},
+	{"Auth", "GitHub connection — status and how to link", Auth},
+	{"Setup", "Create or inspect .release.yaml", Setup},
+	{"Guide", "Step-by-step walkthrough of the whole flow", Guide},
 	{"Help", "Every command and flag", Help},
 	{"Exit", "Leave Relio", Exit},
 }
+
+// digitRows is how many leading items answer to a 1–9 keypress; the rest
+// (Guide, Help, Exit) are reachable with the arrow keys only.
+const digitRows = 9
 
 // Menu chrome: a fixed label column so the descriptions line up, and a faint
 // full-width bar behind the selected row.
@@ -86,6 +96,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.result = Exit
 		m.done = true
 		return m, tea.Quit
+	case "?":
+		m.result = Help
+		m.done = true
+		return m, tea.Quit
+	case "g":
+		m.result = Guide
+		m.done = true
+		return m, tea.Quit
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
@@ -100,9 +118,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	// A digit jumps straight to that item and selects it.
+	// A digit jumps straight to that item and selects it. Only the first
+	// digitRows items answer to a digit.
 	if len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
-		if n := int(s[0] - '1'); n < len(items) {
+		if n := int(s[0] - '1'); n < digitRows && n < len(items) {
 			m.cursor = n
 			m.result = items[n].action
 			m.done = true
@@ -139,7 +158,7 @@ func (m model) View() string {
 			numDim.Render(num), label, ui.Dim.Render(it.desc)))
 	}
 
-	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–9 jump · enter select · q quit"))
+	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"))
 	return b.String()
 }
 
