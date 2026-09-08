@@ -39,6 +39,55 @@ type ReleaseConfig struct {
 	Tag           *bool         `yaml:"tag"`
 	TagPrefix     string        `yaml:"tag_prefix"`
 	VersionFiles  []VersionFile `yaml:"version_files,omitempty"`
+	Hooks         HooksConfig   `yaml:"hooks,omitempty"`
+}
+
+// StringList is a YAML value that accepts either a bare string or a list of
+// strings, and always decodes to a slice. It marshals back to a bare string when
+// it holds exactly one entry, so a single-command hook round-trips cleanly.
+type StringList []string
+
+// UnmarshalYAML accepts a scalar (one command) or a sequence of scalars.
+func (s *StringList) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var one string
+		if err := node.Decode(&one); err != nil {
+			return err
+		}
+		*s = StringList{one}
+		return nil
+	case yaml.SequenceNode:
+		var many []string
+		if err := node.Decode(&many); err != nil {
+			return err
+		}
+		*s = StringList(many)
+		return nil
+	default:
+		return fmt.Errorf("config: expected a string or a list of strings")
+	}
+}
+
+// MarshalYAML emits a bare string for a single entry, the slice otherwise, and
+// nil for an empty list so `omitempty` drops the key.
+func (s StringList) MarshalYAML() (any, error) {
+	switch len(s) {
+	case 0:
+		return nil, nil
+	case 1:
+		return s[0], nil
+	default:
+		return []string(s), nil
+	}
+}
+
+// HooksConfig holds the shell commands run around a release: `before` after the
+// user confirms but before anything is written (a failure aborts the release),
+// `after` once the tag and any publish step are done (a failure only warns).
+type HooksConfig struct {
+	Before StringList `yaml:"before,omitempty"`
+	After  StringList `yaml:"after,omitempty"`
 }
 
 // ChangelogEnabled reports whether a release run updates the changelog file. An

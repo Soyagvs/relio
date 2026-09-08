@@ -365,8 +365,35 @@ func PlanView(p release.Plan) string {
 	if vf := versionFiles(p); vf != "" {
 		parts = append(parts, vf, "")
 	}
+	if h := hooks(p); h != "" {
+		parts = append(parts, h, "")
+	}
 	parts = append(parts, Dim.Render(fmt.Sprintf("%d commits since %s", len(p.Commits), commitBase(p))))
 	return strings.Join(parts, "\n")
+}
+
+// hooks renders a terse summary of the configured before/after release hooks:
+// the command itself when there is one, "N commands" when there are several.
+func hooks(p release.Plan) string {
+	before, after := p.Config.Release.Hooks.Before, p.Config.Release.Hooks.After
+	if len(before) == 0 && len(after) == 0 {
+		return ""
+	}
+	summary := func(cmds []string) string {
+		if len(cmds) == 1 {
+			return cmds[0]
+		}
+		return fmt.Sprintf("%d commands", len(cmds))
+	}
+	var b strings.Builder
+	b.WriteString(group.Render("hooks") + "\n")
+	if len(before) > 0 {
+		b.WriteString("  " + Dim.Render("before: "+summary(before)) + "\n")
+	}
+	if len(after) > 0 {
+		b.WriteString("  " + Dim.Render("after: "+summary(after)) + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // versionFiles renders the compact "Version files" section for the preview:

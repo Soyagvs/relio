@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -192,6 +193,74 @@ func TestLoadWithoutVersionFiles(t *testing.T) {
 	}
 	if got.Release.VersionTargets() != nil {
 		t.Errorf("VersionTargets = %+v, want nil", got.Release.VersionTargets())
+	}
+}
+
+func TestHooksScalarAndList(t *testing.T) {
+	dir := t.TempDir()
+	yml := "project: x\nrelease:\n" +
+		"  hooks:\n" +
+		"    before: make test\n" +
+		"    after:\n" +
+		"      - ./scripts/notify.sh\n" +
+		"      - echo done\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Release.Hooks.Before) != 1 || got.Release.Hooks.Before[0] != "make test" {
+		t.Errorf("Before = %+v, want [make test]", got.Release.Hooks.Before)
+	}
+	want := []string{"./scripts/notify.sh", "echo done"}
+	if len(got.Release.Hooks.After) != 2 || got.Release.Hooks.After[0] != want[0] || got.Release.Hooks.After[1] != want[1] {
+		t.Errorf("After = %+v, want %+v", got.Release.Hooks.After, want)
+	}
+}
+
+func TestHooksRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	want := Default("x")
+	want.Release.Hooks = HooksConfig{
+		Before: StringList{"make test"},
+		After:  StringList{"./scripts/notify.sh", "echo done"},
+	}
+	if err := want.Save(dir); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	data, err := os.ReadFile(Path(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "before: make test") {
+		t.Errorf("marshaled YAML should carry `before: make test` as a scalar:\n%s", data)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Release.Hooks.Before) != 1 || got.Release.Hooks.Before[0] != "make test" {
+		t.Errorf("Before = %+v", got.Release.Hooks.Before)
+	}
+	if len(got.Release.Hooks.After) != 2 {
+		t.Errorf("After = %+v, want 2 entries", got.Release.Hooks.After)
+	}
+}
+
+func TestLoadWithoutHooks(t *testing.T) {
+	dir := t.TempDir()
+	old := "project: legacy\nrelease:\n  changelog: true\n  tag: true\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Release.Hooks.Before != nil || got.Release.Hooks.After != nil {
+		t.Errorf("Hooks = %+v, want nil slices", got.Release.Hooks)
 	}
 }
 

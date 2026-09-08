@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/versionfile"
@@ -64,6 +65,37 @@ func TestPlanViewMarksFinalize(t *testing.T) {
 	out := PlanView(p)
 	if !strings.Contains(out, "(finalize)") {
 		t.Errorf("missing finalize marker:\n%s", out)
+	}
+}
+
+func TestPlanViewListsHooks(t *testing.T) {
+	p := release.Plan{
+		Current: semver.Version{Major: 1, Minor: 5, Prefix: "v"},
+		Next:    semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+	}
+	p.Config.Release.Hooks = config.HooksConfig{
+		Before: config.StringList{"make test"},
+		After:  config.StringList{"./scripts/notify.sh", "echo done"},
+	}
+	out := PlanView(p)
+	if !strings.Contains(out, "hooks") {
+		t.Errorf("missing hooks line:\n%s", out)
+	}
+	if !strings.Contains(out, "before: make test") {
+		t.Errorf("missing before hook:\n%s", out)
+	}
+	if !strings.Contains(out, "after: 2 commands") {
+		t.Errorf("missing after hook count:\n%s", out)
+	}
+}
+
+func TestPlanViewWithoutHooks(t *testing.T) {
+	p := release.Plan{
+		Current: semver.Version{Major: 1, Minor: 5, Prefix: "v"},
+		Next:    semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+	}
+	if strings.Contains(PlanView(p), "hooks") {
+		t.Error("PlanView showed a hooks line with no hooks configured")
 	}
 }
 

@@ -115,6 +115,7 @@ runs locally and hands you the `git push` to run.
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
 - [Syncing the version into project files](#syncing-the-version-into-project-files)
+- [Hooks](#hooks)
 - [Configuration — `.release.yaml`](#configuration--releaseyaml)
 - [Non-interactive / CI usage](#non-interactive--ci-usage)
 - [Project layout](#project-layout)
@@ -321,6 +322,7 @@ yourself.
 | `--no-version-files`         | Do not update the files listed in `version_files`. |
 | `--publish`                  | After tagging, push the branch and tag to `origin` and create the GitHub Release. |
 | `--rc`                       | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
+| `--no-hooks`                 | Skip the `before` / `after` hooks from `.release.yaml` for this run. See [Hooks](#hooks). |
 
 ```bash
 relio                 # interactive
@@ -329,6 +331,7 @@ relio --minor --yes   # force a minor bump
 relio --no-tag        # write the changelog only
 relio --publish       # also push and create the GitHub Release
 relio --rc            # cut the next release candidate
+relio --no-hooks      # skip the .release.yaml hooks for this run
 ```
 
 ---
@@ -692,6 +695,47 @@ Pass `--no-version-files` to skip the whole step for one run.
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
 
+## Hooks
+
+Run your own shell commands around a release by listing them under
+`release.hooks`:
+
+```yaml
+release:
+    hooks:
+        before: make test                       # one command…
+        after:                                   # …or a list, run in order
+            - ./scripts/changelog-to-slack.sh
+            - echo done
+```
+
+Each hook is a single shell command string, or a list of them. A list stops at
+the first command that exits non-zero.
+
+- **`before`** runs *after* you confirm the release and *before* anything is
+  written. A non-zero exit **aborts** the release — nothing is written, no tag —
+  and `relio` exits non-zero.
+- **`after`** runs at the very end: after the tag, and after the `--publish`
+  push + GitHub Release when that ran. A non-zero exit prints a **warning** but
+  `relio` still exits 0 — the release is already done.
+
+Hooks run with the **repository root** as the working directory, inherit the
+process environment and stdout/stderr, and get three extra variables:
+
+| Variable | Example | Meaning |
+| -------- | ------- | ------- |
+| `RELIO_VERSION` | `1.6.0` | the new version, no `v` |
+| `RELIO_TAG` | `v1.6.0` | the new tag, honouring `tag_prefix` |
+| `RELIO_PREVIOUS_TAG` | `v1.5.0` | the tag the release was computed from (empty on a first release) |
+
+Pass `--no-hooks` to skip every hook for one run. `--yes` does **not** skip
+hooks — CI needs them to run. Hooks never run for `relio status` or
+`relio check` (they don't apply anything).
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
 ## Configuration — `.release.yaml`
 
 Written by `relio init`, read from the repository root. **Configuration only —
@@ -710,6 +754,9 @@ release:
     version_files: []            # files to sync to the new version, e.g.
                                  #   - package.json
                                  #   - { path: foo.py, pattern: '__version__ = "([^"]+)"' }
+    hooks:                       # shell commands run around a release (see Hooks)
+        before: ""               #   string or list — non-zero exit aborts the release
+        after: []                #   string or list — non-zero exit only warns
 
 github:
     enabled: false         # reserved

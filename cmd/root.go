@@ -42,6 +42,7 @@ type releaseFlags struct {
 	noVersionFiles bool
 	publish        bool
 	rc             bool
+	noHooks        bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -84,6 +85,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, "do not update the files listed in version_files")
 	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
 	lf.BoolVar(&f.rc, "rc", false, "cut a release candidate (vX.Y.Z-rc.N) instead of the final version")
+	lf.BoolVar(&f.noHooks, "no-hooks", false, "skip the before/after hooks in .release.yaml for this run")
 
 	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
@@ -273,6 +275,10 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	}
 	applyFlagOverrides(&plan, f)
 
+	// The tag this release is computed from, captured before Apply moves state —
+	// exported to hooks as RELIO_PREVIOUS_TAG.
+	prev, _, _ := repo.LatestTag()
+
 	if plan.NothingToRelease() {
 		base := "the last tag"
 		if plan.Current.String() != "v0.0.0" {
@@ -310,6 +316,13 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			return errors.New("refusing to modify the repo without confirmation — re-run with --yes")
 		}
 		fmt.Fprintln(out, ui.Info("Proceeding (--yes)."))
+	}
+
+	if !f.noHooks && len(cfg.Release.Hooks.Before) > 0 {
+		fmt.Fprintln(out)
+		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.Before, plan, prev); err != nil {
+			return fmt.Errorf("before hook failed — nothing was written: %w", err)
+		}
 	}
 
 	applied, err := plan.Apply(repo)
@@ -355,6 +368,13 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	if applied.TagName != "" && !printedNext {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, ui.Dim.Render("  next:  git push && git push origin "+applied.TagName))
+	}
+
+	if !f.noHooks && applied.TagName != "" && len(cfg.Release.Hooks.After) > 0 {
+		fmt.Fprintln(out)
+		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.After, plan, prev); err != nil {
+			fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render(fmt.Sprintf("after hook failed: %v (the release itself is done)", err)))
+		}
 	}
 	return nil
 }

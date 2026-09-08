@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -10,6 +13,129 @@ import (
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/semver"
 )
+
+// repoWithPendingRelease builds a temp git repo tagged v1.5.0 with one extra
+// `feat:` commit on top, so a plain `doRelease` run targets v1.6.0.
+func repoWithPendingRelease(t *testing.T) (*gitrepo.Repo, string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"config", "user.email", "t@e.com"},
+		{"config", "user.name", "T"},
+		{"config", "commit.gpgsign", "false"},
+	} {
+		c := exec.Command("git", args...)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	mk := func(msg string) {
+		c := exec.Command("git", "commit", "--allow-empty", "-q", "-m", msg)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("commit %q: %v: %s", msg, err, out)
+		}
+	}
+	mk("chore: init")
+	tagCmd := exec.Command("git", "tag", "v1.5.0")
+	tagCmd.Dir = dir
+	if out, err := tagCmd.CombinedOutput(); err != nil {
+		t.Fatalf("tag: %v: %s", err, out)
+	}
+	mk("feat: something big")
+
+	r, err := gitrepo.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r, dir
+}
+
+func TestRootHasNoHooksFlag(t *testing.T) {
+	c := NewRootCmd()
+	f := c.Flags().Lookup("no-hooks")
+	if f == nil {
+		t.Fatal("missing --no-hooks flag on the root command")
+	}
+	if !strings.Contains(f.Usage, "hooks") {
+		t.Errorf("--no-hooks usage = %q", f.Usage)
+	}
+}
+
+func TestDoReleaseBeforeHookAbort(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Before = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true}
+	err := doRelease(&buf, r, cfg, f, semver.None, false)
+	if err == nil {
+		t.Fatalf("expected an error, got nil\noutput:\n%s", buf.String())
+	}
+	if !strings.Contains(err.Error(), "before hook failed") {
+		t.Errorf("error = %q, want it to mention 'before hook failed'", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("tag v1.6.0 was created despite the before hook aborting")
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "CHANGELOG.md")); serr == nil {
+		t.Error("CHANGELOG.md was written despite the before hook aborting")
+	}
+	log := exec.Command("git", "log", "--oneline")
+	log.Dir = dir
+	out, _ := log.CombinedOutput()
+	if strings.Contains(string(out), "chore(release)") {
+		t.Errorf("a release commit was made despite the abort:\n%s", out)
+	}
+}
+
+func TestDoReleaseAfterHookNonFatal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.After = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true}
+	if err := doRelease(&buf, r, cfg, f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (after hook failures only warn)\noutput:\n%s", err, buf.String())
+	}
+	if has, _ := r.HasTag("v1.6.0"); !has {
+		t.Errorf("tag v1.6.0 was not created\noutput:\n%s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "after hook failed") {
+		t.Errorf("missing 'after hook failed' warning:\n%s", buf.String())
+	}
+}
+
+func TestDoReleaseNoHooksFlagSkips(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Before = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, noHooks: true}
+	if err := doRelease(&buf, r, cfg, f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (--no-hooks should skip the failing before hook)", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); !has {
+		t.Error("tag v1.6.0 was not created with --no-hooks")
+	}
+}
 
 func TestRootHasRCFlag(t *testing.T) {
 	c := NewRootCmd()
