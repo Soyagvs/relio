@@ -24,7 +24,7 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	if got.Project != "azeink" {
 		t.Errorf("Project = %q", got.Project)
 	}
-	if !got.Release.Changelog || !got.Release.Tag {
+	if !got.Release.ChangelogEnabled() || !got.Release.TagEnabled() {
 		t.Errorf("release flags lost: %+v", got.Release)
 	}
 	if got.Release.TagPrefix != "v" || got.Release.ChangelogFile != "CHANGELOG.md" {
@@ -63,6 +63,28 @@ func TestLoadFillsDefaults(t *testing.T) {
 	}
 	if got.Release.ChangelogFile != "CHANGELOG.md" || got.Release.TagPrefix != "v" {
 		t.Errorf("release defaults not applied: %+v", got.Release)
+	}
+	// A file with no changelog/tag keys still releases fully.
+	if !got.Release.ChangelogEnabled() || !got.Release.TagEnabled() {
+		t.Errorf("minimal config should enable changelog and tag: %+v", got.Release)
+	}
+}
+
+func TestExplicitReleaseFalseIsHonoured(t *testing.T) {
+	dir := t.TempDir()
+	body := "project: x\nrelease:\n    tag: false\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Release.TagEnabled() {
+		t.Error("explicit `tag: false` was ignored")
+	}
+	if !got.Release.ChangelogEnabled() {
+		t.Error("`changelog:` was omitted and should default to true")
 	}
 }
 

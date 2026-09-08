@@ -29,13 +29,27 @@ type Config struct {
 }
 
 // ReleaseConfig controls what a `release` run touches.
+//
+// Changelog and Tag are pointers so an omitted key can mean "use the default"
+// (both on) while an explicit `changelog: false` / `tag: false` is still
+// honoured. Read them through ChangelogEnabled / TagEnabled.
 type ReleaseConfig struct {
-	Changelog     bool          `yaml:"changelog"`
+	Changelog     *bool         `yaml:"changelog"`
 	ChangelogFile string        `yaml:"changelog_file"`
-	Tag           bool          `yaml:"tag"`
+	Tag           *bool         `yaml:"tag"`
 	TagPrefix     string        `yaml:"tag_prefix"`
 	VersionFiles  []VersionFile `yaml:"version_files,omitempty"`
 }
+
+// ChangelogEnabled reports whether a release run updates the changelog file. An
+// omitted `changelog:` key defaults to true.
+func (c ReleaseConfig) ChangelogEnabled() bool { return c.Changelog == nil || *c.Changelog }
+
+// TagEnabled reports whether a release run commits and tags. An omitted `tag:`
+// key defaults to true.
+func (c ReleaseConfig) TagEnabled() bool { return c.Tag == nil || *c.Tag }
+
+func boolPtr(b bool) *bool { return &b }
 
 // VersionFile is one entry in release.version_files. In YAML it accepts either a
 // bare string (the path, matched by a built-in rule) or a mapping with an
@@ -108,9 +122,9 @@ func Default(project string) Config {
 		Versioning: "semver",
 		Commits:    "conventional",
 		Release: ReleaseConfig{
-			Changelog:     true,
+			Changelog:     boolPtr(true),
 			ChangelogFile: "CHANGELOG.md",
-			Tag:           true,
+			Tag:           boolPtr(true),
 			TagPrefix:     "v",
 		},
 		GitHub:  GitHubConfig{Enabled: false},

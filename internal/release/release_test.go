@@ -576,7 +576,8 @@ func TestApplyRefusesDuplicateTag(t *testing.T) {
 	commit(t, dir, "feat: thing")
 
 	cfg := config.Default("x")
-	cfg.Release.Changelog = false // isolate the tag path
+	disabled := false
+	cfg.Release.Changelog = &disabled // isolate the tag path
 	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
 	if err != nil {
 		t.Fatal(err)
