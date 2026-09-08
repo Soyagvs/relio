@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/config"
-	"github.com/soyagvs/relio/internal/ghrelease"
-	"github.com/soyagvs/relio/internal/ghstats"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/menu"
 	"github.com/soyagvs/relio/internal/pick"
@@ -166,88 +164,105 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 	return runMenu(cmd, f)
 }
 
-// runMenu shows the main menu once, runs the chosen action, and returns. It does
-// not loop — the action's output stays on screen as the last thing printed.
+// runMenu prints the entry banner once, then shows the main menu. Most actions
+// are one-shot: they run once and the menu exits with their output on screen.
+// Backing out of a sub-choice (Release, Auth) returns to the menu instead of
+// quitting; q/esc at the menu quits; ctrl+c anywhere hard-quits.
 func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
+	fmt.Fprint(out, ui.BigBanner(version, update.Available(version)))
 
-	action, err := menu.Run(version, update.Available(version))
-	if err != nil {
-		return err
-	}
+	for {
+		action, err := menu.Run()
+		if err != nil {
+			return err
+		}
 
-	switch action {
-	case menu.Exit, menu.None:
+		switch action {
+		case menu.Exit, menu.None:
+			return nil
+
+		case menu.Release:
+			again, rerr := runMenuRelease(cmd, f)
+			if rerr != nil {
+				return rerr
+			}
+			if again {
+				continue
+			}
+			return nil
+
+		case menu.Auth:
+			again, aerr := runMenuAuth(cmd)
+			if aerr != nil {
+				return aerr
+			}
+			if again {
+				continue
+			}
+			return nil
+
+		case menu.Status:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				return oerr
+			}
+			return runStatus(cmd, repo, cfg)
+
+		case menu.Check:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				return oerr
+			}
+			plan, perr := release.BuildPlan(repo, cfg, release.Options{})
+			if perr != nil {
+				return perr
+			}
+			return runCheck(cmd, repo, cfg, plan, false)
+
+		case menu.ViewReleases:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				return oerr
+			}
+			return releases.Run(repo, cfg)
+
+		case menu.ReleaseText:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				return oerr
+			}
+			return runReleaseText(cmd, repo, cfg)
+
+		case menu.ReleaseImage:
+			repo, cfg, oerr := openRepoAndConfig(f.dir)
+			if oerr != nil {
+				return oerr
+			}
+			return runReleaseImage(cmd, repo, cfg, imageFlags{})
+
+		case menu.Setup:
+			return runMenuSetup(cmd, f)
+
+		case menu.Guide:
+			return runGuide(cmd, f)
+
+		case menu.Help:
+			fmt.Fprintln(out, helpReference())
+			return nil
+		}
 		return nil
-
-	case menu.Release:
-		return runMenuRelease(cmd, f)
-
-	case menu.Status:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		return runStatus(cmd, repo, cfg)
-
-	case menu.Check:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		plan, perr := release.BuildPlan(repo, cfg, release.Options{})
-		if perr != nil {
-			return perr
-		}
-		return runCheck(cmd, repo, cfg, plan, false)
-
-	case menu.ViewReleases:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		return releases.Run(repo, cfg)
-
-	case menu.ReleaseText:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		return runReleaseText(cmd, repo, cfg)
-
-	case menu.ReleaseImage:
-		repo, cfg, oerr := openRepoAndConfig(f.dir)
-		if oerr != nil {
-			return oerr
-		}
-		return runReleaseImage(cmd, repo, cfg, imageFlags{})
-
-	case menu.Stats:
-		return runMenuStats(cmd, f)
-
-	case menu.Auth:
-		return runMenuAuth(cmd)
-
-	case menu.Setup:
-		return runMenuSetup(cmd, f)
-
-	case menu.Guide:
-		return runGuide(cmd, f)
-
-	case menu.Help:
-		fmt.Fprintln(out, helpReference())
-		return nil
 	}
-	return nil
 }
 
 // runMenuRelease is the menu's Release entry: two quick picks (final vs rc, and
 // whether to publish) that stand in for the --rc / --publish flags, then the
-// normal interactive release.
-func runMenuRelease(cmd *cobra.Command, f *releaseFlags) error {
+// normal interactive release. again=true means the user backed out of a pick and
+// the menu should be redrawn.
+func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (again bool, err error) {
 	repo, cfg, err := openRepoAndConfig(f.dir)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	relType, chosen, err := pick.Run("Release type", []pick.Item{
@@ -255,10 +270,13 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) error {
 		{Label: "Release candidate (rc.N)", Desc: "a pre-release you can iterate on, then finalize", Value: "rc"},
 	})
 	if err != nil {
-		return err
+		if errors.Is(err, pick.ErrQuit) {
+			return false, nil
+		}
+		return false, err
 	}
 	if !chosen {
-		return nil
+		return true, nil
 	}
 
 	pub, chosen, err := pick.Run("Publish to GitHub?", []pick.Item{
@@ -266,40 +284,24 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) error {
 		{Label: "Push and create the GitHub Release", Desc: "needs a GitHub token (GITHUB_TOKEN / GH_TOKEN or `gh auth login`)", Value: "publish"},
 	})
 	if err != nil {
-		return err
+		if errors.Is(err, pick.ErrQuit) {
+			return false, nil
+		}
+		return false, err
 	}
 	if !chosen {
-		return nil
+		return true, nil
 	}
 
 	f.rc = relType == "rc"
 	f.publish = pub == "publish"
-	return doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
-}
-
-// runMenuStats is the menu's Stats entry: fetch and print the public numbers for
-// the origin repo when it is a github.com remote, otherwise for Relio itself.
-func runMenuStats(cmd *cobra.Command, f *releaseFlags) error {
-	target := defaultRepo
-	if repo, err := gitrepo.Open(f.dir); err == nil {
-		if url, uerr := repo.RemoteURL("origin"); uerr == nil {
-			if name, perr := ghrelease.ParseRepo(url); perr == nil {
-				target = name
-			}
-		}
-	}
-
-	s, err := ghstats.Fetch(cmd.Context(), nil, target)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(cmd.OutOrStdout(), renderStats(s, false))
-	return nil
+	return false, doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
 }
 
 // runMenuAuth is the menu's Auth entry: show the resolved sign-in status, or
-// explain how to connect a token.
-func runMenuAuth(cmd *cobra.Command) error {
+// explain how to connect a token. again=true means the user backed out of the
+// pick and the menu should be redrawn.
+func runMenuAuth(cmd *cobra.Command) (again bool, err error) {
 	out := cmd.OutOrStdout()
 
 	choice, chosen, err := pick.Run("Auth", []pick.Item{
@@ -307,21 +309,24 @@ func runMenuAuth(cmd *cobra.Command) error {
 		{Label: "How to connect", Desc: "env vars or `gh auth login`", Value: "how"},
 	})
 	if err != nil {
-		return err
+		if errors.Is(err, pick.ErrQuit) {
+			return false, nil
+		}
+		return false, err
 	}
 	if !chosen {
-		return nil
+		return true, nil
 	}
 
 	if choice == "status" {
-		return authStatus(out)
+		return false, authStatus(out)
 	}
 
 	fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN"))
 	fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in."))
 	fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one."))
 	fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing."))
-	return nil
+	return false, nil
 }
 
 // runMenuSetup is the menu's Setup entry: point at an existing .release.yaml, or

@@ -23,6 +23,8 @@ func send(m model, keys ...string) model {
 			msg = tea.KeyMsg{Type: tea.KeyDown}
 		case "enter":
 			msg = tea.KeyMsg{Type: tea.KeyEnter}
+		case "ctrl+c":
+			msg = tea.KeyMsg{Type: tea.KeyCtrlC}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}
@@ -41,8 +43,15 @@ func TestSelectsValue(t *testing.T) {
 
 func TestCancel(t *testing.T) {
 	m := send(model{title: "t", items: sample}, "q")
-	if m.chosen || !m.quit {
-		t.Errorf("q should cancel: chosen=%v quit=%v", m.chosen, m.quit)
+	if m.chosen || !m.quit || m.killed {
+		t.Errorf("q should back out (not kill): chosen=%v quit=%v killed=%v", m.chosen, m.quit, m.killed)
+	}
+}
+
+func TestCtrlCKills(t *testing.T) {
+	m := send(model{title: "t", items: sample}, "ctrl+c")
+	if !m.killed || m.chosen {
+		t.Errorf("ctrl+c should hard-quit: chosen=%v killed=%v", m.chosen, m.killed)
 	}
 }
 

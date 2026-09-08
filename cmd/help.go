@@ -54,7 +54,6 @@ var (
 		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
 		{"Announcement", "Pick a post format and print copy-paste text (same as `relio post`)"},
 		{"Release image", "Pick a release + shape, then save the card, upload it for a link, or both (same as `relio image`)"},
-		{"Stats", "Public download and star numbers (same as `relio stats`)"},
 		{"Auth", "GitHub connection — status and how to link (see `relio auth status`)"},
 		{"Setup", "Create or inspect .release.yaml (same as `relio init`)"},
 		{"Guide", "Step-by-step walkthrough (same as `relio guide`)"},

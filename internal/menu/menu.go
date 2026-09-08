@@ -6,6 +6,7 @@ package menu
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -25,7 +26,6 @@ const (
 	ViewReleases
 	ReleaseText
 	ReleaseImage
-	Stats
 	Auth
 	Setup
 	Guide
@@ -46,7 +46,6 @@ var items = []item{
 	{"Releases", "Browse versions, read notes, delete one", ViewReleases},
 	{"Announcement", "Copy-paste release text — pick a format", ReleaseText},
 	{"Release image", "Save or share a PNG release card", ReleaseImage},
-	{"Stats", "Public download and star numbers", Stats},
 	{"Auth", "GitHub connection — status and how to link", Auth},
 	{"Setup", "Create or inspect .release.yaml", Setup},
 	{"Guide", "Step-by-step walkthrough of the whole flow", Guide},
@@ -55,33 +54,37 @@ var items = []item{
 }
 
 // digitRows is how many leading items answer to a 1–9 keypress; the rest
-// (Guide, Help, Exit) are reachable with the arrow keys only.
+// (Help, Exit) are reachable with the arrow keys only.
 const digitRows = 9
 
-// Menu chrome: a fixed label column so the descriptions line up, and a faint
-// full-width bar behind the selected row.
+// Menu chrome: a fixed label column so the descriptions line up, a minimum row
+// width, and a faint full-width bar behind the selected row.
 const (
-	labelCol = 17
-	rowWidth = 64
+	labelCol    = 17
+	minRowWidth = 40
 )
 
 var (
-	selBar   = lipgloss.NewStyle().Background(lipgloss.Color("236")).Width(rowWidth)
+	selBar   = lipgloss.NewStyle().Background(lipgloss.Color("236"))
 	numDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	headline = lipgloss.NewStyle().Foreground(ui.Purple).Bold(true)
 )
 
 type model struct {
-	cursor  int
-	version string
-	update  string // newer version available as a bare "1.2.3", or "" when current
-	result  Action
-	done    bool
+	cursor int
+	width  int // terminal width from tea.WindowSizeMsg; 0 until the first resize
+	result Action
+	done   bool
 }
 
 func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = ws.Width
+		return m, nil
+	}
+
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -131,43 +134,106 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// banner is the big entry banner. It is printed once by Run before the program
-// starts (so it lands in scrollback), never inside View, which must stay short
-// enough to fit a small terminal without the top scrolling off.
-func (m model) banner() string { return ui.BigBanner(m.version, m.update) }
+// rowWidth is the visible column count every row (selected or not) is rendered
+// to. It is the widest natural row, shrunk to fit the terminal (with one spare
+// column so the terminal never soft-wraps) and never below minRowWidth unless
+// the terminal itself is narrower.
+func (m model) rowWidth() int {
+	natural := 0
+	for i, it := range items {
+		// Plain body: "  " marker + num + "  " + padded label + "  " + desc.
+		body := fmt.Sprintf("  %d  %s  %s", i+1, padLabel(it.label), it.desc)
+		if w := utf8.RuneCountInString(body); w > natural {
+			natural = w
+		}
+	}
+
+	rowW := natural
+	if rowW < minRowWidth {
+		rowW = minRowWidth
+	}
+	if m.width > 0 && m.width-1 < rowW {
+		rowW = m.width - 1
+	}
+	return rowW
+}
+
+func padLabel(label string) string {
+	return label + strings.Repeat(" ", max(0, labelCol-utf8.RuneCountInString(label)))
+}
+
+// truncate shortens s to at most maxRunes visible runes, replacing the tail with
+// "…" when it has to cut.
+func truncate(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	r := []rune(s)
+	if maxRunes == 1 {
+		return "…"
+	}
+	return string(r[:maxRunes-1]) + "…"
+}
 
 func (m model) View() string {
 	if m.done {
 		// The chosen action prints its own output next; stay quiet on exit.
 		return ""
 	}
+	rowW := m.rowWidth()
+
 	var b strings.Builder
-	b.WriteString("  " + headline.Render(strings.ToUpper(ui.AppName)+" menu") + "\n\n")
+	b.WriteString("  " + headline.Render(truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
 
 	for i, it := range items {
 		num := fmt.Sprintf("%d", i+1)
-		label := it.label + strings.Repeat(" ", max(0, labelCol-len(it.label)))
+		marker := "  "
+		if i == m.cursor {
+			marker = "▸ "
+		}
+		label := padLabel(it.label)
+
+		// Fixed-width prefix, then the description truncated so the whole body
+		// fits in exactly rowW visible columns and nothing ever wraps.
+		prefix := marker + num + "  " + label + "  "
+		desc := truncate(it.desc, max(0, rowW-utf8.RuneCountInString(prefix)))
+
+		// Colorize the already-fitted pieces; visible widths are unchanged.
+		numOut, labelOut := numDim.Render(num), label
+		if i == m.cursor {
+			numOut, labelOut = ui.Key.Render(num), ui.Key.Render(label)
+		}
+		body := marker + numOut + "  " + labelOut + "  " + ui.Dim.Render(desc)
 
 		if i == m.cursor {
-			inner := fmt.Sprintf(" %s  %s  %s",
-				ui.Key.Render(num), ui.Key.Render(label), ui.Dim.Render(it.desc))
-			b.WriteString(ui.Key.Render("▸") + selBar.Render(inner) + "\n")
+			// Width(rowW) now equals the body width, so it pads (fills the bar)
+			// without ever wrapping to a second line.
+			b.WriteString(selBar.Width(rowW).Render(body) + "\n")
 			continue
 		}
-		b.WriteString(fmt.Sprintf("  %s  %s  %s\n",
-			numDim.Render(num), label, ui.Dim.Render(it.desc)))
+
+		// Pad non-selected rows to rowW too, so the trailing newline always
+		// lands at the same column and the inline renderer's math stays stable.
+		visible := utf8.RuneCountInString(prefix) + utf8.RuneCountInString(desc)
+		if pad := rowW - visible; pad > 0 {
+			body += strings.Repeat(" ", pad)
+		}
+		b.WriteString(body + "\n")
 	}
 
-	b.WriteString("\n  " + ui.Dim.Render("↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"))
+	hint := "↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"
+	b.WriteString("\n  " + ui.Dim.Render(truncate(hint, max(0, rowW-2))))
 	return b.String()
 }
 
-// Run shows the menu once and returns the chosen Action. update, when non-empty,
-// is a bare newer version ("1.2.3") shown next to the current one in the banner.
-func Run(version, update string) (Action, error) {
-	m := model{version: version, update: update}
-	fmt.Print(m.banner() + "\n")
-	final, err := tea.NewProgram(m).Run()
+// Run shows the menu once and returns the chosen Action. The big entry banner is
+// printed by the caller before Run, so it lands in scrollback; View() itself
+// stays short enough for a small terminal.
+func Run() (Action, error) {
+	final, err := tea.NewProgram(model{}).Run()
 	if err != nil {
 		return None, err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func send(m model, keys ...string) model {
@@ -48,7 +49,7 @@ func selectAction(a Action) model {
 func TestSelectEveryAction(t *testing.T) {
 	for _, a := range []Action{
 		Release, Status, Check, ViewReleases, ReleaseText, ReleaseImage,
-		Stats, Auth, Setup, Guide, Help, Exit,
+		Auth, Setup, Guide, Help, Exit,
 	} {
 		if got := selectAction(a).result; got != a {
 			t.Errorf("selecting %v gave %v", a, got)
@@ -65,10 +66,10 @@ func TestHelpAndGuideKeys(t *testing.T) {
 	}
 }
 
-// Rows 1–9 answer to a digit; rows 10–12 (Guide, Help, Exit) are arrow-only.
+// Rows 1–9 answer to a digit; rows 10–11 (Help, Exit) are arrow-only.
 func TestDigitJumpStopsAtRowNine(t *testing.T) {
-	if m := send(model{}, "9"); m.result != Setup {
-		t.Errorf(`"9" => %v, want Setup (row 9)`, m.result)
+	if m := send(model{}, "9"); m.result != Guide {
+		t.Errorf(`"9" => %v, want Guide (row 9)`, m.result)
 	}
 }
 
@@ -97,26 +98,38 @@ func TestQuitKeyIsExit(t *testing.T) {
 	}
 }
 
-func TestUpdateShownInBanner(t *testing.T) {
-	with := model{version: "1.0.0", update: "1.1.0"}
-	if !strings.Contains(with.banner(), "v1.1.0 available") {
-		t.Error("banner() should surface the newer version")
-	}
-	without := model{version: "1.0.0"}
-	if strings.Contains(without.banner(), "available") {
-		t.Error("banner() should be clean when the build is current")
-	}
-}
-
-// The banner is printed once before the program starts; the live View() must
-// stay short so it fits a small terminal without the top scrolling off.
+// The banner is printed once by the caller before the program starts; the live
+// View() must stay short so it fits a small terminal without the top scrolling
+// off, and must not embed the big wordmark itself.
 func TestViewOmitsBanner(t *testing.T) {
-	v := model{version: "1.0.0", update: "1.1.0"}.View()
+	v := model{width: 80}.View()
 	if strings.Contains(v, "█") {
 		t.Error("View() must not embed the big wordmark banner")
 	}
 	if got := strings.Count(v, "\n") + 1; got > 20 {
 		t.Errorf("View() is %d lines, too tall for a small terminal", got)
+	}
+}
+
+// Moving the cursor must never change how many lines View() renders, nor let any
+// line exceed the terminal width — that line-count drift is what made the menu
+// "deform" as the selection moved.
+func TestViewLineCountStableAcrossCursor(t *testing.T) {
+	for _, w := range []int{80, 50} {
+		want := -1
+		for i := range items {
+			v := model{width: w, cursor: i}.View()
+			if n := strings.Count(v, "\n"); want == -1 {
+				want = n
+			} else if n != want {
+				t.Errorf("width %d: View() at cursor %d has %d newlines, want %d (cursor 0)", w, i, n, want)
+			}
+			for _, ln := range strings.Split(v, "\n") {
+				if lipgloss.Width(ln) > w {
+					t.Errorf("width %d: line at cursor %d exceeds terminal (%d cols): %q", w, i, lipgloss.Width(ln), ln)
+				}
+			}
+		}
 	}
 }
 

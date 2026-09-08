@@ -3,12 +3,17 @@
 package pick
 
 import (
+	"errors"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/soyagvs/relio/internal/ui"
 )
+
+// ErrQuit is returned by Run when the user hard-quits with ctrl+c, as opposed to
+// backing out of the list with q/esc (which returns chosen=false, err=nil).
+var ErrQuit = errors.New("pick: quit")
 
 // Item is one selectable option. Value is what Run returns.
 type Item struct {
@@ -22,7 +27,8 @@ type model struct {
 	items  []Item
 	cursor int
 	chosen bool
-	quit   bool
+	quit   bool // backed out with q/esc
+	killed bool // hard-quit with ctrl+c
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -33,7 +39,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch k.String() {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c":
+		m.quit = true
+		m.killed = true
+		return m, tea.Quit
+	case "q", "esc":
 		m.quit = true
 		return m, tea.Quit
 	case "up", "k":
@@ -76,13 +86,16 @@ func (m model) View() string {
 }
 
 // Run shows the list and returns the chosen Value. chosen is false when the user
-// backed out with q/esc.
+// backed out with q/esc (err is nil then); a ctrl+c hard-quit returns ErrQuit.
 func Run(title string, items []Item) (value string, chosen bool, err error) {
 	final, e := tea.NewProgram(model{title: title, items: items}).Run()
 	if e != nil {
 		return "", false, e
 	}
 	m := final.(model)
+	if m.killed {
+		return "", false, ErrQuit
+	}
 	if !m.chosen {
 		return "", false, nil
 	}

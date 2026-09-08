@@ -228,10 +228,9 @@ another action.
   4  Releases         Browse versions, read notes, delete one
   5  Announcement     Copy-paste release text — pick a format
   6  Release image    Save or share a PNG release card
-  7  Stats            Public download and star numbers
-  8  Auth             GitHub connection — status and how to link
-  9  Setup            Create or inspect .release.yaml
-     Guide            Step-by-step walkthrough of the whole flow
+  7  Auth             GitHub connection — status and how to link
+  8  Setup            Create or inspect .release.yaml
+  9  Guide            Step-by-step walkthrough of the whole flow
      Help             Every command and flag
      Exit             Leave Relio
 
