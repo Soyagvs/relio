@@ -274,40 +274,56 @@ func BigBanner(version, available string) string {
 	if s, ok := bannerCache[key]; ok {
 		return s
 	}
-	out := bannerWordmark(restGlint) + bannerLower(version, available)
+	out := BannerFrame(version, available, restGlint)
 	bannerCache[key] = out
 	return out
 }
 
 // introFrameDelay is the pause between sweep frames. A package var so tests can
 // zero it.
-var introFrameDelay = 55 * time.Millisecond
+var introFrameDelay = 250 * time.Millisecond
+
+// BannerIntroFrameDelay is the pause between animated banner frames.
+func BannerIntroFrameDelay() time.Duration { return introFrameDelay }
+
+// BannerAnimationAllowed reports whether the environment allows banner animation.
+func BannerAnimationAllowed(animate bool) bool {
+	return animate && runtime.GOOS != "windows" &&
+		os.Getenv("NO_COLOR") == "" && os.Getenv("RELIO_NO_ANIM") == ""
+}
+
+// BannerIntroFrames returns the glint positions for the non-blocking intro.
+func BannerIntroFrames() []float64 {
+	const sweepSteps = 9
+	schedule := make([]float64, 0, sweepSteps+3)
+	schedule = append(schedule, 0)
+	for i := 0; i < sweepSteps; i++ {
+		t := float64(i) / float64(sweepSteps-1)
+		schedule = append(schedule, 0.06+t*(1.02-0.06))
+	}
+	return append(schedule, 0.55, restGlint)
+}
+
+// BannerFrame renders the full banner with the eye catchlight at glint.
+func BannerFrame(version, available string, glint float64) string {
+	return bannerWordmark(glint) + bannerLower(version, available)
+}
 
 // BannerIntro prints the entry banner. When animate is true and the environment
 // allows it, the eye plays a one-shot light sweep before the rest of the banner
 // prints; otherwise it is identical to BigBanner. The sweep is skipped on
 // Windows and when NO_COLOR or RELIO_NO_ANIM is set.
 func BannerIntro(w io.Writer, version, available string, animate bool) {
-	if !animate || runtime.GOOS == "windows" ||
-		os.Getenv("NO_COLOR") != "" || os.Getenv("RELIO_NO_ANIM") != "" {
+	if !BannerAnimationAllowed(animate) {
 		fmt.Fprint(w, BigBanner(version, available))
 		return
 	}
 
 	// The eye with no catchlight; the cursor ends on the line below row 6.
-	fmt.Fprint(w, bannerWordmark(0))
+	frames := BannerIntroFrames()
+	fmt.Fprint(w, bannerWordmark(frames[0]))
 
-	// Nine linear steps sweeping just off the left rim to just off the right,
-	// then two easing back to the resting position.
-	const sweepSteps = 9
-	schedule := make([]float64, 0, sweepSteps+2)
-	for i := 0; i < sweepSteps; i++ {
-		t := float64(i) / float64(sweepSteps-1)
-		schedule = append(schedule, 0.06+t*(1.02-0.06))
-	}
-	schedule = append(schedule, 0.55, restGlint)
-
-	for _, g := range schedule {
+	for _, g := range frames[1:] {
 		fmt.Fprint(w, "\x1b[6A") // back up over the six wordmark rows
 		// bannerWordmark starts with "\n", so field 0 is empty; rows 1..6 are the
 		// wordmark rows.

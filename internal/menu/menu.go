@@ -6,6 +6,7 @@ package menu
 import (
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -73,15 +74,50 @@ var (
 )
 
 type model struct {
-	cursor int
-	width  int // terminal width from tea.WindowSizeMsg; 0 until the first resize
-	result Action
-	done   bool
+	cursor    int
+	width     int // terminal width from tea.WindowSizeMsg; 0 until the first resize
+	result    Action
+	done      bool
+	banner    bool
+	version   string
+	available string
+	frames    []float64
+	frame     int
 }
 
-func (m model) Init() tea.Cmd { return nil }
+type introTickMsg struct{}
+
+func newModel(version, available string, animate bool) model {
+	m := model{banner: true, version: version, available: available}
+	if ui.BannerAnimationAllowed(animate) {
+		m.frames = ui.BannerIntroFrames()
+	}
+	return m
+}
+
+func (m model) Init() tea.Cmd {
+	if len(m.frames) > 1 {
+		return introTick()
+	}
+	return nil
+}
+
+func introTick() tea.Cmd {
+	return tea.Tick(ui.BannerIntroFrameDelay(), func(time.Time) tea.Msg { return introTickMsg{} })
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(introTickMsg); ok {
+		if m.done || len(m.frames) == 0 || m.frame >= len(m.frames)-1 {
+			return m, nil
+		}
+		m.frame++
+		if m.frame < len(m.frames)-1 {
+			return m, introTick()
+		}
+		return m, nil
+	}
+
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = ws.Width
 		return m, nil
@@ -188,6 +224,14 @@ func (m model) View() string {
 	rowW := m.rowWidth()
 
 	var b strings.Builder
+	if m.banner {
+		if len(m.frames) > 0 {
+			b.WriteString(ui.BannerFrame(m.version, m.available, m.frames[m.frame]))
+		} else {
+			b.WriteString(ui.BigBanner(m.version, m.available))
+		}
+		b.WriteString("\n")
+	}
 	b.WriteString("  " + headline.Render(truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
 
 	for i, it := range items {
@@ -236,11 +280,10 @@ func (m model) View() string {
 	return b.String()
 }
 
-// Run shows the menu once and returns the chosen Action. The big entry banner is
-// printed by the caller before Run, so it lands in scrollback; View() itself
-// stays short enough for a small terminal.
-func Run() (Action, error) {
-	final, err := tea.NewProgram(model{}).Run()
+// Run shows the menu once and returns the chosen Action. The banner is rendered
+// inside the Bubble Tea model so its eye can animate without blocking the menu.
+func Run(version, available string, animate bool) (Action, error) {
+	final, err := tea.NewProgram(newModel(version, available, animate)).Run()
 	if err != nil {
 		return None, err
 	}

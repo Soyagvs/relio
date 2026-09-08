@@ -164,16 +164,16 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 	return runMenu(cmd, f)
 }
 
-// runMenu prints the entry banner once, then shows the main menu. Most actions
-// are one-shot: they run once and the menu exits with their output on screen.
+// runMenu shows the animated entry banner together with the main menu. Most
+// actions are one-shot: they run once and the menu exits with their output on screen.
 // Backing out of a sub-choice (Release, Auth) returns to the menu instead of
 // quitting; q/esc at the menu quits; ctrl+c anywhere hard-quits.
 func runMenu(cmd *cobra.Command, f *releaseFlags) error {
+	available := update.Available(version)
 	out := cmd.OutOrStdout()
-	ui.BannerIntro(out, version, update.Available(version), stdoutIsTTY())
 
 	for {
-		action, err := menu.Run()
+		action, err := menu.Run(version, available, stdoutIsTTY())
 		if err != nil {
 			return err
 		}

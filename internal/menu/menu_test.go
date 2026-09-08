@@ -1,6 +1,7 @@
 package menu
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -98,16 +99,86 @@ func TestQuitKeyIsExit(t *testing.T) {
 	}
 }
 
-// The banner is printed once by the caller before the program starts; the live
-// View() must stay short so it fits a small terminal without the top scrolling
-// off, and must not embed the big wordmark itself.
-func TestViewOmitsBanner(t *testing.T) {
+// The bare model is still useful for focused menu tests that do not need the
+// banner chrome.
+func TestBareViewOmitsBanner(t *testing.T) {
 	v := model{width: 80}.View()
 	if strings.Contains(v, "█") {
-		t.Error("View() must not embed the big wordmark banner")
+		t.Error("bare View() must not embed the big wordmark banner")
 	}
 	if got := strings.Count(v, "\n") + 1; got > 20 {
 		t.Errorf("View() is %d lines, too tall for a small terminal", got)
+	}
+}
+
+func TestNewModelRendersBannerAndMenuImmediately(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("RELIO_NO_ANIM", "")
+	m := newModel("v1.2.3", "v1.3.0", true)
+	v := m.View()
+	for _, want := range []string{"█", "github.com/Soyagvs/relio", "▲ v1.3.0 available", "RELIO menu", "Release"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("initial menu view missing %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestNewModelRespectsNoAnimationEnvironment(t *testing.T) {
+	for _, env := range []string{"RELIO_NO_ANIM", "NO_COLOR"} {
+		t.Run(env, func(t *testing.T) {
+			t.Setenv("RELIO_NO_ANIM", "")
+			t.Setenv("NO_COLOR", "")
+			t.Setenv(env, "1")
+			m := newModel("v1.2.3", "", true)
+			if len(m.frames) != 0 {
+				t.Fatalf("frames = %d, want 0 when %s is set", len(m.frames), env)
+			}
+		})
+	}
+}
+
+func TestBannerIntroTickPreservesViewShape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("banner animation is disabled on Windows")
+	}
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("RELIO_NO_ANIM", "")
+	m := newModel("v1.2.3", "v1.3.0", true)
+	if len(m.frames) < 2 {
+		t.Fatal("newModel did not enable intro frames")
+	}
+
+	signature := func(v string) []int {
+		lines := strings.Split(v, "\n")
+		widths := make([]int, len(lines))
+		for i, line := range lines {
+			widths[i] = lipgloss.Width(line)
+		}
+		return widths
+	}
+	want := signature(m.View())
+	seenChange := false
+	prev := m.View()
+	for range m.frames[1:] {
+		next, _ := m.Update(introTickMsg{})
+		m = next.(model)
+		v := m.View()
+		if v != prev {
+			seenChange = true
+		}
+		got := signature(v)
+		if len(got) != len(want) {
+			t.Fatalf("line count changed from %d to %d", len(want), len(got))
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Fatalf("line %d width changed from %d to %d", i, want[i], got[i])
+			}
+		}
+		prev = v
+	}
+	if !seenChange {
+		t.Fatal("intro ticks did not change the rendered banner")
 	}
 }
 
