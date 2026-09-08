@@ -77,8 +77,9 @@ Then open a pull request (see [below](#opening-a-pull-request)).
 - **Standard library first.** A new dependency needs a real reason. The image
   renderer's `fogleman/gg` + `mdp/qrterminal` are the current ceiling.
 - **`internal/` packages stay decoupled.** The pure-logic packages
-  (`conventional`, `semver`, `changelog`, `config`) must not import the TUI,
-  `git`, or `cmd`. `cmd` is the layer that wires everything together.
+  (`conventional`, `semver`, `changelog`, `versionfile`, `config`) must not
+  import the TUI, `git`, or `cmd`. `cmd` is the layer that wires everything
+  together.
 - **Only `gitrepo` runs `git`.** It shells out to the binary — no CGO, no
   `go-git`. If you need a new git operation, add it there.
 - **English everywhere in the code** — identifiers, comments, help text, UI
@@ -145,7 +146,8 @@ Relio releases itself:
 ```bash
 relio status          # sanity-check what's unreleased
 relio                 # or `relio --minor` / `relio --major` to force the bump
-relio --rc            # cut a release candidate first (vX.Y.Z-rc.N); run `relio` with no flag to finalize it
+relio --rc --yes      # optional: cut a release candidate first (vX.Y.Z-rc.N);
+                      #   run `relio` with no --rc on the rc to finalize it
 git push --follow-tags
 ```
 
@@ -153,5 +155,6 @@ Then CI takes over and attaches the cross-platform binaries to the GitHub
 Release.
 
 With a `GITHUB_TOKEN` in the environment (or `gh auth login`), `relio --publish`
-does the push and creates the GitHub Release in the same run — it asks first
-unless `--yes` is also set.
+also pushes the branch and tag and creates the GitHub Release in the same run —
+it asks first in a terminal, and `relio --yes --publish` skips that prompt. See
+the README's [Publishing to GitHub](README.md#publishing-to-github) section.

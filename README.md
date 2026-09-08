@@ -67,10 +67,10 @@ previewed before anything is written.
 </td>
 <td width="33%" valign="top">
 
-**What it never does**
+**What leaves your machine**
 
-Push to a remote, publish anything, or send data about you anywhere. Relio
-runs locally and hands you the `git push` to run.
+Nothing, by default. Relio stops at the local tag and prints the `git push`.
+Pushing and creating the GitHub Release is opt-in — `--publish`.
 
 </td>
 </tr>
@@ -78,7 +78,7 @@ runs locally and hands you the `git push` to run.
 
 > [!NOTE]
 > Relio does **not** replace git or GitHub. It removes the repetitive work that
-> happens *after* you finish coding.
+> happens *after* you finish coding, and it never sends data about you anywhere.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -110,12 +110,13 @@ runs locally and hands you the `git push` to run.
 - [Quick start](#quick-start)
 - [The interactive menu](#the-interactive-menu)
 - [Commands](#commands)
-  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
+  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio guide`](#relio-guide) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
+- [Publishing to GitHub](#publishing-to-github)
 - [Syncing the version into project files](#syncing-the-version-into-project-files)
-- [Hooks](#hooks)
+- [Release hooks](#release-hooks)
 - [Configuration — `.release.yaml`](#configuration--releaseyaml)
 - [Non-interactive / CI usage](#non-interactive--ci-usage)
 - [Project layout](#project-layout)
@@ -151,7 +152,7 @@ Grab the archive for your platform from the
 against `checksums.txt`, and drop the binary on your `PATH`:
 
 ```bash
-VER=1.2.0                      # the release you want
+VER=1.5.0                      # the release you want
 OS=darwin; ARCH=arm64          # darwin|linux|windows  +  amd64|arm64
 curl -fsSLO "https://github.com/soyagvs/relio/releases/download/v${VER}/relio_${VER}_${OS}_${ARCH}.tar.gz"
 curl -fsSLO "https://github.com/soyagvs/relio/releases/download/v${VER}/checksums.txt"
@@ -187,7 +188,7 @@ Building requires **Go 1.22+**. At runtime Relio needs the `git` binary on
 
 ## Quick start
 
-Three commands, run inside the project you want to release:
+Two commands, run inside the project you want to release:
 
 ```bash
 cd your-project
@@ -195,17 +196,18 @@ relio init        # writes .release.yaml (configuration only, never secrets)
 relio             # opens the interactive menu
 ```
 
-Pick **Create a release**, read the preview, confirm. Relio then:
+Pick **Release**, read the preview, confirm. Relio then:
 
 1. updates `CHANGELOG.md`,
-2. commits that one file as `chore(release): vX.Y.Z`,
+2. commits that file as `chore(release): vX.Y.Z`,
 3. creates an annotated git tag on that commit,
 4. prints the exact `git push` for you to run.
 
 > [!WARNING]
 > **Nothing is pushed for you** by default. Relio stops at the tag and tells you
 > the push command. You stay in control of what reaches the remote — opt in with
-> `--publish` when you want Relio to push and create the GitHub Release too.
+> `--publish` (or the menu's Release entry) when you want Relio to push and
+> create the GitHub Release too.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -218,38 +220,55 @@ Running `relio` with no arguments in a terminal opens a one-shot menu — it run
 another action.
 
 ```
-  ██████╗ ███████╗██╗     ██╗  █████
-  ██╔══██╗██╔════╝██║     ██║ █▪█ ███
-  ██████╔╝█████╗  ██║     ██║████ ████
-  ██╔══██╗██╔══╝  ██║     ██║████ ████
-  ██║  ██║███████╗███████╗██║ ███ ███
-  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  █████
-  turn commits into releases
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  v1.1.0   ▲ v1.2.0 available
-  created by SOYAGVS
+  RELIO menu
 
-▸ Status              What's unreleased since the last tag, and the suggested version
-  Check               Lint the commits since the last tag — Conventional Commits and the bump
-  Create a release    Version, changelog, and tag from commits since the last tag
-  Releases            List every version, read its notes, or delete one
-  Release text        Copy-paste announcement for social posts — pick a format
-  Release image       Save a shareable PNG of a release — pick a shape
-  GitHub auth         Token-based auth — check it with `relio auth status`
-  Help                Every command and flag, with a one-line description
-  Exit
+  1  Release          Create a release — final or rc, and optionally push + publish
+  2  Status           What's unreleased and the version it suggests
+  3  Check            Which commits since the last tag are Conventional Commits
+  4  Releases         Browse versions, read notes, delete one
+  5  Announcement     Copy-paste release text — pick a format
+  6  Release image    Save or share a PNG release card
+  7  Stats            Public download and star numbers
+  8  Auth             GitHub connection — status and how to link
+  9  Setup            Create or inspect .release.yaml
+     Guide            Step-by-step walkthrough of the whole flow
+     Help             Every command and flag
+     Exit             Leave Relio
 
-↑/↓ move · enter select · q quit
+  ↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit
 ```
 
-In CI or when the output is piped (no TTY), or with `--yes` / a forced bump, the
-menu is skipped and a release runs directly.
+| Key | Does |
+| --- | ---- |
+| `↑` / `↓` | move the cursor |
+| `1`–`9` | jump straight to that row and select it (the first nine rows only) |
+| `?` | open **Help** |
+| `g` | open the **Guide** |
+| `enter` | run the highlighted row |
+| `q` | quit |
+
+A few rows do more than run a flagless command:
+
+- **Release** asks two quick questions — *final release or release candidate*,
+  and *tag locally or push + publish* — so you never have to remember `--rc` or
+  `--publish`. Then it runs the normal preview + wizard.
+- **Auth** shows which GitHub token Relio found and who it belongs to, or
+  explains how to connect one.
+- **Setup** runs `relio init` (or tells you the config already exists).
+
+The design intent, in one line: **anything the flags can do, the menu can do.**
+The flags are the scripting surface; the menu is the interactive one.
+
+The menu is skipped — and a release runs directly — when the output is not a
+terminal (CI, a pipe), or when you pass `-y` / `--yes`, or a forced bump
+(`--patch` / `--minor` / `--major`). `--rc` and `--publish` on their own still
+open the menu; combine them with `--yes` to act without prompts.
 
 The banner shows the current version, and — when a newer Relio has been
-published — `▲ vX.Y.Z available` right next to it. The check reads one cached
-value on disk and, at most once a day, refreshes it in the background; it never
-blocks the menu or sends anything about you. `relio version` shows the same hint.
-Set `RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
+published — `▲ vX.Y.Z available` right below it. The check reads one cached value
+on disk and, at most once a day, refreshes it in the background; it never blocks
+the menu or sends anything about you. `relio version` shows the same hint. Set
+`RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -269,7 +288,7 @@ last tag and applies it.
 4. Show the preview — **nothing is written yet**:
 
    ```
-   ⬢ Relio  v0.4.0  ·  azeink
+   ⬢ Relio  v1.5.0  ·  azeink
 
    ╭──────────────────────────╮
    │  Current version v1.3.2  │
@@ -300,38 +319,31 @@ last tag and applies it.
 
 `CHANGELOG.md` gets a new `## [x.y.z] - YYYY-MM-DD` section at the top of the
 release history, in the [Keep a Changelog](https://keepachangelog.com/) format.
-It is committed on its own as `chore(release): vX.Y.Z` (nothing else in the work
-tree is touched), and the **annotated** git tag is created on that commit — so
-the tag always carries its own changelog section. With `--no-tag` the changelog
-is written but not committed, leaving the commit and tag to you.
+It is committed on its own as `chore(release): vX.Y.Z` — together with any
+[version files](#syncing-the-version-into-project-files) you configured, and
+nothing else in the work tree — and the **annotated** git tag is created on that
+commit, so the tag always carries its own changelog section. With `--no-tag` the
+changelog is written but not committed, leaving the commit and tag to you.
 
-**Publishing to GitHub** is opt-in. With `--publish` (or `github.release: true`
-in `.release.yaml`), once the local tag exists Relio asks to push the branch and
-tag to `origin` and create the GitHub Release, using the new changelog section
-as the body. It needs a token — `GITHUB_TOKEN` or `gh auth login` (see
-[`relio auth`](#relio-auth)). Without one, or if you decline the prompt, the
-local release is untouched and Relio just prints the `git push` you can run
-yourself.
-
-| Flag                        | Meaning |
-| --------------------------- | ------- |
-| `--patch` `--minor` `--major` | Force the bump instead of inferring it from the commits (only one at a time). |
-| `-y, --yes`                  | Skip the menu and the confirmation. Required in CI / a non-interactive shell. |
-| `--no-changelog`             | Do not touch the changelog file. |
-| `--no-tag`                   | Do not commit the changelog or create the git tag. |
-| `--no-version-files`         | Do not update the files listed in `version_files`. |
-| `--publish`                  | After tagging, push the branch and tag to `origin` and create the GitHub Release. |
-| `--rc`                       | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
-| `--no-hooks`                 | Skip the `before` / `after` hooks from `.release.yaml` for this run. See [Hooks](#hooks). |
+| Flag | Meaning |
+| ---- | ------- |
+| `--patch` `--minor` `--major` | Force the bump instead of inferring it from the commits (one at a time). |
+| `-y, --yes` | Skip the menu and the confirmation. Required in CI / a non-interactive shell. |
+| `--no-changelog` | Do not touch the changelog file. |
+| `--no-tag` | Do not commit the release files or create the git tag. |
+| `--no-version-files` | Skip the `release.version_files` sync for this run. See [Syncing the version into project files](#syncing-the-version-into-project-files). |
+| `--publish` | After tagging, push the branch and tag to `origin` and create the GitHub Release. See [Publishing to GitHub](#publishing-to-github). |
+| `--rc` | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
+| `--no-hooks` | Skip the `before` / `after` hooks from `.release.yaml` for this run. See [Release hooks](#release-hooks). |
 
 ```bash
-relio                 # interactive
-relio --yes           # apply the inferred bump, no prompts
-relio --minor --yes   # force a minor bump
-relio --no-tag        # write the changelog only
-relio --publish       # also push and create the GitHub Release
-relio --rc            # cut the next release candidate
-relio --no-hooks      # skip the .release.yaml hooks for this run
+relio                     # interactive
+relio --yes               # apply the inferred bump, no prompts
+relio --minor --yes       # force a minor bump
+relio --no-tag            # write the changelog only
+relio --yes --publish     # also push and create the GitHub Release
+relio --rc --yes          # cut the next release candidate
+relio --yes --no-hooks    # skip the .release.yaml hooks for this run
 ```
 
 ---
@@ -363,16 +375,19 @@ When there are no new commits: `Suggested —` and `Nothing to release.`
 Also available as the **Status** menu entry.
 
 When the current version is a pre-release, `status` adds one hint line under the
-`Suggested` row: `` on a pre-release — `relio` finalizes v1.6.0, `relio --rc`
-cuts the next rc ``.
+`Suggested` row:
+
+```
+on a pre-release — `relio` finalizes v1.6.0, `relio --rc` cuts the next rc
+```
 
 ---
 
 ### `relio check`
 
-Lints the commits since the last tag: how many are
+Read-only lint of the commits since the last tag: how many are
 [Conventional Commits](https://www.conventionalcommits.org/), which are not, and
-the bump they add up to. Read-only — no prompts, no writes, safe anywhere.
+the bump they add up to. No prompts, no writes, safe anywhere.
 
 ```
 $ relio check
@@ -392,11 +407,33 @@ Detected bump: minor  →  v1.6.0
 When every commit is conventional the `✗` block is dropped. With no commits since
 the tag it prints `Nothing to check …` and exits 0.
 
-| Flag       | Meaning |
-| ---------- | ------- |
-| `--strict` | Exit non-zero when at least one commit is not a Conventional Commit. Handy in a pre-release CI gate. |
+| Flag | Meaning |
+| ---- | ------- |
+| `--strict` | Exit non-zero when at least one commit since the tag is not a Conventional Commit. Use it as a pre-release CI gate. |
 
 Also available as the **Check** menu entry.
+
+---
+
+### `relio guide`
+
+A step-by-step walkthrough of the whole flow, for when you are meeting Relio for
+the first time: `relio init` → writing Conventional Commits → `relio status` →
+`relio` → pushing or `--publish` → the optional extras (`post`, `image`,
+`version_files`, hooks).
+
+In a terminal it is an interactive stepper — `enter` to move on, `←` to go back,
+`q` to leave — and on the steps where it helps it offers to **run the command
+for you**: `relio init` when there is no `.release.yaml` yet, and `relio check` /
+`relio status` once there is one. Piped or redirected, it prints the same eight
+steps as plain text.
+
+```bash
+relio guide          # interactive in a TTY, plain text when piped
+```
+
+Also reachable as the **Guide** menu entry, or by pressing `g` anywhere in the
+menu.
 
 ---
 
@@ -437,7 +474,7 @@ downloads = release-asset downloads, not unique users or installs
   data. `relio stats` only makes `GET` requests to `api.github.com`.
 - **"Downloads" = release-asset downloads.** Each time someone downloads a
   binary archive from a GitHub Release it counts once. It is **not** a count of
-  unique users or active installs. `checksums.txt` and signatures are excluded.
+  unique users or active installs. `checksums.txt` is excluded.
 - Works **without authentication**. If you hit the API rate limit, set
   `GITHUB_TOKEN` (or `GH_TOKEN`) in your environment to raise it — the token is
   only sent to GitHub, never stored.
@@ -452,14 +489,16 @@ Writes `.release.yaml` at the repository root with sensible defaults. The file
 holds **configuration only** — credentials never go in it. Refuses to overwrite
 an existing file.
 
-| Flag        | Meaning |
-| ----------- | ------- |
+| Flag | Meaning |
+| ---- | ------- |
 | `--project` | Project name. Defaults to the `origin` remote's repo name, else the directory name. |
 
 ```bash
 relio init
 relio init --project azeink
 ```
+
+Also the **Setup** menu entry, which prompts for the project name.
 
 ---
 
@@ -470,13 +509,13 @@ Generates a short, plain-text announcement from the commits since the last tag.
 copies it cleanly. Colour is added when stdout is a terminal and stripped when
 it is piped.
 
-| `--format`   | Output |
-| ------------ | ------ |
+| `--format` | Output |
+| ---------- | ------ |
 | `minimal` *(default)* | Byte-identical to what the **Releases** browser prints for a version: `relio -- release`, `<project> · <version>`, `<date> · <time> · N commits`, then the grouped notes. |
-| `social`     | Shortest. `Project -- Release`, then `version · DD.MM.YY · HH:MM`, then one `<type>  <description>` line per **notable** commit (`feat`, `fix`, `perf`, `refactor`, `revert`, `style`). |
-| `technical`  | Terse `•` bullet list — good for a changelog or a dev channel. |
-| `casual`     | Loose tone: `proj v1.4.0 is out. → …` |
-| `changelog`  | The exact section that goes into `CHANGELOG.md`. |
+| `social` | Shortest. `Project -- Release`, then `version · DD.MM.YY · HH:MM`, then one `<type>  <description>` line per **notable** commit (`feat`, `fix`, `perf`, `refactor`, `revert`, `style`). |
+| `technical` | Terse `•` bullet list — good for a changelog or a dev channel. |
+| `casual` | Loose tone: `proj v1.4.0 is out. → …` |
+| `changelog` | The exact section that goes into `CHANGELOG.md`. |
 
 ```
 $ relio post --format social
@@ -490,7 +529,8 @@ refactor  Authentication flow
 fix       Supervisor login
 ```
 
-*(This is a preview of the v0.3.0 content generator — nothing is published.)*
+*(This is a preview of the content generator — nothing is published.)* Also the
+**Announcement** menu entry.
 
 ---
 
@@ -508,13 +548,13 @@ colour, and then **what to do with the image**:
 The flags below skip those prompts. With no TTY and no flags it just saves the
 PNG to the current directory (latest tag / horizontal / orange).
 
-| Flag        | Values |
-| ----------- | ------ |
+| Flag | Values |
+| ---- | ------ |
 | `--version` | Release tag to render. Default: the latest tag. |
-| `--shape`   | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
-| `--theme`   | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added green / Changed amber / Fixed coral) are fixed. |
-| `--hash`    | Prefix each line with its short commit hash. Off by default. |
-| `--upload`  | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
+| `--shape` | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
+| `--theme` | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added / Changed / Fixed) are fixed. |
+| `--hash` | Prefix each line with its short commit hash. Off by default. |
+| `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
 | `--link-only` | Upload for the URL + QR **without** writing a file to disk. |
 
 ```bash
@@ -541,22 +581,30 @@ q      back
 
 ### `relio auth`
 
-Relio talks to GitHub with a **personal access token**, not a login of its own.
-It checks `RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN` and `GH_TOKEN` in that order, then
-falls back to `gh auth token` when the [GitHub CLI](https://cli.github.com/) is
-signed in. The token is only ever sent to `api.github.com` in the
-`Authorization` header — nothing is written to disk.
+Relio talks to GitHub with a **personal access token you already have**, not a
+login of its own. It checks `RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN` and `GH_TOKEN`
+in that order, then falls back to `gh auth token` when the
+[GitHub CLI](https://cli.github.com/) is signed in. The token is only ever sent
+to `api.github.com` in the `Authorization` header — nothing is written to disk.
 
 ```
 $ relio auth status
 · logged in as octocat (via GITHUB_TOKEN)
 ```
 
-`relio auth status` resolves the token and prints who it belongs to (or
-`not authenticated` when none is found). `login` / `logout` are short notes: set
-`GITHUB_TOKEN` to a PAT with `repo` scope — or run `gh auth login` — and unset
-those vars (or `gh auth logout`) to drop it. A device-flow login with keychain
-storage is still planned.
+`relio auth status` resolves the token, calls `GET /user`, and prints who it
+belongs to and which source it came from — or `not authenticated` when none is
+found. It is the same check as the **Auth** menu entry.
+
+There is no `login` or `logout` of Relio's own. `relio auth login` and
+`relio auth logout` just print the one-liners:
+
+- **connect** — set `GITHUB_TOKEN` (or `RELIO_GITHUB_TOKEN` / `GH_TOKEN`) to a
+  PAT with `repo` scope, or run `gh auth login`.
+- **disconnect** — unset those variables, or run `gh auth logout`.
+
+A per-user browser sign-in (OAuth Device Flow) with OS-keychain storage is on
+the [roadmap](#roadmap).
 
 ---
 
@@ -564,12 +612,14 @@ storage is still planned.
 
 ```
 $ relio version
-Relio v1.4.0 (commit a1b2c3d, built 2026-09-06)
+Relio v1.5.0 (commit a1b2c3d, built 2026-09-07)
 ```
 
 The version is `dev` unless the binary was built with `HEAD` exactly on a tag
 (that's what `make install` does), or with
-`-ldflags "-X github.com/soyagvs/relio/cmd.version=…"`.
+`-ldflags "-X github.com/soyagvs/relio/cmd.version=…"` (that's what the official
+release build does). It also carries the same `▲ vX.Y.Z available` hint as the
+menu.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -579,10 +629,10 @@ The version is `dev` unless the binary was built with `HEAD` exactly on a tag
 
 Available on every command:
 
-| Flag              | Meaning |
-| ----------------- | ------- |
+| Flag | Meaning |
+| ---- | ------- |
 | `-C, --dir <path>` | Run as if Relio was started in `<path>`. |
-| `--no-hash`         | Hide the commit hash on each release-note line (preview, Releases browser, `post`, `check`). |
+| `--no-hash` | Hide the commit hash on each release-note line (preview, Releases browser, `post`, `check`). |
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -606,7 +656,7 @@ Relio reads the commits since the last tag and picks the bump for you:
 | ------------- | ---- | ------- |
 | a `feat!:` or a `BREAKING CHANGE:` footer | **MAJOR** | `1.3.2 → 2.0.0` |
 | any `feat:` (and no breaking change) | **MINOR** | `1.3.2 → 1.4.0` |
-| only `fix:` / `perf:` / `refactor:` | **PATCH** | `1.3.2 → 1.3.3` |
+| any `fix:` / `perf:` / `refactor:` | **PATCH** | `1.3.2 → 1.3.3` |
 | commits, but no conventional signal | **PATCH** | `1.3.2 → 1.3.3` |
 | no commits since the last tag | — | *nothing to release* |
 
@@ -619,26 +669,40 @@ Relio reads the commits since the last tag and picks the bump for you:
 
 ### Pre-releases
 
-`relio --rc` cuts a **release candidate** — a `vX.Y.Z-rc.N` tag — instead of the
-final version. The typical flow:
+A **release candidate** lets you cut `v1.6.0-rc.1`, hand it to testers, iterate,
+and only then ship `v1.6.0` — without inventing throwaway version numbers.
 
-1. On stable `v1.5.0` with a `feat:` since, `relio --rc` cuts `v1.6.0-rc.1`.
-2. More commits land — `relio --rc` cuts `v1.6.0-rc.2` (same core, counter up).
-3. Ready to ship — `relio` (no flag) finalizes `v1.6.0`.
+`relio --rc` targets a candidate instead of the final version. Because a bare
+`relio` in a terminal always opens the menu, use `relio --rc --yes` to cut one
+non-interactively, or pick **Release → Release candidate** in the menu. The
+typical flow:
+
+1. On stable `v1.5.0` with a `feat:` since, `relio --rc` cuts **`v1.6.0-rc.1`**
+   — the version the commits imply, with `-rc.1` appended.
+2. More commits land — run it again and the counter advances:
+   **`v1.6.0-rc.2`** (same core version, `rc.1` → `rc.2`).
+3. Ready to ship — `relio` with **no `--rc`** on an rc *finalizes* it:
+   `v1.6.0-rc.2` → **`v1.6.0`**. The final `v1.6.0` changelog section summarises
+   the **whole span since the last stable tag** — every commit across `rc.1`,
+   `rc.2`, and anything after.
 4. If a commit since the last rc escalates the target (a `feat!`, say),
-   `relio --rc` moves the core up and restarts the counter: `v2.0.0-rc.1`.
+   `relio --rc` moves the core up and restarts the counter: **`v2.0.0-rc.1`**.
+
+`relio status` prints a hint line whenever `HEAD` is on a pre-release, telling
+you the finalize version and the next-rc command.
 
 The pre-release value carries all the way through: the git tag, the changelog
-section heading, and any `version_files`. Finalizing summarises the **whole
-span** since the last stable tag, so the `v1.6.0` section covers every commit
-made across `rc.1`, `rc.2`, and anything after.
+section heading, and any [version files](#syncing-the-version-into-project-files).
 
-GoReleaser already treats a tag with a `-` as a pre-release: `.goreleaser.yaml`
-carries `prerelease: auto` (marks the GitHub Release as a pre-release) and
-`skip_upload: auto` (skips the Homebrew tap bump) — no config change needed.
+```bash
+relio --rc --yes     # cut / advance the release candidate
+relio --yes          # finalize the current rc to its stable core
+```
 
-`relio --rc` still opens the interactive menu in a TTY; it does not imply
-`--yes`.
+When you [publish](#publishing-to-github) an rc, GoReleaser already does the
+right thing: `.goreleaser.yaml` carries `prerelease: auto` (marks a `-` tag as a
+GitHub pre-release) and `skip_upload: auto` (skips the Homebrew tap bump) — no
+config change needed.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -663,13 +727,79 @@ A `BREAKING CHANGE:` footer or a `!` before the colon also adds the line to
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
 
+## Publishing to GitHub
+
+By default Relio stops at the local tag. Getting that release onto GitHub then
+means `git push`, a trip to the Releases page, and pasting the notes in by hand.
+`--publish` does all of it in the same run.
+
+### How it works
+
+Turn it on per run with `--publish`, or always with `github.release: true` in
+`.release.yaml`. Once the local tag exists, Relio:
+
+1. pushes the current branch to `origin`,
+2. pushes the new tag to `origin`,
+3. creates a GitHub Release for that tag, using the new changelog section (its
+   `## […]` heading stripped) as the body. A `-` in the tag marks the Release as
+   a **pre-release**.
+
+The target repo comes from `github.repo` (`owner/name`) when you set it,
+otherwise it is read from the `origin` remote — which must be a `github.com`
+remote.
+
+**Auth is a token you already have.** Relio checks, in order:
+`RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, then `gh auth token` when the
+GitHub CLI is signed in. The token needs `repo` scope. There is **no OAuth app,
+no browser flow, and nothing stored by Relio** — the token only travels to
+`api.github.com` in the `Authorization` header.
+
+In a terminal Relio asks before it pushes:
+
+```
+Push main and v1.6.0 to origin and publish the GitHub Release? [y/N]
+```
+
+With `--yes` it does not ask. If there is **no token**, or you **decline** the
+prompt, Relio prints the `git push` commands and stops — the local tag is
+untouched. If a Release **already exists** for the tag, Relio leaves it alone and
+says so.
+
+### Example
+
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxx     # or: gh auth login
+relio --yes --publish
+```
+
+```
+✓ CHANGELOG.md updated
+✓ CHANGELOG.md committed
+✓ git tag v1.6.0 created
+✓ release ready
+
+✓ pushed to origin
+✓ GitHub Release v1.6.0 published
+  https://github.com/you/project/releases/tag/v1.6.0
+```
+
+> [!NOTE]
+> **Maintaining Relio itself?** GoReleaser in CI still does the heavier job on a
+> tag push — cross-platform binaries, `checksums.txt`, the Homebrew tap bump (see
+> [Non-interactive / CI usage](#non-interactive--ci-usage)). `--publish` is the
+> lightweight path for projects that have no such pipeline.
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
 ## Syncing the version into project files
 
-By default `relio` writes the next version only into the git tag and the
-changelog. Opt in to keeping other files in sync by listing them under
-`release.version_files` — each one gets the new version written into it **in the
+Plenty of projects keep the version in more than one place — `package.json`,
+`pyproject.toml`, a `VERSION` file. List those files under
+`release.version_files` and Relio rewrites each one with the new version **in the
 same `chore(release): vX.Y.Z` commit** as the changelog, so the tag points at a
-commit where every file agrees on the version.
+commit where everything agrees.
 
 ```yaml
 release:
@@ -680,25 +810,35 @@ release:
         - { path: src/app/__init__.py, pattern: '__version__ = "([^"]+)"' }
 ```
 
-Known filenames need no pattern: `package.json`, any `*.toml` (`Cargo.toml`,
-`pyproject.toml`, …), and `VERSION` / `version.txt`. For anything else give a
-`{ path, pattern }` entry whose `pattern` is a Go regexp with **exactly one
-capture group** wrapping the version substring.
+**Known filenames need no pattern:**
 
-Replacement is regex-based — Relio never reformats the file, it swaps the matched
-span and leaves every other byte (indentation, key order, trailing newline)
-untouched. The value written is the **bare number**, no leading `v`
-(`1.6.0`). A re-run when a file is already at the target version is a no-op.
-Pass `--no-version-files` to skip the whole step for one run.
+| File | Rule |
+| ---- | ---- |
+| `package.json` | the `"version": "…"` value |
+| `Cargo.toml`, `pyproject.toml`, any `*.toml` | the first `^version = "…"` line |
+| `VERSION`, `version.txt` | the file's lone version token |
+
+**Anything else** takes a `{ path, pattern }` entry whose `pattern` is a Go
+regexp with **exactly one capture group** wrapping the version substring.
+
+The value written is the **bare number**, no leading `v` (`1.6.0`). Replacement
+is regex-based — Relio swaps the matched span and leaves every other byte
+(indentation, key order, trailing newline) untouched; it never reformats the
+file. A file already at the target version is a no-op.
+
+A **missing file** or a **pattern that does not match** fails the run *before
+anything is written*. Pass `--no-version-files` to skip the whole step for one
+run.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
 
-## Hooks
+## Release hooks
 
 Run your own shell commands around a release by listing them under
-`release.hooks`:
+`release.hooks` — a smoke test before, a notification after, whatever the
+project needs.
 
 ```yaml
 release:
@@ -706,21 +846,20 @@ release:
         before: make test                       # one command…
         after:                                   # …or a list, run in order
             - ./scripts/changelog-to-slack.sh
-            - echo done
+            - echo "shipped $RELIO_TAG"
 ```
 
 Each hook is a single shell command string, or a list of them. A list stops at
 the first command that exits non-zero.
 
-- **`before`** runs *after* you confirm the release and *before* anything is
-  written. A non-zero exit **aborts** the release — nothing is written, no tag —
-  and `relio` exits non-zero.
-- **`after`** runs at the very end: after the tag, and after the `--publish`
-  push + GitHub Release when that ran. A non-zero exit prints a **warning** but
-  `relio` still exits 0 — the release is already done.
+| Hook | Runs | A non-zero exit… |
+| ---- | ---- | ---------------- |
+| **`before`** | after you confirm the release, before *anything* is written | **aborts** the release — no changelog, no commit, no tag — and `relio` exits non-zero |
+| **`after`** | at the very end: after the tag, and after the `--publish` push + GitHub Release when that ran | prints a **warning** only; `relio` still exits 0, because the release already happened |
 
-Hooks run with the **repository root** as the working directory, inherit the
-process environment and stdout/stderr, and get three extra variables:
+Hooks run through the platform shell (`sh -c` on Unix, `cmd /c` on Windows) with
+the **repository root** as the working directory. Output is streamed straight
+through. They inherit the process environment plus three extra variables:
 
 | Variable | Example | Meaning |
 | -------- | ------- | ------- |
@@ -729,8 +868,8 @@ process environment and stdout/stderr, and get three extra variables:
 | `RELIO_PREVIOUS_TAG` | `v1.5.0` | the tag the release was computed from (empty on a first release) |
 
 Pass `--no-hooks` to skip every hook for one run. `--yes` does **not** skip
-hooks — CI needs them to run. Hooks never run for `relio status` or
-`relio check` (they don't apply anything).
+hooks — CI needs them to run. Hooks never run for `relio status` or `relio check`
+(they apply nothing).
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -739,37 +878,52 @@ hooks — CI needs them to run. Hooks never run for `relio status` or
 ## Configuration — `.release.yaml`
 
 Written by `relio init`, read from the repository root. **Configuration only —
-no secrets.**
+no secrets.** A minimal file with just `project:` works; every field below falls
+back to the default shown.
 
 ```yaml
-project: azeink            # shown on cards / posts; free text
+# .release.yaml — safe to commit. Never put secrets or tokens here.
+
+project: azeink            # free text — shown on cards, posts, and the banner
 versioning: semver         # only "semver" is supported
 commits: conventional      # only "conventional" is supported
 
 release:
-    changelog: true              # update the changelog file on release
-    changelog_file: CHANGELOG.md  # which file
-    tag: true                    # create the git tag on release
-    tag_prefix: v                # "" for bare 1.4.0 tags
-    version_files: []            # files to sync to the new version, e.g.
-                                 #   - package.json
-                                 #   - { path: foo.py, pattern: '__version__ = "([^"]+)"' }
-    hooks:                       # shell commands run around a release (see Hooks)
-        before: ""               #   string or list — non-zero exit aborts the release
-        after: []                #   string or list — non-zero exit only warns
+    # changelog: and tag: are omit-default-true — leave them out to keep both
+    # on; set either to false to turn that step off.
+    changelog: true                 # write the changelog section on release
+    changelog_file: CHANGELOG.md    # which file to write
+    tag: true                       # commit the release files and create the git tag
+    tag_prefix: v                   # "" for bare 1.6.0 tags instead of v1.6.0
+
+    # Files to rewrite with the new version, in the chore(release) commit.
+    # A bare filename uses a built-in rule; a {path, pattern} entry gives an
+    # explicit Go regexp with exactly one capture group around the version.
+    version_files:
+        - package.json
+        - Cargo.toml
+        - VERSION
+        - { path: src/app/__init__.py, pattern: '__version__ = "([^"]+)"' }
+
+    # Shell commands run around a release. `before` can abort it; `after` only warns.
+    hooks:
+        before: make test                   # a string, or a list run in order
+        after:
+            - ./scripts/notify.sh
+            - echo "shipped $RELIO_TAG"
 
 github:
-    enabled: false         # reserved
-    repo: ""               # "owner/name" override; empty = derive from the origin remote
-    release: false         # on `relio`, also push and create the GitHub Release (same as --publish)
+    enabled: false         # reserved — not read yet
+    repo: ""               # "owner/name" to publish to; empty = derive from origin
+    release: false         # true = every `relio` also publishes the GitHub Release (same as --publish)
 
 content:
-    enabled: false         # reserved for v0.3.0
+    enabled: false         # reserved for the content generator (`relio post`)
 ```
 
-Missing fields fall back to these defaults, so a minimal file with just
-`project:` works. Unknown `versioning` / `commits` values are rejected with a
-clear error.
+Unknown `versioning` / `commits` values are rejected with a clear error. `omit
+version_files` and `hooks` entirely if you don't use them — they carry no
+defaults.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -777,19 +931,23 @@ clear error.
 
 ## Non-interactive / CI usage
 
-Relio detects a non-TTY and behaves predictably:
+Relio detects a non-TTY and behaves predictably — the menu and every prompt are
+skipped, and a bare `relio` without `--yes` refuses to touch the repo.
 
 ```bash
-relio --yes                          # infer + apply, no prompts (fails without --yes)
+relio --yes                          # infer + apply, no prompts
 relio --minor --yes --no-changelog   # force minor, tag only
+relio --yes --publish                # infer, tag, push, create the GitHub Release
+relio --rc --yes                     # cut / advance a release candidate
+relio check --strict                 # fail the job if any commit is not conventional
 relio status                         # read-only, exit 0
 relio post --format changelog        # plain text on stdout
 relio image --shape horizontal       # latest tag, default theme, saved to cwd
 ```
 
-By default Relio never pushes — wire the `git push` into your pipeline. Pass
-`--publish` with `--yes` and a `GITHUB_TOKEN` in the environment to have Relio
-push the branch and tag and create the GitHub Release itself, no prompt.
+`before` / `after` hooks **do** run under `--yes` and in CI — that is the point
+of them. `--publish` needs a `GITHUB_TOKEN` (or `GH_TOKEN`) in the environment;
+with `--yes` it pushes and publishes without asking.
 
 ### Publishing Relio itself
 
@@ -804,16 +962,14 @@ version is two steps:
    ```
 
 2. **Automatically** — pushing a `vX.Y.Z` tag triggers
-   `.github/workflows/release.yml`, which runs `goreleaser release`:
-   builds the 5 platform binaries, packages `relio_<ver>_<os>_<arch>.tar.gz`
-   (`.zip` on Windows), writes `checksums.txt`, creates the GitHub Release with
-   every asset attached, and pushes an updated `Formula/relio.rb` to
-   `Soyagvs/homebrew-tap`.
+   `.github/workflows/release.yml`, which runs `goreleaser release`: it builds
+   the platform binaries, packages `relio_<ver>_<os>_<arch>.tar.gz` (`.zip` on
+   Windows), writes `checksums.txt`, creates the GitHub Release with every asset
+   attached, and pushes an updated `Formula/relio.rb` to `Soyagvs/homebrew-tap`.
 
 The config lives in [`.goreleaser.yaml`](.goreleaser.yaml). It needs one secret
 you set once: **`HOMEBREW_TAP_TOKEN`** — a PAT with write access to
-`Soyagvs/homebrew-tap` (the repo's own `GITHUB_TOKEN` covers the Release
-itself).
+`Soyagvs/homebrew-tap` (the repo's own `GITHUB_TOKEN` covers the Release itself).
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -833,17 +989,21 @@ assets/
   divider.svg            the orange rule used across this README
   download-history.svg    generated from stats/downloads.json — never hand-edited
   star-history.svg        generated the same way
-cmd/                 Cobra command wiring (root, status, stats, init, post, image, auth, version)
+cmd/                 Cobra command wiring (root, status, check, guide, stats, init, post, image, auth, version)
 tools/
   statsnap/          one-shot job behind stats.yml: fetch counts, upsert a row, redraw the SVGs
 internal/
   conventional/      Conventional Commits parser
-  semver/            version parsing + bump rules
+  semver/            version parsing + bump rules + pre-release counters
   changelog/         Keep a Changelog rendering, section extract/remove
+  versionfile/       regex-based version sync for package.json / *.toml / VERSION / custom patterns
+  hook/              before/after shell hooks (sh -c / cmd /c), streamed, RELIO_* env
   config/            .release.yaml load / save
   gitrepo/           thin wrapper over the git binary
   release/           orchestration: build a plan, apply it
   ghstats/           read-only GitHub REST client for `relio stats`
+  ghrelease/         write-side GitHub client: token resolution + create a Release for `--publish`
+  guide/             `relio guide` walkthrough (interactive stepper / plain text)
   update/            best-effort "newer relio available" check for the menu (cached, non-blocking)
   statchart/         tiny dependency-free line-chart -> SVG string
   ui/                lipgloss palette, banner, non-interactive views
@@ -863,11 +1023,15 @@ internal/
 
 ## Roadmap
 
-- **v0.1.x** — local git tool: parse, version, changelog, tag, preview · status · post · image *(current)*
-- **v0.2.0** — GitHub: token-based Release creation — push the branch and tag, create the GitHub Release from the changelog *(done)*; per-user OAuth Device Flow + keychain storage still to come
-- **v0.3.0** — content: `relio post` templates, clipboard, publish hooks
-- **v0.4.0** — plugin API (`BeforeRelease` / `AfterRelease` / `OnTagCreated` / `OnReleasePublished`)
-- **v1.0.0** — `relio init` → `relio auth login` → `relio`, polished
+- **Shipped** — commit parsing, SemVer inference, changelog, annotated tags,
+  preview + wizard · `relio status` · `relio check` · `relio guide` · release
+  candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
+  `relio post` / `relio image` · token-based GitHub Release publishing
+  (`--publish`).
+- **Next** — per-user GitHub sign-in via OAuth Device Flow with OS-keychain
+  storage, so `--publish` no longer needs a token you supplied yourself.
+- **Later** — release plugins (`BeforeRelease` / `AfterRelease` in Go), richer
+  `relio post` templates.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
