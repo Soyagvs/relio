@@ -78,8 +78,8 @@ Then open a pull request (see [below](#opening-a-pull-request)).
   renderer's `fogleman/gg` + `mdp/qrterminal` are the current ceiling.
 - **`internal/` packages stay decoupled.** The pure-logic packages
   (`conventional`, `semver`, `changelog`, `versionfile`, `config`) must not
-  import the TUI, `git`, or `cmd`. `cmd` is the layer that wires everything
-  together.
+  import interactive UI packages, `git`, or `cmd`. `cmd` is the layer that wires
+  everything together.
 - **Only `gitrepo` runs `git`.** It shells out to the binary — no CGO, no
   `go-git`. If you need a new git operation, add it there.
 - **English everywhere in the code** — identifiers, comments, help text, UI
