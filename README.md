@@ -325,6 +325,11 @@ nothing else in the work tree — and the **annotated** git tag is created on th
 commit, so the tag always carries its own changelog section. With `--no-tag` the
 changelog is written but not committed, leaving the commit and tag to you.
 
+Each section can also carry a `Thanks to …` credits line and a GitHub compare
+link — both off by default. While they are, `relio` prints a one-line reminder
+after the release; see [Contributors and a compare link](#contributors-and-a-compare-link)
+to turn them on.
+
 | Flag | Meaning |
 | ---- | ------- |
 | `--patch` `--minor` `--major` | Force the bump instead of inferring it from the commits (one at a time). |
@@ -789,6 +794,10 @@ Both lines also land in the GitHub Release body. The compare link needs a
 GitHub `origin` remote (or an explicit `github.repo`) to resolve `owner/repo`,
 and a previous tag to compare against, so it is skipped on the first release.
 When both toggles are off, or neither line can be built, no footer is added.
+
+While both are off, a `relio` release ends with a dimmed one-line reminder that
+these toggles exist, so the feature stays discoverable without reading the docs.
+The reminder disappears once either toggle is set.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">

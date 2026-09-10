@@ -182,6 +182,30 @@ func TestDoReleaseEditNeedsInteractiveTerminal(t *testing.T) {
 	}
 }
 
+func TestFooterTipShownWhileTogglesOff(t *testing.T) {
+	tip := footerTip(config.Default("proj"))
+	if tip == "" {
+		t.Fatal("expected a footer tip while both toggles are off")
+	}
+	if !strings.Contains(tip, "release.contributors") || !strings.Contains(tip, "release.compare_link") {
+		t.Errorf("tip = %q, want it to name both config keys", tip)
+	}
+}
+
+func TestFooterTipHiddenOnceEnabled(t *testing.T) {
+	c := config.Default("proj")
+	c.Release.Contributors = true
+	if footerTip(c) != "" {
+		t.Error("no tip expected once release.contributors is on")
+	}
+
+	c = config.Default("proj")
+	c.Release.CompareLink = true
+	if footerTip(c) != "" {
+		t.Error("no tip expected once release.compare_link is on")
+	}
+}
+
 func TestDoReleaseCutsReleaseCandidate(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{

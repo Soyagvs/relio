@@ -522,6 +522,12 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		fmt.Fprintln(out, ui.Dim.Render("  finalized from "+plan.Current.String()))
 	}
 
+	if interactive && applied.ChangelogPath != "" {
+		if tip := footerTip(cfg); tip != "" {
+			fmt.Fprintln(out, tip)
+		}
+	}
+
 	printedNext := false
 	if plan.PublishGitHub && applied.TagName != "" {
 		printedNext, err = publishGitHubRelease(out, repo, cfg, plan, applied, interactive, f.yes)
@@ -542,6 +548,17 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		}
 	}
 	return nil
+}
+
+// footerTip is the one-line, dimmed reminder printed after an interactive
+// release while both changelog-footer toggles are off, so the feature stays
+// discoverable. It returns "" once either toggle is enabled.
+func footerTip(cfg config.Config) string {
+	if cfg.Release.Contributors || cfg.Release.CompareLink {
+		return ""
+	}
+	return ui.Dim.Render("  tip: set release.contributors / release.compare_link in " +
+		config.FileName + " to add a credits line and a compare link to the notes")
 }
 
 func applyFlagOverrides(p *release.Plan, f *releaseFlags) {
