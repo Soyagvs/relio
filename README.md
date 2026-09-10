@@ -110,7 +110,7 @@ Pushing and creating the GitHub Release is opt-in — `--publish`.
 - [Quick start](#quick-start)
 - [The interactive menu](#the-interactive-menu)
 - [Commands](#commands)
-  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio guide`](#relio-guide) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
+  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio undo`](#relio-undo) · [`relio guide`](#relio-guide) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
@@ -411,6 +411,42 @@ the tag it prints `Nothing to check …` and exits 0.
 | `--strict` | Exit non-zero when at least one commit since the tag is not a Conventional Commit. Use it as a pre-release CI gate. |
 
 Also available as the **Check** menu entry.
+
+---
+
+### `relio undo`
+
+Reverse the release you just cut — the tag, and the `chore(release):` commit that
+carries the changelog and any version-file bumps. It only works while the release
+is still local: it never touches a remote, and it is not the way to walk back
+something you have already pushed.
+
+```
+$ relio undo
+
+Undo v1.6.0
+  · delete the local tag v1.6.0
+  · remove the `chore(release): v1.6.0` commit (git reset --hard HEAD~1)
+    CHANGELOG.md and any version files return to their previous state
+
+  Proceed? [y/N] y
+✓ deleted tag v1.6.0
+✓ removed the release commit
+```
+
+With no tags yet it prints `No tags yet …` and exits 0. It refuses in two cases:
+when the latest tag no longer points at `HEAD` (you have committed since the
+release, so there is nothing safe to unwind), and when `HEAD` is already on a
+remote branch — undoing then would rewrite shared history, so it tells you to
+delete the tag on the remote yourself and drop the GitHub Release by hand.
+
+| Flag | Meaning |
+| ---- | ------- |
+| `-y`, `--yes` | Skip the confirmation prompt. |
+| `--force` | Undo even when the working tree is dirty. `git reset --hard` discards those uncommitted changes, so use it deliberately. |
+
+`--no-tag` runs and GitHub Releases are out of scope: if you released without a
+tag, or want a published Release gone, do that step by hand.
 
 ---
 
@@ -1023,8 +1059,8 @@ internal/
 ## Roadmap
 
 - **Shipped** — commit parsing, SemVer inference, changelog, annotated tags,
-  preview + wizard · `relio status` · `relio check` · `relio guide` · release
-  candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
+  preview + wizard · `relio status` · `relio check` · `relio undo` · `relio guide`
+  · release candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
   `relio post` / `relio image` · token-based GitHub Release publishing
   (`--publish`).
 - **Next** — per-user GitHub sign-in via OAuth Device Flow with OS-keychain

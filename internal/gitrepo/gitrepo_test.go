@@ -195,6 +195,133 @@ func TestTagsAndDeleteTag(t *testing.T) {
 	}
 }
 
+func TestHeadSubject(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore(release): v1.2.0")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.HeadSubject()
+	if err != nil {
+		t.Fatalf("HeadSubject: %v", err)
+	}
+	if got != "chore(release): v1.2.0" {
+		t.Errorf("HeadSubject = %q, want %q", got, "chore(release): v1.2.0")
+	}
+}
+
+func TestTagPointsAtHead(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.CreateTag("v1.0.0", "release v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	at, err := r.TagPointsAtHead("v1.0.0")
+	if err != nil {
+		t.Fatalf("TagPointsAtHead: %v", err)
+	}
+	if !at {
+		t.Error("TagPointsAtHead = false right after tagging HEAD")
+	}
+
+	commit(t, dir, "feat: move on")
+	at, err = r.TagPointsAtHead("v1.0.0")
+	if err != nil {
+		t.Fatalf("TagPointsAtHead: %v", err)
+	}
+	if at {
+		t.Error("TagPointsAtHead = true after a later commit")
+	}
+}
+
+func TestRemoteContainsHead(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	has, err := r.RemoteContainsHead()
+	if err != nil {
+		t.Fatalf("RemoteContainsHead: %v", err)
+	}
+	if has {
+		t.Error("RemoteContainsHead = true with no remotes")
+	}
+
+	bare := t.TempDir()
+	if out, err := exec.Command("git", "init", "--bare", "-q", bare).CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %v: %s", err, out)
+	}
+	if _, err := run(dir, "remote", "add", "origin", bare); err != nil {
+		t.Fatalf("remote add: %v", err)
+	}
+	branch, err := r.CurrentBranch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(dir, "push", "-u", "origin", branch); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+
+	has, err = r.RemoteContainsHead()
+	if err != nil {
+		t.Fatalf("RemoteContainsHead: %v", err)
+	}
+	if !has {
+		t.Error("RemoteContainsHead = false after pushing HEAD")
+	}
+}
+
+func TestResetHardPrevious(t *testing.T) {
+	dir := gitInit(t)
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := run(dir, "add", name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("a.txt", "one\n")
+	if _, err := run(dir, "commit", "-q", "-m", "feat: first"); err != nil {
+		t.Fatal(err)
+	}
+	write("b.txt", "two\n")
+	if _, err := run(dir, "commit", "-q", "-m", "chore(release): v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.ResetHardPrevious(); err != nil {
+		t.Fatalf("ResetHardPrevious: %v", err)
+	}
+	subject, err := r.HeadSubject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subject != "feat: first" {
+		t.Errorf("HeadSubject = %q, want %q", subject, "feat: first")
+	}
+	if clean, _ := r.IsClean(); !clean {
+		t.Error("IsClean = false after ResetHardPrevious")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "b.txt")); !os.IsNotExist(err) {
+		t.Errorf("b.txt still present after reset: %v", err)
+	}
+}
+
 func TestCurrentBranch(t *testing.T) {
 	dir := gitInit(t)
 	commit(t, dir, "chore: initial")

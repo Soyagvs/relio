@@ -130,6 +130,45 @@ func (r *Repo) DeleteTag(name string) error {
 	return err
 }
 
+// HeadSubject returns the subject line of the commit HEAD points at.
+func (r *Repo) HeadSubject() (string, error) {
+	out, err := run(r.root, "log", "-1", "--pretty=%s")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// TagPointsAtHead reports whether the given tag resolves to the same commit as HEAD.
+func (r *Repo) TagPointsAtHead(name string) (bool, error) {
+	tagOut, err := run(r.root, "rev-parse", "--verify", "-q", name+"^{commit}")
+	if err != nil {
+		return false, err
+	}
+	headOut, err := run(r.root, "rev-parse", "--verify", "-q", "HEAD^{commit}")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(tagOut) == strings.TrimSpace(headOut), nil
+}
+
+// RemoteContainsHead reports whether any remote-tracking branch contains HEAD. It
+// is false when the repository has no remotes.
+func (r *Repo) RemoteContainsHead() (bool, error) {
+	out, err := run(r.root, "branch", "-r", "--contains", "HEAD")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+// ResetHardPrevious moves HEAD back one commit, discarding the working tree
+// changes it introduced (`git reset --hard HEAD~1`).
+func (r *Repo) ResetHardPrevious() error {
+	_, err := run(r.root, "reset", "--hard", "HEAD~1")
+	return err
+}
+
 // CommitsSince returns commits in sinceTag..HEAD, oldest first. When sinceTag is
 // empty every commit reachable from HEAD is returned.
 func (r *Repo) CommitsSince(sinceTag string) ([]conventional.Raw, error) {
