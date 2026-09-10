@@ -114,11 +114,28 @@ func lineFor(c conventional.Commit) string {
 	return desc
 }
 
+// sectionHeading is the "## [version] - date" first line shared by RenderSection
+// and RenderSectionCustom. The leading "v" is stripped from the version.
+func sectionHeading(version string, date time.Time) string {
+	return fmt.Sprintf("## [%s] - %s", strings.TrimPrefix(version, "v"), date.Format("2006-01-02"))
+}
+
+// RenderSectionCustom renders a "## [version] - date" block whose body is the
+// caller-supplied text, used when the user has hand-edited the notes. A blank
+// body falls back to the same "_No user-facing changes._" line RenderSection uses.
+func RenderSectionCustom(version string, date time.Time, body string) string {
+	body = strings.TrimRight(body, "\n")
+	if strings.TrimSpace(body) == "" {
+		body = "_No user-facing changes._"
+	}
+	return sectionHeading(version, date) + "\n\n" + body
+}
+
 // RenderSection renders a single "## [version] - date" block, without a trailing
 // blank line.
 func RenderSection(version string, date time.Time, n Notes) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "## [%s] - %s\n", strings.TrimPrefix(version, "v"), date.Format("2006-01-02"))
+	b.WriteString(sectionHeading(version, date) + "\n")
 
 	wrote := false
 	for _, g := range groupOrder {

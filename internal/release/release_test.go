@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
@@ -257,6 +258,50 @@ func TestReleaseBodyStripsHeading(t *testing.T) {
 	// The full section still keeps its heading — ReleaseBody must not mutate it.
 	if !strings.Contains(p.Section(), "## [1.1.0] - 2026-09-06") {
 		t.Errorf("Section() lost its heading: %s", p.Section())
+	}
+}
+
+func TestSectionUsesNotesOverride(t *testing.T) {
+	p := Plan{
+		Next:          semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+		Now:           fixedNow,
+		Notes:         changelog.Build([]conventional.Commit{{Type: "feat", Description: "generated line"}}),
+		NotesOverride: "### Added\n\n- Custom thing",
+	}
+	got := p.Section()
+	if !strings.HasPrefix(got, "## [1.6.0] - ") {
+		t.Errorf("Section() lost its heading:\n%s", got)
+	}
+	if !strings.HasSuffix(got, "### Added\n\n- Custom thing") {
+		t.Errorf("Section() did not end with the custom body:\n%s", got)
+	}
+	if strings.Contains(got, "Generated line") {
+		t.Errorf("Section() still carries the generated notes:\n%s", got)
+	}
+}
+
+func TestReleaseBodyUsesNotesOverride(t *testing.T) {
+	p := Plan{
+		Next:          semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+		Now:           fixedNow,
+		Notes:         changelog.Build([]conventional.Commit{{Type: "feat", Description: "generated line"}}),
+		NotesOverride: "### Added\n\n- Custom thing",
+	}
+	if got := p.ReleaseBody(); got != "### Added\n\n- Custom thing" {
+		t.Errorf("ReleaseBody() = %q, want the trimmed custom body with no heading", got)
+	}
+}
+
+func TestSectionIgnoresBlankOverride(t *testing.T) {
+	p := Plan{
+		Next:          semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+		Now:           fixedNow,
+		Notes:         changelog.Build([]conventional.Commit{{Type: "feat", Description: "generated line"}}),
+		NotesOverride: "   \n",
+	}
+	got := p.Section()
+	if !strings.Contains(got, "Generated line") {
+		t.Errorf("blank override should fall back to the rendered Notes:\n%s", got)
 	}
 }
 

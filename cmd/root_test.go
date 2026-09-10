@@ -148,6 +148,40 @@ func TestRootHasRCFlag(t *testing.T) {
 	}
 }
 
+func TestRootHasEditFlag(t *testing.T) {
+	c := NewRootCmd()
+	f := c.Flags().Lookup("edit")
+	if f == nil {
+		t.Fatal("missing --edit flag on the root command")
+	}
+	if !strings.Contains(f.Usage, "editor") {
+		t.Errorf("--edit usage = %q", f.Usage)
+	}
+}
+
+func TestDoReleaseEditNeedsInteractiveTerminal(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, edit: true}
+	err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false)
+	if err == nil || !strings.Contains(err.Error(), "--edit needs an interactive terminal") {
+		t.Fatalf("err = %v, want '--edit needs an interactive terminal'", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("tag v1.6.0 created despite the --edit precondition failing")
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "CHANGELOG.md")); serr == nil {
+		t.Error("CHANGELOG.md written despite the --edit precondition failing")
+	}
+	log := exec.Command("git", "log", "--oneline")
+	log.Dir = dir
+	out, _ := log.CombinedOutput()
+	if strings.Contains(string(out), "chore(release)") {
+		t.Errorf("a release commit was made despite the --edit precondition failing:\n%s", out)
+	}
+}
+
 func TestDoReleaseCutsReleaseCandidate(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{

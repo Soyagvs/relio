@@ -78,6 +78,25 @@ func TestRenderSectionNoNotableChanges(t *testing.T) {
 	}
 }
 
+func TestRenderSectionCustom(t *testing.T) {
+	got := RenderSectionCustom("v1.6.0", fixedDate, "### Added\n\n- A hand-written line\n")
+	want := "## [1.6.0] - 2026-09-06\n\n### Added\n\n- A hand-written line"
+	if got != want {
+		t.Errorf("RenderSectionCustom mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+
+	if !strings.HasPrefix(got, "## [1.6.0] - 2026-09-06") {
+		t.Errorf("heading missing or carries a leading v:\n%s", got)
+	}
+
+	for _, body := range []string{"", "   ", "  \n\t\n"} {
+		got := RenderSectionCustom("1.6.0", fixedDate, body)
+		if !strings.Contains(got, "_No user-facing changes._") {
+			t.Errorf("blank body %q should fall back to the placeholder, got:\n%s", body, got)
+		}
+	}
+}
+
 func TestUpdateSeedsEmptyFile(t *testing.T) {
 	section := RenderSection("v0.1.0", fixedDate, Build(sampleCommits()))
 	got := Update("", section)

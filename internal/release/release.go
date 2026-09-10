@@ -34,6 +34,9 @@ type Plan struct {
 	// them (cleared by --no-version-files).
 	VersionChanges     []versionfile.Change
 	VersionFilesUpdate bool
+	// NotesOverride, when set, replaces the rendered body of the changelog
+	// section (the heading stays generated). Set by the --edit flow.
+	NotesOverride string
 	// Prerelease reports that Next is a release candidate (vX.Y.Z-rc.N).
 	Prerelease bool
 	// Finalizing reports that this run drops a pre-release to ship its core
@@ -56,8 +59,13 @@ func (p Plan) TagName() string {
 	return name
 }
 
-// Section renders the changelog block for this release.
+// Section renders the changelog block for this release. When NotesOverride is
+// set the body is the caller's hand-edited text; otherwise it is rendered from
+// the plan's Notes.
 func (p Plan) Section() string {
+	if strings.TrimSpace(p.NotesOverride) != "" {
+		return changelog.RenderSectionCustom(p.Next.String(), p.Now, p.NotesOverride)
+	}
 	return changelog.RenderSection(p.Next.String(), p.Now, p.Notes)
 }
 

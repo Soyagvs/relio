@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/editor"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/menu"
 	"github.com/soyagvs/relio/internal/pick"
@@ -45,6 +46,7 @@ type releaseFlags struct {
 	publish        bool
 	rc             bool
 	noHooks        bool
+	edit           bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -88,6 +90,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
 	lf.BoolVar(&f.rc, "rc", false, "cut a release candidate (vX.Y.Z-rc.N) instead of the final version")
 	lf.BoolVar(&f.noHooks, "no-hooks", false, "skip the before/after hooks in .release.yaml for this run")
+	lf.BoolVar(&f.edit, "edit", false, "open the generated release notes in your editor before writing")
 
 	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newUndoCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root
@@ -293,8 +296,23 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (again bool, err error)
 		return true, nil
 	}
 
+	ed, chosen, err := pick.Run("Edit the notes first?", []pick.Item{
+		{Label: "Use the generated notes", Desc: "write the changelog straight from the commits", Value: "no"},
+		{Label: "Edit them in my editor", Desc: "open $EDITOR on the generated notes before writing", Value: "yes"},
+	})
+	if err != nil {
+		if errors.Is(err, pick.ErrQuit) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !chosen {
+		return true, nil
+	}
+
 	f.rc = relType == "rc"
 	f.publish = pub == "publish"
+	f.edit = ed == "yes"
 	return false, doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
 }
 
@@ -444,6 +462,25 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			return errors.New("refusing to modify the repo without confirmation — re-run with --yes")
 		}
 		fmt.Fprintln(out, ui.Info("Proceeding (--yes)."))
+	}
+
+	if f.edit {
+		if !interactive {
+			return errors.New("--edit needs an interactive terminal")
+		}
+		edited, eerr := editor.Edit(plan.ReleaseBody())
+		if eerr != nil {
+			return fmt.Errorf("editing release notes: %w", eerr)
+		}
+		switch {
+		case strings.TrimSpace(edited) == "":
+			fmt.Fprintln(out, ui.Info("Edited notes were empty — keeping the generated notes."))
+		case strings.TrimSpace(edited) == strings.TrimSpace(plan.ReleaseBody()):
+			fmt.Fprintln(out, ui.Info("Notes unchanged."))
+		default:
+			plan.NotesOverride = strings.TrimSpace(edited)
+			fmt.Fprintln(out, ui.Info("Using your edited release notes."))
+		}
 	}
 
 	if !f.noHooks && len(cfg.Release.Hooks.Before) > 0 {

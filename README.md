@@ -248,9 +248,10 @@ another action.
 
 A few rows do more than run a flagless command:
 
-- **Release** asks two quick questions — *final release or release candidate*,
-  and *tag locally or push + publish* — so you never have to remember `--rc` or
-  `--publish`. Then it runs the normal preview + wizard.
+- **Release** asks three quick questions — *final release or release candidate*,
+  *tag locally or push + publish*, and *whether to edit the notes first* — so you
+  never have to remember `--rc`, `--publish`, or `--edit`. Then it runs the
+  normal preview + wizard.
 - **Auth** shows which GitHub token Relio found and who it belongs to, or
   explains how to connect one.
 - **Setup** runs `relio init` (or tells you the config already exists).
@@ -334,6 +335,13 @@ changelog is written but not committed, leaving the commit and tag to you.
 | `--publish` | After tagging, push the branch and tag to `origin` and create the GitHub Release. See [Publishing to GitHub](#publishing-to-github). |
 | `--rc` | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
 | `--no-hooks` | Skip the `before` / `after` hooks from `.release.yaml` for this run. See [Release hooks](#release-hooks). |
+| `--edit` | Open the generated release notes in your editor before anything is written. Interactive terminals only. |
+
+`--edit` opens `$RELIO_EDITOR` / `$VISUAL` / `$EDITOR` (falling back to `vi`) on
+the generated notes body once you have confirmed the plan. Save your version to
+use it, or save an empty or unchanged buffer to keep the generated notes. The
+edited text lands verbatim in both `CHANGELOG.md` and the GitHub Release body.
+The `## [x.y.z]` heading is not editable — only the body.
 
 ```bash
 relio                     # interactive
@@ -343,6 +351,7 @@ relio --no-tag            # write the changelog only
 relio --yes --publish     # also push and create the GitHub Release
 relio --rc --yes          # cut the next release candidate
 relio --yes --no-hooks    # skip the .release.yaml hooks for this run
+relio --edit --yes        # confirm nothing, but hand-edit the notes
 ```
 
 ---
@@ -758,6 +767,13 @@ A `BREAKING CHANGE:` footer or a `!` before the colon also adds the line to
 **Changed**, prefixed with `**Breaking:**`. The scope, if any, is kept:
 `fix(kiosk): header alignment` → `- kiosk: Header alignment`.
 
+Run `relio --edit` to hand-edit the result before it is written. Relio opens
+`$RELIO_EDITOR` / `$VISUAL` / `$EDITOR` (falling back to `vi`) on the generated
+notes body — everything under the `## [x.y.z] - date` heading. Save your changes
+to use them, or save an empty or unchanged buffer to keep the generated notes.
+The edited text is written verbatim to `CHANGELOG.md` (under a freshly rendered
+heading) and used as the GitHub Release body. The heading itself is not editable.
+
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
@@ -1062,7 +1078,7 @@ internal/
   preview + wizard · `relio status` · `relio check` · `relio undo` · `relio guide`
   · release candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
   `relio post` / `relio image` · token-based GitHub Release publishing
-  (`--publish`).
+  (`--publish`) · hand-editing the notes before writing (`--edit`).
 - **Next** — per-user GitHub sign-in via OAuth Device Flow with OS-keychain
   storage, so `--publish` no longer needs a token you supplied yourself.
 - **Later** — release plugins (`BeforeRelease` / `AfterRelease` in Go), richer
