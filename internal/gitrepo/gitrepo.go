@@ -193,6 +193,36 @@ func (r *Repo) CommitsBetween(from, to string) ([]conventional.Raw, error) {
 	return parseLog(out), nil
 }
 
+// AuthorsBetween returns the distinct author names of the commits in from..to,
+// in first-seen order. Empty from means from the start of history; empty to
+// means HEAD. Names ending in "[bot]" are dropped.
+func (r *Repo) AuthorsBetween(from, to string) ([]string, error) {
+	if to == "" {
+		to = "HEAD"
+	}
+	spec := to
+	if from != "" {
+		spec = from + ".." + to
+	}
+	out, err := run(r.root, "log", "--no-merges", "--format=%an", spec)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		authors []string
+		seen    = map[string]bool{}
+	)
+	for _, line := range strings.Split(out, "\n") {
+		name := strings.TrimSpace(line)
+		if name == "" || strings.HasSuffix(name, "[bot]") || seen[name] {
+			continue
+		}
+		seen[name] = true
+		authors = append(authors, name)
+	}
+	return authors, nil
+}
+
 func parseLog(out string) []conventional.Raw {
 	var commits []conventional.Raw
 	for _, rec := range strings.Split(out, recordSep) {

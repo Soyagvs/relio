@@ -12,6 +12,7 @@ import (
 	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/ghrelease"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/versionfile"
@@ -37,6 +38,11 @@ type Plan struct {
 	// NotesOverride, when set, replaces the rendered body of the changelog
 	// section (the heading stays generated). Set by the --edit flow.
 	NotesOverride string
+	// Footer is the trailing block appended to the changelog section and the GitHub
+	// Release body — a "Thanks to …" contributors line and/or a GitHub compare
+	// link. Built by BuildPlan; empty when both toggles are off, the repo has no
+	// GitHub origin, or this is the first release.
+	Footer string
 	// Prerelease reports that Next is a release candidate (vX.Y.Z-rc.N).
 	Prerelease bool
 	// Finalizing reports that this run drops a pre-release to ship its core
@@ -46,10 +52,10 @@ type Plan struct {
 	Now        time.Time
 }
 
-// TagName is the git tag the plan will create, honouring the configured prefix.
-func (p Plan) TagName() string {
-	name := p.Next.String()
-	prefix := p.Config.Release.TagPrefix
+// tagName applies the configured prefix to a version string. An empty prefix
+// strips the leading "v"; a non-empty prefix replaces it.
+func tagName(prefix, version string) string {
+	name := version
 	if prefix != "" && !strings.HasPrefix(name, prefix) {
 		name = prefix + strings.TrimPrefix(name, "v")
 	}
@@ -59,15 +65,33 @@ func (p Plan) TagName() string {
 	return name
 }
 
-// Section renders the changelog block for this release. When NotesOverride is
-// set the body is the caller's hand-edited text; otherwise it is rendered from
-// the plan's Notes.
-func (p Plan) Section() string {
-	if strings.TrimSpace(p.NotesOverride) != "" {
-		return changelog.RenderSectionCustom(p.Next.String(), p.Now, p.NotesOverride)
-	}
-	return changelog.RenderSection(p.Next.String(), p.Now, p.Notes)
+// TagName is the git tag the plan will create, honouring the configured prefix.
+func (p Plan) TagName() string {
+	return tagName(p.Config.Release.TagPrefix, p.Next.String())
 }
+
+// body is the changelog notes for this release without heading or footer:
+// the hand-edited override when set, otherwise the rendered Notes.
+func (p Plan) body() string {
+	if o := strings.TrimSpace(p.NotesOverride); o != "" {
+		return o
+	}
+	return changelog.RenderBody(p.Notes)
+}
+
+// Section renders the changelog block for this release: the "## [version]"
+// heading, the notes body, and the optional footer.
+func (p Plan) Section() string {
+	s := changelog.RenderSectionCustom(p.Next.String(), p.Now, p.body())
+	if f := strings.TrimSpace(p.Footer); f != "" {
+		s += "\n\n" + f
+	}
+	return s
+}
+
+// EditableNotes is the seed shown to the user by --edit: the notes body only,
+// with no heading and no footer.
+func (p Plan) EditableNotes() string { return p.body() }
 
 // NothingToRelease reports whether there are no commits since the last tag.
 // Finalising a pre-release is always a release, even with no new commits.
@@ -92,12 +116,13 @@ func (p Plan) Lint() (ok, notConventional []conventional.Commit) {
 
 // ReleaseBody is the changelog notes for this release without the
 // "## [x.y.z] - date" heading line — the text to send as a GitHub Release body.
+// The optional footer is appended, matching the changelog section.
 func (p Plan) ReleaseBody() string {
-	section := p.Section()
-	if i := strings.IndexByte(section, '\n'); i >= 0 {
-		return strings.TrimSpace(section[i+1:])
+	b := p.body()
+	if f := strings.TrimSpace(p.Footer); f != "" {
+		b += "\n\n" + f
 	}
-	return ""
+	return b
 }
 
 // Options tune plan construction.
@@ -228,6 +253,8 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		versionFilesUpdate = true
 	}
 
+	footer := buildFooter(repo, cfg, rangeFrom, next.String())
+
 	return Plan{
 		Config:             cfg,
 		Current:            current,
@@ -241,10 +268,49 @@ func BuildPlan(repo *gitrepo.Repo, cfg config.Config, opts Options) (Plan, error
 		PublishGitHub:      cfg.GitHub.Release,
 		VersionChanges:     versionChanges,
 		VersionFilesUpdate: versionFilesUpdate,
+		Footer:             footer,
 		Prerelease:         prerelease,
 		Finalizing:         finalizing,
 		Now:                now,
 	}, nil
+}
+
+// buildFooter assembles the optional changelog footer. It never errors: any
+// failure to resolve the repo or authors just omits that line.
+func buildFooter(repo *gitrepo.Repo, cfg config.Config, fromTag, nextVersion string) string {
+	var parts []string
+
+	if cfg.Release.Contributors {
+		if authors, err := repo.AuthorsBetween(fromTag, ""); err == nil && len(authors) > 0 {
+			parts = append(parts, "Thanks to "+strings.Join(authors, ", ")+".")
+		}
+	}
+
+	if cfg.Release.CompareLink && fromTag != "" {
+		if owner := resolveOwnerName(repo, cfg); owner != "" {
+			to := tagName(cfg.Release.TagPrefix, nextVersion)
+			parts = append(parts, "**Full changelog**: https://github.com/"+owner+"/compare/"+fromTag+"..."+to)
+		}
+	}
+
+	return strings.Join(parts, "\n\n")
+}
+
+// resolveOwnerName returns "owner/name" from cfg.GitHub.Repo, else parsed from
+// the origin remote URL, else "".
+func resolveOwnerName(repo *gitrepo.Repo, cfg config.Config) string {
+	if cfg.GitHub.Repo != "" {
+		return cfg.GitHub.Repo
+	}
+	remote, err := repo.RemoteURL("origin")
+	if err != nil {
+		return ""
+	}
+	owner, err := ghrelease.ParseRepo(remote)
+	if err != nil {
+		return ""
+	}
+	return owner
 }
 
 // ApplyResult reports what Apply actually changed.

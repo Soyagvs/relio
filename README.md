@@ -773,6 +773,22 @@ notes body — everything under the `## [x.y.z] - date` heading. Save your chang
 to use them, or save an empty or unchanged buffer to keep the generated notes.
 The edited text is written verbatim to `CHANGELOG.md` (under a freshly rendered
 heading) and used as the GitHub Release body. The heading itself is not editable.
+The optional footer described below is added after your edited notes, not shown
+in the editor.
+
+### Contributors and a compare link
+
+Two opt-in toggles under `release:` add a trailing block to every changelog
+section. `contributors: true` appends a line such as `Thanks to Alice, Bob.`,
+built from the `git log` author names of the commits in the release range, in
+first-seen order, with any name ending in `[bot]` filtered out — these are git
+author names, not GitHub `@handles`. `compare_link: true` appends
+`**Full changelog**: https://github.com/owner/repo/compare/v1.5.0...v1.6.0`.
+
+Both lines also land in the GitHub Release body. The compare link needs a
+GitHub `origin` remote (or an explicit `github.repo`) to resolve `owner/repo`,
+and a previous tag to compare against, so it is skipped on the first release.
+When both toggles are off, or neither line can be built, no footer is added.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -946,6 +962,8 @@ release:
     changelog_file: CHANGELOG.md    # which file to write
     tag: true                       # commit the release files and create the git tag
     tag_prefix: v                   # "" for bare 1.6.0 tags instead of v1.6.0
+    compare_link: false             # append a GitHub compare link to each changelog section
+    contributors: false             # append a "Thanks to …" line built from commit authors
 
     # Files to rewrite with the new version, in the chore(release) commit.
     # A bare filename uses a built-in rule; a {path, pattern} entry gives an
@@ -1078,7 +1096,8 @@ internal/
   preview + wizard · `relio status` · `relio check` · `relio undo` · `relio guide`
   · release candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
   `relio post` / `relio image` · token-based GitHub Release publishing
-  (`--publish`) · hand-editing the notes before writing (`--edit`).
+  (`--publish`) · hand-editing the notes before writing (`--edit`) · changelog
+  footer — contributors line + compare link.
 - **Next** — per-user GitHub sign-in via OAuth Device Flow with OS-keychain
   storage, so `--publish` no longer needs a token you supplied yourself.
 - **Later** — release plugins (`BeforeRelease` / `AfterRelease` in Go), richer

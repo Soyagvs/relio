@@ -71,6 +71,23 @@ func TestRenderSection(t *testing.T) {
 	}
 }
 
+func TestRenderBody(t *testing.T) {
+	n := Build(sampleCommits())
+	section := RenderSection("v1.2.0", fixedDate, n)
+	lines := strings.SplitN(section, "\n", 3)
+	if len(lines) != 3 {
+		t.Fatalf("section has too few lines:\n%s", section)
+	}
+	want := lines[2] // everything after "## [..]" heading and the blank line
+	if got := RenderBody(n); got != want {
+		t.Errorf("RenderBody mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+
+	if got := RenderBody(Notes{}); got != "_No user-facing changes._" {
+		t.Errorf("empty RenderBody = %q, want the fallback line", got)
+	}
+}
+
 func TestRenderSectionNoNotableChanges(t *testing.T) {
 	got := RenderSection("v1.0.1", fixedDate, Build([]conventional.Commit{{Type: "chore", Description: "x"}}))
 	if !strings.Contains(got, "_No user-facing changes._") {

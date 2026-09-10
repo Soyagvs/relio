@@ -131,12 +131,11 @@ func RenderSectionCustom(version string, date time.Time, body string) string {
 	return sectionHeading(version, date) + "\n\n" + body
 }
 
-// RenderSection renders a single "## [version] - date" block, without a trailing
-// blank line.
-func RenderSection(version string, date time.Time, n Notes) string {
+// RenderBody renders just the grouped notes (no "## [version]" heading), the
+// body shared by RenderSection and the --edit seed. A blank Notes yields the
+// "_No user-facing changes._" fallback line. No trailing newline.
+func RenderBody(n Notes) string {
 	var b strings.Builder
-	b.WriteString(sectionHeading(version, date) + "\n")
-
 	wrote := false
 	for _, g := range groupOrder {
 		items := n.Groups[g]
@@ -145,16 +144,25 @@ func RenderSection(version string, date time.Time, n Notes) string {
 		}
 		sorted := append([]Item(nil), items...)
 		sort.Slice(sorted, func(i, j int) bool { return sorted[i].Text < sorted[j].Text })
-		fmt.Fprintf(&b, "\n### %s\n\n", g)
+		if wrote {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "### %s\n\n", g)
 		for _, it := range sorted {
 			fmt.Fprintf(&b, "- %s\n", it.Text)
 		}
 		wrote = true
 	}
 	if !wrote {
-		b.WriteString("\n_No user-facing changes._\n")
+		return "_No user-facing changes._"
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// RenderSection renders a single "## [version] - date" block, without a trailing
+// blank line.
+func RenderSection(version string, date time.Time, n Notes) string {
+	return sectionHeading(version, date) + "\n\n" + RenderBody(n)
 }
 
 // Update inserts section at the top of the release history in existing content.

@@ -38,6 +38,8 @@ type ReleaseConfig struct {
 	ChangelogFile string        `yaml:"changelog_file"`
 	Tag           *bool         `yaml:"tag"`
 	TagPrefix     string        `yaml:"tag_prefix"`
+	CompareLink   bool          `yaml:"compare_link"`
+	Contributors  bool          `yaml:"contributors"`
 	VersionFiles  []VersionFile `yaml:"version_files,omitempty"`
 	Hooks         HooksConfig   `yaml:"hooks,omitempty"`
 }

@@ -468,14 +468,14 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		if !interactive {
 			return errors.New("--edit needs an interactive terminal")
 		}
-		edited, eerr := editor.Edit(plan.ReleaseBody())
+		edited, eerr := editor.Edit(plan.EditableNotes())
 		if eerr != nil {
 			return fmt.Errorf("editing release notes: %w", eerr)
 		}
 		switch {
 		case strings.TrimSpace(edited) == "":
 			fmt.Fprintln(out, ui.Info("Edited notes were empty — keeping the generated notes."))
-		case strings.TrimSpace(edited) == strings.TrimSpace(plan.ReleaseBody()):
+		case strings.TrimSpace(edited) == strings.TrimSpace(plan.EditableNotes()):
 			fmt.Fprintln(out, ui.Info("Notes unchanged."))
 		default:
 			plan.NotesOverride = strings.TrimSpace(edited)

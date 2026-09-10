@@ -55,6 +55,26 @@ func tag(t *testing.T, dir, name string) {
 	}
 }
 
+func commitAs(t *testing.T, dir, name, msg string) {
+	t.Helper()
+	c := exec.Command("git",
+		"-c", "user.name="+name, "-c", "user.email="+strings.ToLower(name)+"@e.com",
+		"commit", "--allow-empty", "-q", "-m", msg)
+	c.Dir = dir
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("commitAs %q: %v: %s", name, err, out)
+	}
+}
+
+func addRemote(t *testing.T, dir, name, url string) {
+	t.Helper()
+	c := exec.Command("git", "remote", "add", name, url)
+	c.Dir = dir
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("remote add: %v: %s", err, out)
+	}
+}
+
 var fixedNow = time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 
 func TestBuildPlanFirstRelease(t *testing.T) {
@@ -604,6 +624,116 @@ func TestTagNamePrerelease(t *testing.T) {
 	}
 	if got := p.TagName(); got != "v1.6.0-rc.1" {
 		t.Errorf("TagName() = %q, want v1.6.0-rc.1", got)
+	}
+}
+
+// --- optional changelog footer -------------------------------------------------
+
+func TestBuildPlanFooterContributors(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.0.0")
+	commitAs(t, dir, "Alice", "feat: one")
+	commitAs(t, dir, "Bob", "fix: two")
+
+	cfg := config.Default("x")
+	cfg.Release.Contributors = true
+	cfg.Release.CompareLink = false
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(p.Footer, "Thanks to ") {
+		t.Errorf("Footer = %q, want a 'Thanks to ' line", p.Footer)
+	}
+	if !strings.Contains(p.Footer, "Alice") || !strings.Contains(p.Footer, "Bob") {
+		t.Errorf("Footer = %q, want both Alice and Bob", p.Footer)
+	}
+	if strings.Contains(p.Footer, "compare/") {
+		t.Errorf("Footer = %q, should carry no compare link", p.Footer)
+	}
+}
+
+func TestBuildPlanFooterCompareLink(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.0.0")
+	addRemote(t, dir, "origin", "https://github.com/acme/widgets.git")
+	commit(t, dir, "feat: something")
+
+	cfg := config.Default("x")
+	cfg.Release.CompareLink = true
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Next.String() != "v1.1.0" {
+		t.Fatalf("Next = %s, want v1.1.0", p.Next)
+	}
+	want := "https://github.com/acme/widgets/compare/v1.0.0...v1.1.0"
+	if !strings.Contains(p.Footer, want) {
+		t.Errorf("Footer = %q, want it to contain %q", p.Footer, want)
+	}
+}
+
+func TestBuildPlanNoFooterWhenTogglesOff(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.0.0")
+	addRemote(t, dir, "origin", "https://github.com/acme/widgets.git")
+	commitAs(t, dir, "Alice", "feat: one")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Footer != "" {
+		t.Errorf("Footer = %q, want empty when both toggles are off", p.Footer)
+	}
+}
+
+func TestCompareLinkSkippedOnFirstRelease(t *testing.T) {
+	dir, r := newRepo(t)
+	addRemote(t, dir, "origin", "https://github.com/acme/widgets.git")
+	commit(t, dir, "feat: first")
+
+	cfg := config.Default("x")
+	cfg.Release.CompareLink = true
+
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(p.Footer, "compare/") {
+		t.Errorf("Footer = %q, want no compare link on the first release", p.Footer)
+	}
+}
+
+func TestSectionAndReleaseBodyAppendFooter(t *testing.T) {
+	p := Plan{
+		Next:   semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+		Now:    fixedNow,
+		Notes:  changelog.Build([]conventional.Commit{{Type: "feat", Description: "a thing"}}),
+		Footer: "Thanks to Ada.",
+	}
+	sec := p.Section()
+	if !strings.Contains(sec, "## [") {
+		t.Errorf("Section() lost its heading:\n%s", sec)
+	}
+	if !strings.HasSuffix(sec, "\n\nThanks to Ada.") {
+		t.Errorf("Section() should end with the footer block:\n%s", sec)
+	}
+	body := p.ReleaseBody()
+	if strings.Contains(body, "## [") {
+		t.Errorf("ReleaseBody() must not carry a heading:\n%s", body)
+	}
+	if !strings.HasSuffix(body, "Thanks to Ada.") {
+		t.Errorf("ReleaseBody() should end with the footer:\n%s", body)
+	}
+	if strings.Contains(p.EditableNotes(), "Thanks to Ada.") {
+		t.Errorf("EditableNotes() must not carry the footer:\n%s", p.EditableNotes())
 	}
 }
 

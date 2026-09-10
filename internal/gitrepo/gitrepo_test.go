@@ -36,6 +36,48 @@ func commit(t *testing.T, dir, msg string) {
 	}
 }
 
+func commitAs(t *testing.T, dir, name, email, msg string) {
+	t.Helper()
+	cmd := exec.Command("git",
+		"-c", "user.name="+name, "-c", "user.email="+email,
+		"commit", "--allow-empty", "-q", "-m", msg)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("commit as %q: %v: %s", name, err, out)
+	}
+}
+
+func TestAuthorsBetween(t *testing.T) {
+	dir := gitInit(t)
+	commit(t, dir, "chore: initial")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.CreateTag("v1.0.0", "release v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	commitAs(t, dir, "Alice", "alice@example.com", "feat: one")
+	commitAs(t, dir, "Bob", "bob@example.com", "fix: two")
+	commitAs(t, dir, "Alice", "alice@example.com", "feat: three") // repeat
+	commitAs(t, dir, "release-bot[bot]", "bot@example.com", "chore: bump")
+
+	got, err := r.AuthorsBetween("v1.0.0", "")
+	if err != nil {
+		t.Fatalf("AuthorsBetween: %v", err)
+	}
+	want := []string{"Alice", "Bob"}
+	if len(got) != len(want) {
+		t.Fatalf("AuthorsBetween = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("AuthorsBetween[%d] = %q, want %q (full: %v)", i, got[i], want[i], got)
+		}
+	}
+}
+
 func TestOpenRejectsNonRepo(t *testing.T) {
 	if _, err := Open(t.TempDir()); err != ErrNotARepo {
 		t.Errorf("err = %v, want ErrNotARepo", err)
