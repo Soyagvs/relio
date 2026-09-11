@@ -88,4 +88,18 @@ const (
 	PlanHooksCommandsCount MessageID = "plan.hooks_commands_count" // "%d commands"
 	PlanVersionFilesLabel  MessageID = "plan.version_files_label"
 	PlanSinceBeginning     MessageID = "plan.since_beginning"
+
+	// Wizard (internal/wizard) — the interactive release-confirmation
+	// stepper: choice labels, header, bump-from note, footer hint, and the
+	// two post-quit trace lines (PR5a).
+	WizardChoiceConfirm MessageID = "wizard.choice_confirm" // "Create %s"
+	WizardChoicePatch   MessageID = "wizard.choice_patch"
+	WizardChoiceMinor   MessageID = "wizard.choice_minor"
+	WizardChoiceMajor   MessageID = "wizard.choice_major"
+	WizardChoiceCancel  MessageID = "wizard.choice_cancel"
+	WizardHeader        MessageID = "wizard.header"    // "Release %s"
+	WizardBumpFrom      MessageID = "wizard.bump_from" // "(%s from %s)"
+	WizardConfirmed     MessageID = "wizard.confirmed" // "→ confirmed %s"
+	WizardCancelled     MessageID = "wizard.cancelled"
+	WizardHint          MessageID = "wizard.hint"
 )

@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/ui"
@@ -44,11 +45,11 @@ func newModel(p release.Plan) model {
 		plan:    p,
 		current: p.Bump,
 		choices: []choice{
-			{label: "Create this release", confirm: true},
-			{label: "Change to patch", bump: semver.Patch},
-			{label: "Change to minor", bump: semver.Minor},
-			{label: "Change to major", bump: semver.Major},
-			{label: "Cancel", cancel: true},
+			{label: i18n.T(i18n.WizardChoiceConfirm), confirm: true},
+			{label: i18n.T(i18n.WizardChoicePatch), bump: semver.Patch},
+			{label: i18n.T(i18n.WizardChoiceMinor), bump: semver.Minor},
+			{label: i18n.T(i18n.WizardChoiceMajor), bump: semver.Major},
+			{label: i18n.T(i18n.WizardChoiceCancel), cancel: true},
 		},
 	}
 }
@@ -112,29 +113,29 @@ func (m model) View() string {
 		// The plan preview was already printed to the scrollback by the caller;
 		// leave only a short trace of the decision here.
 		if m.result.Confirmed {
-			return ui.Dim.Render("→ confirmed "+m.nextVersion().String()) + "\n"
+			return ui.Dim.Render(fmt.Sprintf(i18n.T(i18n.WizardConfirmed), m.nextVersion().String())) + "\n"
 		}
-		return ui.Dim.Render("→ cancelled") + "\n"
+		return ui.Dim.Render(i18n.T(i18n.WizardCancelled)) + "\n"
 	}
 
 	var b strings.Builder
-	b.WriteString(ui.Key.Render(fmt.Sprintf("Release %s", m.nextVersion().String())) +
-		ui.Dim.Render(fmt.Sprintf("   (%s from %s)", m.current, m.plan.Current)) + "\n\n")
+	b.WriteString(ui.Key.Render(fmt.Sprintf(i18n.T(i18n.WizardHeader), m.nextVersion().String())) +
+		ui.Dim.Render("   "+fmt.Sprintf(i18n.T(i18n.WizardBumpFrom), m.current, m.plan.Current)) + "\n\n")
 
 	for i, c := range m.choices {
 		cursor := "  "
 		line := c.label
+		if c.confirm {
+			line = fmt.Sprintf(line, m.nextVersion().String())
+		}
 		if i == m.cursor {
 			cursor = ui.Key.Render("▸ ")
 			line = ui.Key.Render(line)
 		}
-		if c.confirm {
-			line = strings.Replace(line, "this release", m.nextVersion().String(), 1)
-		}
 		b.WriteString(cursor + line + "\n")
 	}
 
-	b.WriteString("\n" + ui.Dim.Render("↑/↓ move · enter select · y confirm · q cancel"))
+	b.WriteString("\n" + ui.Dim.Render(i18n.T(i18n.WizardHint)))
 	return b.String()
 }
 

@@ -63,4 +63,15 @@ var es = map[MessageID]string{
 	PlanHooksCommandsCount: "%d comandos",
 	PlanVersionFilesLabel:  "Archivos de versión",
 	PlanSinceBeginning:     "el principio",
+
+	WizardChoiceConfirm: "Crear %s",
+	WizardChoicePatch:   "Cambiar a patch",
+	WizardChoiceMinor:   "Cambiar a minor",
+	WizardChoiceMajor:   "Cambiar a major",
+	WizardChoiceCancel:  "Cancelar",
+	WizardHeader:        "Lanzamiento %s",
+	WizardBumpFrom:      "(%s desde %s)",
+	WizardConfirmed:     "→ confirmado %s",
+	WizardCancelled:     "→ cancelado",
+	WizardHint:          "↑/↓ mover · enter seleccionar · y confirmar · q cancelar",
 }
