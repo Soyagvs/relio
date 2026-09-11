@@ -8,6 +8,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
 )
@@ -15,7 +16,7 @@ import (
 func newStatusCmd(f *releaseFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "Show what's unreleased and the version it suggests",
+		Short: i18n.T(i18n.StatusShort),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
@@ -46,8 +47,8 @@ func runStatus(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error 
 	if plan.Current.Major != 0 || plan.Current.Minor != 0 || plan.Current.Patch != 0 {
 		cur = plan.Current.String()
 	}
-	row("Current", cur)
-	row("Unreleased", fmt.Sprintf("%d commits", len(plan.Commits)))
+	row(i18n.T(i18n.StatusLabelCurrent), cur)
+	row(i18n.T(i18n.StatusLabelUnreleased), i18n.T(i18n.StatusCommitsCount, len(plan.Commits)))
 
 	if counts := typeCounts(plan); len(counts) > 0 {
 		w := 0
@@ -64,23 +65,21 @@ func runStatus(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error 
 
 	fmt.Fprintln(out)
 	if plan.NothingToRelease() {
-		row("Suggested", ui.Dim.Render("—"))
+		row(i18n.T(i18n.StatusLabelSuggested), ui.Dim.Render(i18n.T(i18n.StatusNoSuggestion)))
 		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info("Nothing to release."))
+		fmt.Fprintln(out, ui.Info(i18n.T(i18n.StatusNothingToRelease)))
 		return nil
 	}
-	row("Suggested", ui.Ok.Render(plan.Next.String())+ui.Dim.Render("  ("+plan.Bump.String()+")"))
+	row(i18n.T(i18n.StatusLabelSuggested), ui.Ok.Render(plan.Next.String())+ui.Dim.Render("  ("+plan.Bump.String()+")"))
 	if plan.Current.IsPrerelease() {
-		fmt.Fprintln(out, ui.Dim.Render(fmt.Sprintf(
-			"on a pre-release — `relio` finalizes %s, `relio --rc` cuts the next rc",
-			plan.Current.Core().String())))
+		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.StatusPrereleaseHint, plan.Current.Core().String())))
 	}
 	fmt.Fprintln(out)
 
 	if clean, cerr := repo.IsClean(); cerr == nil && !clean {
-		fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render("uncommitted changes in the working tree"))
+		fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render(i18n.T(i18n.StatusUncommittedChange)))
 	}
-	fmt.Fprintln(out, ui.Ok.Render("Ready to release."))
+	fmt.Fprintln(out, ui.Ok.Render(i18n.T(i18n.StatusReadyToRelease)))
 	return nil
 }
 

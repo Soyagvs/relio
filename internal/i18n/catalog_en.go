@@ -224,4 +224,38 @@ var en = map[MessageID]string{
 	HelpMenuSetupDesc:        "Create or inspect .release.yaml (same as `relio init`)",
 	HelpMenuGuideDesc:        "Step-by-step walkthrough (same as `relio guide`)",
 	HelpMenuHelpDesc:         "This screen",
+
+	StatusShort: "Show what's unreleased and the version it suggests",
+
+	StatusLabelCurrent:    "Current",
+	StatusLabelUnreleased: "Unreleased",
+	StatusLabelSuggested:  "Suggested",
+	StatusCommitsCount:    "%d commits",
+	StatusNoSuggestion:    "—",
+
+	StatusNothingToRelease:  "Nothing to release.",
+	StatusPrereleaseHint:    "on a pre-release — `relio` finalizes %s, `relio --rc` cuts the next rc",
+	StatusUncommittedChange: "uncommitted changes in the working tree",
+	StatusReadyToRelease:    "Ready to release.",
+
+	CheckShort:           "Check the commits since the last tag before releasing",
+	CheckFlagStrictUsage: "exit non-zero when any commit is not a Conventional Commit",
+
+	CheckBaseLastTag:         "the last tag",
+	CheckNothingToCheck:      "Nothing to check — no commits since %s.",
+	CheckCommitsNoTagYet:     "%d commits (no tag yet)",
+	CheckCommitsSinceTag:     "%d commits since %s",
+	CheckConventionalCount:   "%d conventional",
+	CheckNonConventionalHead: "%d not conventional:",
+	CheckDetectedBump:        "Detected bump: %s  →  %s",
+	CheckStrictError:         "%d commit(s) are not Conventional Commits (--strict)",
+
+	InitShort:            "Create a .release.yaml in the current repository",
+	InitLong:             "Write a .release.yaml with sensible defaults. The file holds configuration only — never secrets.",
+	InitFlagProjectUsage: "project name (defaults to the repo/remote name)",
+
+	InitNotAGitRepo:   "not a git repository — run `relio init` inside a repo",
+	InitAlreadyExists: "%s already exists at %s",
+	InitConfigCreated: "%s created",
+	InitNextStepsHint: "  Review it, commit it, then run `relio`.",
 }

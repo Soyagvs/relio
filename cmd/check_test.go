@@ -12,6 +12,7 @@ import (
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
 )
@@ -214,4 +215,101 @@ func TestNewCheckCmdShape(t *testing.T) {
 		t.Error("missing --strict flag")
 	}
 	_ = ui.HideHashes
+}
+
+// --- i18n: construction-time Short/flag usage + runtime output localization ---
+
+func TestNewCheckCmdShortAndFlagLocalizeAtConstructionTime(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	cEN := newCheckCmd(&releaseFlags{})
+	shortEN := cEN.Short
+	usageEN := cEN.Flags().Lookup("strict").Usage
+
+	i18n.SetLanguage("es")
+	cES := newCheckCmd(&releaseFlags{})
+	shortES := cES.Short
+	usageES := cES.Flags().Lookup("strict").Usage
+
+	if shortEN != "Check the commits since the last tag before releasing" {
+		t.Errorf("newCheckCmd().Short (en) = %q", shortEN)
+	}
+	if shortES == shortEN || shortES == "" {
+		t.Errorf("newCheckCmd().Short unchanged across languages: %q", shortES)
+	}
+	if usageES == usageEN || usageES == "" {
+		t.Errorf("--strict usage unchanged across languages: %q", usageES)
+	}
+}
+
+func TestCheckReportLocalizesOutput(t *testing.T) {
+	conv, nonConv := checkCommits()
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	if err := checkReport(&bufEN, "relio", "v1.5.0", 4, conv, nonConv, "minor", "v1.6.0", false); err != nil {
+		t.Fatal(err)
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	if err := checkReport(&bufES, "relio", "v1.5.0", 4, conv, nonConv, "minor", "v1.6.0", false); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("checkReport output unchanged across languages")
+	}
+}
+
+func TestCheckReportNoCommitsLocalizesOutput(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	if err := checkReport(&bufEN, "relio", "v1.5.0", 0, nil, nil, "none", "v1.5.0", false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bufEN.String(), "Nothing to check — no commits since v1.5.0.") {
+		t.Errorf("english golden text missing:\n%s", bufEN.String())
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	if err := checkReport(&bufES, "relio", "v1.5.0", 0, nil, nil, "none", "v1.5.0", false); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("checkReport nothing-to-check output unchanged across languages")
+	}
+}
+
+func TestRunCheckStrictErrorLocalizesOutput(t *testing.T) {
+	dir, r := newCheckRepo(t)
+	checkCommit(t, dir, "just a wip commit")
+	cfg := config.Default("proj")
+
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	errEN := runCheckPlan(t, r, cfg, true)
+	i18n.SetLanguage("es")
+	errES := runCheckPlan(t, r, cfg, true)
+
+	if errEN == nil || errES == nil {
+		t.Fatal("expected strict errors in both languages")
+	}
+	if !strings.Contains(errEN.Error(), "not Conventional Commits (--strict)") {
+		t.Errorf("english golden error text missing: %q", errEN.Error())
+	}
+	if errEN.Error() == errES.Error() {
+		t.Errorf("strict error unchanged across languages: %q", errEN.Error())
+	}
 }

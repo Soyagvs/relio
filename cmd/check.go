@@ -9,6 +9,7 @@ import (
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
 )
@@ -17,7 +18,7 @@ func newCheckCmd(f *releaseFlags) *cobra.Command {
 	var strict bool
 	cmd := &cobra.Command{
 		Use:   "check",
-		Short: "Check the commits since the last tag before releasing",
+		Short: i18n.T(i18n.CheckShort),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
@@ -31,7 +32,7 @@ func newCheckCmd(f *releaseFlags) *cobra.Command {
 			return runCheck(cmd, repo, cfg, plan, strict)
 		},
 	}
-	cmd.Flags().BoolVar(&strict, "strict", false, "exit non-zero when any commit is not a Conventional Commit")
+	cmd.Flags().BoolVar(&strict, "strict", false, i18n.T(i18n.CheckFlagStrictUsage))
 	return cmd
 }
 
@@ -54,7 +55,7 @@ func runCheck(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, plan re
 	}
 
 	if strict && len(plan.Commits) > 0 && len(nonConv) > 0 {
-		return fmt.Errorf("%d commit(s) are not Conventional Commits (--strict)", len(nonConv))
+		return fmt.Errorf("%s", i18n.T(i18n.CheckStrictError, len(nonConv)))
 	}
 	return nil
 }
@@ -65,11 +66,11 @@ func runCheck(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, plan re
 func checkReport(w io.Writer, project, tag string, nCommits int, conv, nonConv []conventional.Commit, bump, next string, hideHashes bool) error {
 	base := tag
 	if base == "" {
-		base = "the last tag"
+		base = i18n.T(i18n.CheckBaseLastTag)
 	}
 
 	if nCommits == 0 {
-		fmt.Fprintln(w, ui.Info(fmt.Sprintf("Nothing to check — no commits since %s.", base)))
+		fmt.Fprintln(w, ui.Info(i18n.T(i18n.CheckNothingToCheck, base)))
 		return nil
 	}
 
@@ -77,17 +78,17 @@ func checkReport(w io.Writer, project, tag string, nCommits int, conv, nonConv [
 	fmt.Fprintln(w)
 
 	if tag == "" {
-		fmt.Fprintf(w, "%d commits (no tag yet)\n", nCommits)
+		fmt.Fprintln(w, i18n.T(i18n.CheckCommitsNoTagYet, nCommits))
 	} else {
-		fmt.Fprintf(w, "%d commits since %s\n", nCommits, tag)
+		fmt.Fprintln(w, i18n.T(i18n.CheckCommitsSinceTag, nCommits, tag))
 	}
 
 	fmt.Fprintf(w, "  %s %s\n",
-		ui.Ok.Render("✓"), ui.Dim.Render(fmt.Sprintf("%d conventional", len(conv))))
+		ui.Ok.Render("✓"), ui.Dim.Render(i18n.T(i18n.CheckConventionalCount, len(conv))))
 
 	if len(nonConv) > 0 {
 		fmt.Fprintf(w, "  %s %s\n",
-			ui.Warn.Render("✗"), ui.Dim.Render(fmt.Sprintf("%d not conventional:", len(nonConv))))
+			ui.Warn.Render("✗"), ui.Dim.Render(i18n.T(i18n.CheckNonConventionalHead, len(nonConv))))
 		for _, c := range nonConv {
 			if hideHashes || c.Hash == "" {
 				fmt.Fprintf(w, "      %s\n", c.Raw)
@@ -98,7 +99,7 @@ func checkReport(w io.Writer, project, tag string, nCommits int, conv, nonConv [
 	}
 
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Detected bump: %s  →  %s\n", bump, next)
+	fmt.Fprintln(w, i18n.T(i18n.CheckDetectedBump, bump, next))
 	return nil
 }
 

@@ -226,4 +226,38 @@ var es = map[MessageID]string{
 	HelpMenuSetupDesc:        "Crea o inspecciona .release.yaml (igual que `relio init`)",
 	HelpMenuGuideDesc:        "Recorrido paso a paso (igual que `relio guide`)",
 	HelpMenuHelpDesc:         "Esta pantalla",
+
+	StatusShort: "Muestra qué queda sin publicar y la versión que sugiere",
+
+	StatusLabelCurrent:    "Actual",
+	StatusLabelUnreleased: "Sin publicar",
+	StatusLabelSuggested:  "Sugerida",
+	StatusCommitsCount:    "%d commits",
+	StatusNoSuggestion:    "—",
+
+	StatusNothingToRelease:  "Nada para publicar.",
+	StatusPrereleaseHint:    "en un pre-release — `relio` finaliza %s, `relio --rc` genera el siguiente rc",
+	StatusUncommittedChange: "cambios sin confirmar en el árbol de trabajo",
+	StatusReadyToRelease:    "Listo para publicar.",
+
+	CheckShort:           "Revisa los commits desde la última etiqueta antes de publicar",
+	CheckFlagStrictUsage: "sale con código distinto de cero cuando algún commit no es un Conventional Commit",
+
+	CheckBaseLastTag:         "la última etiqueta",
+	CheckNothingToCheck:      "Nada que revisar — no hay commits desde %s.",
+	CheckCommitsNoTagYet:     "%d commits (sin etiqueta aún)",
+	CheckCommitsSinceTag:     "%d commits desde %s",
+	CheckConventionalCount:   "%d convencionales",
+	CheckNonConventionalHead: "%d no convencionales:",
+	CheckDetectedBump:        "Incremento detectado: %s  →  %s",
+	CheckStrictError:         "%d commit(s) no son Conventional Commits (--strict)",
+
+	InitShort:            "Crea un .release.yaml en el repositorio actual",
+	InitLong:             "Escribe un .release.yaml con valores predeterminados razonables. El archivo contiene solo configuración — nunca secretos.",
+	InitFlagProjectUsage: "nombre del proyecto (por defecto, el nombre del repo/remoto)",
+
+	InitNotAGitRepo:   "no es un repositorio git — ejecuta `relio init` dentro de un repo",
+	InitAlreadyExists: "%s ya existe en %s",
+	InitConfigCreated: "%s creado",
+	InitNextStepsHint: "  Revísalo, confírmalo y luego ejecuta `relio`.",
 }

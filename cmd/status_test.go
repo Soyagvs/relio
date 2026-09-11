@@ -10,6 +10,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 )
 
 func newStatusRepo(t *testing.T) (string, *gitrepo.Repo) {
@@ -86,5 +87,90 @@ func TestRunStatusNoPrereleaseHintOnStable(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "on a pre-release") {
 		t.Errorf("unexpected pre-release hint on a stable current:\n%s", buf.String())
+	}
+}
+
+// --- i18n: construction-time Short + runtime output localization ---
+
+func TestNewStatusCmdShortLocalizesAtConstructionTime(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	shortEN := newStatusCmd(&releaseFlags{}).Short
+
+	i18n.SetLanguage("es")
+	shortES := newStatusCmd(&releaseFlags{}).Short
+
+	if shortEN != "Show what's unreleased and the version it suggests" {
+		t.Errorf("newStatusCmd().Short (en) = %q", shortEN)
+	}
+	if shortES == shortEN || shortES == "" {
+		t.Errorf("newStatusCmd().Short unchanged across languages: %q", shortES)
+	}
+}
+
+func TestRunStatusLocalizesOutput(t *testing.T) {
+	dir, r := newStatusRepo(t)
+	statusCommit(t, dir, "feat: something")
+
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(&bufEN)
+	if err := runStatus(cmdEN, r, config.Default("proj")); err != nil {
+		t.Fatal(err)
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(&bufES)
+	if err := runStatus(cmdES, r, config.Default("proj")); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("runStatus output unchanged across languages")
+	}
+	for _, want := range []string{"Current", "Unreleased", "Suggested", "Ready to release."} {
+		if !strings.Contains(bufEN.String(), want) {
+			t.Errorf("english golden text %q missing:\n%s", want, bufEN.String())
+		}
+	}
+}
+
+func TestRunStatusNothingToReleaseLocalizesOutput(t *testing.T) {
+	dir, r := newStatusRepo(t)
+	statusCommit(t, dir, "chore: init")
+	statusTag(t, dir, "v1.0.0")
+
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(&bufEN)
+	if err := runStatus(cmdEN, r, config.Default("proj")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bufEN.String(), "Nothing to release.") {
+		t.Errorf("english golden text missing:\n%s", bufEN.String())
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(&bufES)
+	if err := runStatus(cmdES, r, config.Default("proj")); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("runStatus nothing-to-release output unchanged across languages")
 	}
 }

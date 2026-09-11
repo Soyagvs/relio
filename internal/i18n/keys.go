@@ -252,4 +252,48 @@ const (
 	HelpMenuSetupDesc        MessageID = "help.menu_setup_desc"
 	HelpMenuGuideDesc        MessageID = "help.menu_guide_desc"
 	HelpMenuHelpDesc         MessageID = "help.menu_help_desc"
+
+	// Status command (cmd/status.go): Short text, the three row labels,
+	// the commit-count template, the "no suggestion" placeholder, the
+	// pre-release finalize hint, and the terminal status lines (PR6b).
+	StatusShort MessageID = "status.short"
+
+	StatusLabelCurrent    MessageID = "status.label_current"
+	StatusLabelUnreleased MessageID = "status.label_unreleased"
+	StatusLabelSuggested  MessageID = "status.label_suggested"
+	StatusCommitsCount    MessageID = "status.commits_count" // "%d commits"
+	StatusNoSuggestion    MessageID = "status.no_suggestion" // "—"
+
+	StatusNothingToRelease  MessageID = "status.nothing_to_release"
+	StatusPrereleaseHint    MessageID = "status.prerelease_hint" // "on a pre-release — `relio` finalizes %s, `relio --rc` cuts the next rc"
+	StatusUncommittedChange MessageID = "status.uncommitted_change"
+	StatusReadyToRelease    MessageID = "status.ready_to_release"
+
+	// Check command (cmd/check.go): Short text, the --strict flag usage,
+	// the "the last tag" fallback, the header lines, the conventional /
+	// non-conventional counts, the detected-bump line, and the --strict
+	// error (PR6b).
+	CheckShort           MessageID = "check.short"
+	CheckFlagStrictUsage MessageID = "check.flag_strict_usage"
+
+	CheckBaseLastTag         MessageID = "check.base_last_tag"
+	CheckNothingToCheck      MessageID = "check.nothing_to_check"      // "Nothing to check — no commits since %s."
+	CheckCommitsNoTagYet     MessageID = "check.commits_no_tag_yet"    // "%d commits (no tag yet)"
+	CheckCommitsSinceTag     MessageID = "check.commits_since_tag"     // "%d commits since %s"
+	CheckConventionalCount   MessageID = "check.conventional_count"    // "%d conventional"
+	CheckNonConventionalHead MessageID = "check.non_conventional_head" // "%d not conventional:"
+	CheckDetectedBump        MessageID = "check.detected_bump"         // "Detected bump: %s  →  %s"
+	CheckStrictError         MessageID = "check.strict_error"          // "%d commit(s) are not Conventional Commits (--strict)"
+
+	// Init command (cmd/init.go): Short/Long text, the --project flag
+	// usage, the not-a-git-repo and already-exists errors, the created
+	// confirmation, and the next-steps hint (PR6b).
+	InitShort            MessageID = "init.short"
+	InitLong             MessageID = "init.long"
+	InitFlagProjectUsage MessageID = "init.flag_project_usage"
+
+	InitNotAGitRepo   MessageID = "init.not_a_git_repo"
+	InitAlreadyExists MessageID = "init.already_exists" // "%s already exists at %s"
+	InitConfigCreated MessageID = "init.config_created" // "%s created"
+	InitNextStepsHint MessageID = "init.next_steps_hint"
 )

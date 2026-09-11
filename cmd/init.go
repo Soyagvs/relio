@@ -10,6 +10,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -18,19 +19,19 @@ func newInitCmd(f *releaseFlags) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "init",
-		Short: "Create a .release.yaml in the current repository",
-		Long:  "Write a .release.yaml with sensible defaults. The file holds configuration only — never secrets.",
+		Short: i18n.T(i18n.InitShort),
+		Long:  i18n.T(i18n.InitLong),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, err := gitrepo.Open(f.dir)
 			if err != nil {
-				return fmt.Errorf("not a git repository — run `relio init` inside a repo")
+				return fmt.Errorf(i18n.T(i18n.InitNotAGitRepo))
 			}
 			return runInit(cmd.OutOrStdout(), repo, project)
 		},
 	}
 
-	c.Flags().StringVar(&project, "project", "", "project name (defaults to the repo/remote name)")
+	c.Flags().StringVar(&project, "project", "", i18n.T(i18n.InitFlagProjectUsage))
 	return c
 }
 
@@ -41,7 +42,7 @@ func runInit(w io.Writer, repo *gitrepo.Repo, projectOverride string) error {
 	root := repo.Root()
 
 	if config.Exists(root) {
-		return fmt.Errorf("%s already exists at %s", config.FileName, root)
+		return fmt.Errorf(i18n.T(i18n.InitAlreadyExists), config.FileName, root)
 	}
 
 	name := strings.TrimSpace(projectOverride)
@@ -56,9 +57,9 @@ func runInit(w io.Writer, repo *gitrepo.Repo, projectOverride string) error {
 
 	fmt.Fprintln(w, ui.Banner(name, version))
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, ui.Success([]string{filepath.Join(root, config.FileName) + " created"}))
+	fmt.Fprintln(w, ui.Success([]string{fmt.Sprintf(i18n.T(i18n.InitConfigCreated), filepath.Join(root, config.FileName))}))
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, ui.Dim.Render("  Review it, commit it, then run `relio`."))
+	fmt.Fprintln(w, ui.Dim.Render(i18n.T(i18n.InitNextStepsHint)))
 	return nil
 }
 
