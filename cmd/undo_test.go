@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 )
 
 func undoGit(t *testing.T, dir string, args ...string) {
@@ -200,5 +203,243 @@ func TestRunUndoTagOnlyNoReleaseCommit(t *testing.T) {
 	}
 	if strings.Contains(out, "removed the release commit") {
 		t.Errorf("output should not mention removing a release commit:\n%s", out)
+	}
+}
+
+// --- i18n: construction-time Short/flag usage + runtime output localization ---
+
+func TestNewUndoCmdShortAndFlagsLocalizeAtConstructionTime(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	cEN := newUndoCmd(&releaseFlags{})
+	shortEN := cEN.Short
+	yesUsageEN := cEN.Flags().Lookup("yes").Usage
+	forceUsageEN := cEN.Flags().Lookup("force").Usage
+
+	i18n.SetLanguage("es")
+	cES := newUndoCmd(&releaseFlags{})
+	shortES := cES.Short
+	yesUsageES := cES.Flags().Lookup("yes").Usage
+	forceUsageES := cES.Flags().Lookup("force").Usage
+
+	if shortEN != "Reverse the most recent local release (before it is pushed)" {
+		t.Errorf("newUndoCmd().Short (en) = %q", shortEN)
+	}
+	if shortES == shortEN || shortES == "" {
+		t.Errorf("newUndoCmd().Short unchanged across languages: %q", shortES)
+	}
+	if yesUsageES == yesUsageEN || yesUsageES == "" {
+		t.Errorf("--yes usage unchanged across languages: %q", yesUsageES)
+	}
+	if forceUsageES == forceUsageEN || forceUsageES == "" {
+		t.Errorf("--force usage unchanged across languages: %q", forceUsageES)
+	}
+}
+
+func TestRunUndoNoTagsLocalizesOutput(t *testing.T) {
+	dir, r := newStatusRepo(t)
+	statusCommit(t, dir, "chore: init")
+
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(&bufEN)
+	if err := runUndo(cmdEN, r, config.Default("proj"), true, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bufEN.String(), "nothing to undo") {
+		t.Errorf("english golden text missing:\n%s", bufEN.String())
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(&bufES)
+	if err := runUndo(cmdES, r, config.Default("proj"), true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("runUndo no-tags output unchanged across languages")
+	}
+}
+
+func TestRunUndoRemovesTagAndReleaseCommitLocalizesOutput(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	dirEN, rEN := newStatusRepo(t)
+	undoReleaseState(t, dirEN)
+	dirES, rES := newStatusRepo(t)
+	undoReleaseState(t, dirES)
+	_, _ = dirEN, dirES
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(&bufEN)
+	if err := runUndo(cmdEN, rEN, config.Default("proj"), true, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bufEN.String(), "deleted tag v1.1.0") || !strings.Contains(bufEN.String(), "removed the release commit") {
+		t.Errorf("english golden text missing:\n%s", bufEN.String())
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(&bufES)
+	if err := runUndo(cmdES, rES, config.Default("proj"), true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("runUndo removed-tag output unchanged across languages")
+	}
+}
+
+func TestRunUndoTagNotAtHeadLocalizesError(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	dirEN, rEN := newStatusRepo(t)
+	undoReleaseState(t, dirEN)
+	statusCommit(t, dirEN, "feat: later work")
+	dirES, rES := newStatusRepo(t)
+	undoReleaseState(t, dirES)
+	statusCommit(t, dirES, "feat: later work")
+
+	i18n.SetLanguage("en")
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(io.Discard)
+	errEN := runUndo(cmdEN, rEN, config.Default("proj"), true, false)
+	i18n.SetLanguage("es")
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(io.Discard)
+	errES := runUndo(cmdES, rES, config.Default("proj"), true, false)
+
+	if errEN == nil || errES == nil {
+		t.Fatal("expected does-not-point-at-HEAD errors in both languages")
+	}
+	if !strings.Contains(errEN.Error(), "does not point at HEAD") {
+		t.Errorf("english golden error text missing: %q", errEN.Error())
+	}
+	if errEN.Error() == errES.Error() {
+		t.Errorf("does-not-point-at-HEAD error unchanged across languages: %q", errEN.Error())
+	}
+}
+
+func TestRunUndoRefusesWhenPushedLocalizesError(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	setup := func(t *testing.T) (dir string, r *gitrepo.Repo) {
+		dir, r = newStatusRepo(t)
+		undoReleaseState(t, dir)
+		bare := t.TempDir()
+		if out, err := exec.Command("git", "init", "--bare", "-q", bare).CombinedOutput(); err != nil {
+			t.Fatalf("git init --bare: %v: %s", err, out)
+		}
+		branch, err := r.CurrentBranch()
+		if err != nil {
+			t.Fatal(err)
+		}
+		undoGit(t, dir, "remote", "add", "origin", bare)
+		undoGit(t, dir, "push", "-u", "origin", branch)
+		return dir, r
+	}
+
+	_, rEN := setup(t)
+	_, rES := setup(t)
+
+	i18n.SetLanguage("en")
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(io.Discard)
+	errEN := runUndo(cmdEN, rEN, config.Default("proj"), true, false)
+	i18n.SetLanguage("es")
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(io.Discard)
+	errES := runUndo(cmdES, rES, config.Default("proj"), true, false)
+
+	if errEN == nil || errES == nil {
+		t.Fatal("expected already-on-a-remote errors in both languages")
+	}
+	if !strings.Contains(errEN.Error(), "already on a remote") {
+		t.Errorf("english golden error text missing: %q", errEN.Error())
+	}
+	if errEN.Error() == errES.Error() {
+		t.Errorf("already-on-a-remote error unchanged across languages: %q", errEN.Error())
+	}
+}
+
+func TestRunUndoDirtyTreeLocalizesError(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	dirEN, rEN := newStatusRepo(t)
+	undoReleaseState(t, dirEN)
+	undoWrite(t, dirEN, "feature.go", "package x\n// edited\n")
+	dirES, rES := newStatusRepo(t)
+	undoReleaseState(t, dirES)
+	undoWrite(t, dirES, "feature.go", "package x\n// edited\n")
+
+	i18n.SetLanguage("en")
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(io.Discard)
+	errEN := runUndo(cmdEN, rEN, config.Default("proj"), true, false)
+	i18n.SetLanguage("es")
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(io.Discard)
+	errES := runUndo(cmdES, rES, config.Default("proj"), true, false)
+
+	if errEN == nil || errES == nil {
+		t.Fatal("expected dirty-tree errors in both languages")
+	}
+	if !strings.Contains(errEN.Error(), "uncommitted changes") {
+		t.Errorf("english golden error text missing: %q", errEN.Error())
+	}
+	if errEN.Error() == errES.Error() {
+		t.Errorf("dirty-tree error unchanged across languages: %q", errEN.Error())
+	}
+}
+
+func TestRunUndoCancelOnPromptLocalizesOutput(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	dirEN, rEN := newStatusRepo(t)
+	undoReleaseState(t, dirEN)
+	dirES, rES := newStatusRepo(t)
+	undoReleaseState(t, dirES)
+	_, _ = dirEN, dirES
+
+	i18n.SetLanguage("en")
+	var bufEN bytes.Buffer
+	cmdEN := &cobra.Command{}
+	cmdEN.SetOut(&bufEN)
+	cmdEN.SetIn(strings.NewReader("n\n"))
+	if err := runUndo(cmdEN, rEN, config.Default("proj"), false, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bufEN.String(), "Cancelled") {
+		t.Errorf("english golden text missing:\n%s", bufEN.String())
+	}
+
+	i18n.SetLanguage("es")
+	var bufES bytes.Buffer
+	cmdES := &cobra.Command{}
+	cmdES.SetOut(&bufES)
+	cmdES.SetIn(strings.NewReader("n\n"))
+	if err := runUndo(cmdES, rES, config.Default("proj"), false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if bufEN.String() == bufES.String() {
+		t.Error("runUndo cancelled output unchanged across languages")
 	}
 }

@@ -258,4 +258,60 @@ var en = map[MessageID]string{
 	InitAlreadyExists: "%s already exists at %s",
 	InitConfigCreated: "%s created",
 	InitNextStepsHint: "  Review it, commit it, then run `relio`.",
+
+	PostShort: "Generate copy-paste release text for social posts",
+	PostLong: "Build a short, plain-text announcement from commits since the last tag.\n" +
+		"Only the text goes to stdout, so `relio post | pbcopy` works cleanly.\n" +
+		"Experimental preview of the v0.3.0 content generator — nothing is published.",
+
+	PostNoCommits: "No commits since the last tag — nothing to announce.",
+	PostCopyHint:  "# release text — copy from here:",
+
+	PostFormatMinimalLabel:   "Minimal",
+	PostFormatMinimalDesc:    "Same as the releases browser: project, version, date, commits, grouped notes with hashes",
+	PostFormatSocialLabel:    "Social",
+	PostFormatTechnicalLabel: "Technical",
+	PostFormatCasualLabel:    "Casual",
+	PostFormatChangelogLabel: "Changelog",
+
+	PostUnknownFormat: "unknown format %q (minimal|social|technical|casual|changelog)",
+
+	PostSocialHeader:            "%s -- Release",
+	PostSocialNoNotableChanges:  "(no notable changes)",
+	PostTechnicalCommitsSummary: "%d commits · %s",
+	PostCasualIsOut:             "is out.",
+
+	PublishNoTokenSkip: "Skipping GitHub publish: no token found.",
+	PublishNoTokenHint: "  set GITHUB_TOKEN to a PAT with `repo` scope, or run `gh auth login`, then:",
+
+	PublishNoOriginRemote: "cannot publish: no `origin` remote (the tag %s is created locally): %w",
+	PublishUnknownRepo:    "cannot tell which GitHub repo to publish to (the tag %s is created locally — set `github.repo` in %s): %w",
+
+	PublishConfirmPrompt:    "  Push %s and %s to origin and publish the GitHub Release? [y/N] ",
+	PublishPushBranchFailed: "pushing %s to origin failed (the tag %s is intact locally — retry once the remote is reachable): %w",
+	PublishPushTagFailed:    "pushing tag %s to origin failed (the tag is intact locally — retry with `git push origin %s`): %w",
+	PublishPushedToOrigin:   "pushed to origin",
+	PublishReleaseExists:    "GitHub Release %s already exists — skipping.",
+	PublishCreateFailed:     "pushed to origin, but creating the GitHub Release failed (the tag %s is on origin — create the Release from the web UI or re-run): %w",
+	PublishReleasePublished: "GitHub Release %s published",
+
+	UndoShort:          "Reverse the most recent local release (before it is pushed)",
+	UndoFlagYesUsage:   "skip the confirmation prompt",
+	UndoFlagForceUsage: "undo even with a dirty working tree (git reset --hard discards uncommitted changes)",
+
+	UndoNoTags:        "No tags yet — nothing to undo.",
+	UndoTagNotAtHead:  "%s does not point at HEAD — the last release is not the current commit, nothing to undo safely",
+	UndoAlreadyPushed: "%s is already on a remote — undo would rewrite shared history.\n  remove it on the remote yourself:  git push origin :%s\n  and delete the GitHub Release if you created one",
+	UndoDirtyTree:     "the working tree has uncommitted changes — commit or stash them first, or re-run with --force",
+
+	UndoHeader:           "Undo %s",
+	UndoStepDeleteTag:    "  · delete the local tag %s",
+	UndoStepRemoveCommit: "  · remove the `chore(release): %s` commit (git reset --hard HEAD~1)",
+	UndoStepFilesRevert:  "    %s and any version files return to their previous state",
+	UndoProceedPrompt:    "  Proceed? [y/N] ",
+	UndoCancelled:        "Cancelled. Nothing changed.",
+
+	UndoDoneDeletedTag:    "deleted tag %s",
+	UndoDoneRemovedCommit: "removed the release commit",
+	UndoResetFailed:       "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w",
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/ghrelease"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
 )
@@ -29,8 +30,9 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 	token, _ := ghrelease.Token()
 	if token == "" {
 		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info("Skipping GitHub publish: no token found."))
-		fmt.Fprintln(out, ui.Dim.Render("  set GITHUB_TOKEN to a PAT with `repo` scope, or run `gh auth login`, then:"))
+		fmt.Fprintln(out, ui.Info(i18n.T(i18n.PublishNoTokenSkip)))
+		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.PublishNoTokenHint)))
+		// A literal command the user types verbatim, not prose — stays untranslated.
 		fmt.Fprintln(out, ui.Dim.Render("  git push && git push origin "+applied.TagName))
 		return true, nil
 	}
@@ -39,11 +41,11 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 	if ownerName == "" {
 		remote, rerr := repo.RemoteURL("origin")
 		if rerr != nil {
-			return false, fmt.Errorf("cannot publish: no `origin` remote (the tag %s is created locally): %w", applied.TagName, rerr)
+			return false, fmt.Errorf(i18n.T(i18n.PublishNoOriginRemote), applied.TagName, rerr)
 		}
 		ownerName, rerr = ghrelease.ParseRepo(remote)
 		if rerr != nil {
-			return false, fmt.Errorf("cannot tell which GitHub repo to publish to (the tag %s is created locally — set `github.repo` in %s): %w", applied.TagName, config.FileName, rerr)
+			return false, fmt.Errorf(i18n.T(i18n.PublishUnknownRepo), applied.TagName, config.FileName, rerr)
 		}
 	}
 
@@ -54,20 +56,20 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 
 	if interactive && !yes {
 		fmt.Fprintln(out)
-		fmt.Fprintf(out, "  Push %s and %s to origin and publish the GitHub Release? [y/N] ", branch, applied.TagName)
+		fmt.Fprintf(out, i18n.T(i18n.PublishConfirmPrompt), branch, applied.TagName)
 		if !readYes(os.Stdin) {
 			return false, nil
 		}
 	}
 
 	if perr := repo.Push("origin", branch); perr != nil {
-		return false, fmt.Errorf("pushing %s to origin failed (the tag %s is intact locally — retry once the remote is reachable): %w", branch, applied.TagName, perr)
+		return false, fmt.Errorf(i18n.T(i18n.PublishPushBranchFailed), branch, applied.TagName, perr)
 	}
 	if perr := repo.Push("origin", applied.TagName); perr != nil {
-		return false, fmt.Errorf("pushing tag %s to origin failed (the tag is intact locally — retry with `git push origin %s`): %w", applied.TagName, applied.TagName, perr)
+		return false, fmt.Errorf(i18n.T(i18n.PublishPushTagFailed), applied.TagName, applied.TagName, perr)
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, ui.Success([]string{"pushed to origin"}))
+	fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.PublishPushedToOrigin)}))
 
 	prerelease := strings.Contains(applied.TagName, "-")
 	url, cerr := ghrelease.Create(context.Background(), nil, token, ghrelease.Options{
@@ -78,14 +80,14 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 		Prerelease: prerelease,
 	})
 	if errors.Is(cerr, ghrelease.ErrReleaseExists) {
-		fmt.Fprintln(out, ui.Info("GitHub Release "+applied.TagName+" already exists — skipping."))
+		fmt.Fprintln(out, ui.Info(i18n.T(i18n.PublishReleaseExists, applied.TagName)))
 		return true, nil
 	}
 	if cerr != nil {
-		return true, fmt.Errorf("pushed to origin, but creating the GitHub Release failed (the tag %s is on origin — create the Release from the web UI or re-run): %w", applied.TagName, cerr)
+		return true, fmt.Errorf(i18n.T(i18n.PublishCreateFailed), applied.TagName, cerr)
 	}
 
-	fmt.Fprintln(out, ui.Success([]string{"GitHub Release " + applied.TagName + " published"}))
+	fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.PublishReleasePublished, applied.TagName)}))
 	fmt.Fprintln(out, ui.Dim.Render("  "+url))
 	return true, nil
 }

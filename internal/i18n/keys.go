@@ -296,4 +296,85 @@ const (
 	InitAlreadyExists MessageID = "init.already_exists" // "%s already exists at %s"
 	InitConfigCreated MessageID = "init.config_created" // "%s created"
 	InitNextStepsHint MessageID = "init.next_steps_hint"
+
+	// Post command (cmd/post.go): Short/Long text, the "nothing to
+	// announce" info line, the copy-from-here hint, the format picker's
+	// item labels (postFormats was rebuilt as postFormatItems(), a
+	// call-time function, for the same reason help.go's tables were —
+	// a package-level var would freeze at "en" before Execute() ever
+	// resolves the language), the unknown-format error, and the
+	// per-format literal chrome (social header/no-notable-changes,
+	// technical commit summary, casual "is out."). The --format flag's
+	// own usage string lists literal values the user types verbatim
+	// (minimal|social|technical|casual|changelog) and stays untranslated
+	// on purpose, matching cmd/help.go's row-name convention (PR6c).
+	// Four of the five format-item descriptions are byte-identical to
+	// cmd/help.go's HelpPost*Desc keys (PR6a) and reuse them instead of
+	// duplicating; only "Minimal" differs in wording between the two
+	// surfaces and gets its own key.
+	PostShort MessageID = "post.short"
+	PostLong  MessageID = "post.long"
+
+	PostNoCommits MessageID = "post.no_commits"
+	PostCopyHint  MessageID = "post.copy_hint"
+
+	PostFormatMinimalLabel   MessageID = "post.format_minimal_label"
+	PostFormatMinimalDesc    MessageID = "post.format_minimal_desc"
+	PostFormatSocialLabel    MessageID = "post.format_social_label"
+	PostFormatTechnicalLabel MessageID = "post.format_technical_label"
+	PostFormatCasualLabel    MessageID = "post.format_casual_label"
+	PostFormatChangelogLabel MessageID = "post.format_changelog_label"
+
+	PostUnknownFormat MessageID = "post.unknown_format" // "unknown format %q (minimal|social|technical|casual|changelog)"
+
+	PostSocialHeader            MessageID = "post.social_header" // "%s -- Release"
+	PostSocialNoNotableChanges  MessageID = "post.social_no_notable_changes"
+	PostTechnicalCommitsSummary MessageID = "post.technical_commits_summary" // "%d commits · %s"
+	PostCasualIsOut             MessageID = "post.casual_is_out"
+
+	// Publish command (cmd/publish.go): publishGitHubRelease's every
+	// printed line and wrapped error — the no-token skip notice and hint,
+	// the unresolved-repo errors, the push confirmation prompt, the push
+	// failure errors, the success lines, the already-exists notice, and
+	// the create-failure error. The literal `git push && git push origin
+	// <tag>` hint line stays untranslated — it is a command the user
+	// types verbatim, not prose (PR6c).
+	PublishNoTokenSkip MessageID = "publish.no_token_skip"
+	PublishNoTokenHint MessageID = "publish.no_token_hint"
+
+	PublishNoOriginRemote MessageID = "publish.no_origin_remote" // "cannot publish: no `origin` remote (the tag %s is created locally): %w"
+	PublishUnknownRepo    MessageID = "publish.unknown_repo"     // "cannot tell which GitHub repo to publish to (the tag %s is created locally — set `github.repo` in %s): %w"
+
+	PublishConfirmPrompt    MessageID = "publish.confirm_prompt"     // "  Push %s and %s to origin and publish the GitHub Release? [y/N] "
+	PublishPushBranchFailed MessageID = "publish.push_branch_failed" // "pushing %s to origin failed (the tag %s is intact locally — retry once the remote is reachable): %w"
+	PublishPushTagFailed    MessageID = "publish.push_tag_failed"    // "pushing tag %s to origin failed (the tag is intact locally — retry with `git push origin %s`): %w"
+	PublishPushedToOrigin   MessageID = "publish.pushed_to_origin"
+	PublishReleaseExists    MessageID = "publish.release_exists"    // "GitHub Release %s already exists — skipping."
+	PublishCreateFailed     MessageID = "publish.create_failed"     // "pushed to origin, but creating the GitHub Release failed (the tag %s is on origin — create the Release from the web UI or re-run): %w"
+	PublishReleasePublished MessageID = "publish.release_published" // "GitHub Release %s published"
+
+	// Undo command (cmd/undo.go): Short text, the --yes/--force flag
+	// usage strings, the no-tags info line, the tag-not-at-head and
+	// already-pushed errors, the dirty-tree error, the undo-plan header
+	// and its two step lines, the confirmation prompt, the cancelled
+	// notice, the done-list entries, and the reset-failure error (PR6c).
+	UndoShort          MessageID = "undo.short"
+	UndoFlagYesUsage   MessageID = "undo.flag_yes_usage"
+	UndoFlagForceUsage MessageID = "undo.flag_force_usage"
+
+	UndoNoTags        MessageID = "undo.no_tags"
+	UndoTagNotAtHead  MessageID = "undo.tag_not_at_head" // "%s does not point at HEAD — the last release is not the current commit, nothing to undo safely"
+	UndoAlreadyPushed MessageID = "undo.already_pushed"  // "%s is already on a remote — undo would rewrite shared history.\n  remove it on the remote yourself:  git push origin :%s\n  and delete the GitHub Release if you created one"
+	UndoDirtyTree     MessageID = "undo.dirty_tree"
+
+	UndoHeader           MessageID = "undo.header"             // "Undo %s"
+	UndoStepDeleteTag    MessageID = "undo.step_delete_tag"    // "  · delete the local tag %s"
+	UndoStepRemoveCommit MessageID = "undo.step_remove_commit" // "  · remove the `chore(release): %s` commit (git reset --hard HEAD~1)"
+	UndoStepFilesRevert  MessageID = "undo.step_files_revert"  // "    %s and any version files return to their previous state"
+	UndoProceedPrompt    MessageID = "undo.proceed_prompt"
+	UndoCancelled        MessageID = "undo.cancelled"
+
+	UndoDoneDeletedTag    MessageID = "undo.done_deleted_tag" // "deleted tag %s"
+	UndoDoneRemovedCommit MessageID = "undo.done_removed_commit"
+	UndoResetFailed       MessageID = "undo.reset_failed" // "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w"
 )

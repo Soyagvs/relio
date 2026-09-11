@@ -8,6 +8,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -17,7 +18,7 @@ func newUndoCmd(f *releaseFlags) *cobra.Command {
 	var yes, force bool
 	cmd := &cobra.Command{
 		Use:   "undo",
-		Short: "Reverse the most recent local release (before it is pushed)",
+		Short: i18n.T(i18n.UndoShort),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
@@ -28,8 +29,8 @@ func newUndoCmd(f *releaseFlags) *cobra.Command {
 		},
 	}
 	lf := cmd.Flags()
-	lf.BoolVarP(&yes, "yes", "y", false, "skip the confirmation prompt")
-	lf.BoolVar(&force, "force", false, "undo even with a dirty working tree (git reset --hard discards uncommitted changes)")
+	lf.BoolVarP(&yes, "yes", "y", false, i18n.T(i18n.UndoFlagYesUsage))
+	lf.BoolVar(&force, "force", false, i18n.T(i18n.UndoFlagForceUsage))
 	return cmd
 }
 
@@ -44,7 +45,7 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		return err
 	}
 	if !ok {
-		fmt.Fprintln(out, ui.Info("No tags yet — nothing to undo."))
+		fmt.Fprintln(out, ui.Info(i18n.T(i18n.UndoNoTags)))
 		return nil
 	}
 
@@ -53,7 +54,7 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		return err
 	}
 	if !atHead {
-		return fmt.Errorf("%s does not point at HEAD — the last release is not the current commit, nothing to undo safely", tag)
+		return fmt.Errorf(i18n.T(i18n.UndoTagNotAtHead), tag)
 	}
 
 	pushed, err := repo.RemoteContainsHead()
@@ -61,9 +62,7 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		return err
 	}
 	if pushed {
-		return fmt.Errorf("%s is already on a remote — undo would rewrite shared history.\n"+
-			"  remove it on the remote yourself:  git push origin :%s\n"+
-			"  and delete the GitHub Release if you created one", tag, tag)
+		return fmt.Errorf(i18n.T(i18n.UndoAlreadyPushed), tag, tag)
 	}
 
 	subject, err := repo.HeadSubject()
@@ -78,22 +77,22 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 			return cerr
 		}
 		if !clean {
-			return errors.New("the working tree has uncommitted changes — commit or stash them first, or re-run with --force")
+			return errors.New(i18n.T(i18n.UndoDirtyTree))
 		}
 	}
 
-	fmt.Fprintln(out, ui.Key.Render("Undo "+tag))
-	fmt.Fprintln(out, ui.Dim.Render("  · delete the local tag "+tag))
+	fmt.Fprintln(out, ui.Key.Render(i18n.T(i18n.UndoHeader, tag)))
+	fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepDeleteTag, tag)))
 	if isReleaseCommit {
-		fmt.Fprintln(out, ui.Dim.Render("  · remove the `chore(release): "+tag+"` commit (git reset --hard HEAD~1)"))
-		fmt.Fprintln(out, ui.Dim.Render("    "+cfg.Release.ChangelogFile+" and any version files return to their previous state"))
+		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepRemoveCommit, tag)))
+		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepFilesRevert, cfg.Release.ChangelogFile)))
 	}
 	fmt.Fprintln(out)
 
 	if !yes {
-		fmt.Fprint(out, "  Proceed? [y/N] ")
+		fmt.Fprint(out, i18n.T(i18n.UndoProceedPrompt))
 		if !readYes(cmd.InOrStdin()) {
-			fmt.Fprintln(out, ui.Info("Cancelled. Nothing changed."))
+			fmt.Fprintln(out, ui.Info(i18n.T(i18n.UndoCancelled)))
 			return nil
 		}
 	}
@@ -102,12 +101,12 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		return err
 	}
 
-	done := []string{"deleted tag " + tag}
+	done := []string{i18n.T(i18n.UndoDoneDeletedTag, tag)}
 	if isReleaseCommit {
 		if err := repo.ResetHardPrevious(); err != nil {
-			return fmt.Errorf("tag %s deleted, but removing the release commit failed (finish with "+"`git reset --hard HEAD~1`"+"): %w", tag, err)
+			return fmt.Errorf(i18n.T(i18n.UndoResetFailed), tag, err)
 		}
-		done = append(done, "removed the release commit")
+		done = append(done, i18n.T(i18n.UndoDoneRemovedCommit))
 	}
 
 	fmt.Fprintln(out, ui.Success(done))

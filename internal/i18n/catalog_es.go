@@ -260,4 +260,60 @@ var es = map[MessageID]string{
 	InitAlreadyExists: "%s ya existe en %s",
 	InitConfigCreated: "%s creado",
 	InitNextStepsHint: "  Revísalo, confírmalo y luego ejecuta `relio`.",
+
+	PostShort: "Genera texto de lanzamiento para copiar y pegar en publicaciones sociales",
+	PostLong: "Construye un anuncio corto en texto plano a partir de los commits desde la última etiqueta.\n" +
+		"Solo el texto va a la salida estándar, así que `relio post | pbcopy` funciona sin problemas.\n" +
+		"Vista previa experimental del generador de contenido v0.3.0 — no se publica nada.",
+
+	PostNoCommits: "No hay commits desde la última etiqueta — nada que anunciar.",
+	PostCopyHint:  "# texto de lanzamiento — copia desde aquí:",
+
+	PostFormatMinimalLabel:   "Mínimo",
+	PostFormatMinimalDesc:    "Igual que el navegador de lanzamientos: proyecto, versión, fecha, commits, notas agrupadas con hashes",
+	PostFormatSocialLabel:    "Redes sociales",
+	PostFormatTechnicalLabel: "Técnico",
+	PostFormatCasualLabel:    "Informal",
+	PostFormatChangelogLabel: "Historial de cambios",
+
+	PostUnknownFormat: "formato desconocido %q (minimal|social|technical|casual|changelog)",
+
+	PostSocialHeader:            "%s -- Lanzamiento",
+	PostSocialNoNotableChanges:  "(sin cambios destacables)",
+	PostTechnicalCommitsSummary: "%d commits (%s)",
+	PostCasualIsOut:             "ya está disponible.",
+
+	PublishNoTokenSkip: "Publicación en GitHub omitida: no se encontró ningún token.",
+	PublishNoTokenHint: "  configura GITHUB_TOKEN con un PAT con permiso `repo`, o ejecuta `gh auth login`, luego:",
+
+	PublishNoOriginRemote: "no se puede publicar: no hay remoto `origin` (la etiqueta %s se crea localmente): %w",
+	PublishUnknownRepo:    "no se puede determinar a qué repositorio de GitHub publicar (la etiqueta %s se crea localmente — define `github.repo` en %s): %w",
+
+	PublishConfirmPrompt:    "  ¿Hacer push de %s y %s a origin y publicar el GitHub Release? [y/N] ",
+	PublishPushBranchFailed: "el push de %s a origin falló (la etiqueta %s permanece intacta localmente — reinténtalo cuando el remoto esté disponible): %w",
+	PublishPushTagFailed:    "el push de la etiqueta %s a origin falló (la etiqueta permanece intacta localmente — reinténtalo con `git push origin %s`): %w",
+	PublishPushedToOrigin:   "enviado a origin (push)",
+	PublishReleaseExists:    "El GitHub Release %s ya existe — omitiendo.",
+	PublishCreateFailed:     "se hizo push a origin, pero crear el GitHub Release falló (la etiqueta %s está en origin — crea el Release desde la web o vuelve a ejecutar): %w",
+	PublishReleasePublished: "GitHub Release %s publicado",
+
+	UndoShort:          "Revierte el lanzamiento local más reciente (antes de que se publique)",
+	UndoFlagYesUsage:   "omite la confirmación",
+	UndoFlagForceUsage: "revierte incluso con el árbol de trabajo sucio (git reset --hard descarta los cambios sin confirmar)",
+
+	UndoNoTags:        "Aún no hay etiquetas — nada que revertir.",
+	UndoTagNotAtHead:  "%s no apunta a HEAD — el último lanzamiento no es el commit actual, no hay nada que revertir con seguridad",
+	UndoAlreadyPushed: "%s ya está en un remoto — revertir reescribiría el historial compartido.\n  elimínala en el remoto tú mismo:  git push origin :%s\n  y elimina el GitHub Release si creaste uno",
+	UndoDirtyTree:     "el árbol de trabajo tiene cambios sin confirmar — confírmalos o guárdalos con stash primero, o vuelve a ejecutar con --force",
+
+	UndoHeader:           "Revertir %s",
+	UndoStepDeleteTag:    "  · eliminar la etiqueta local %s",
+	UndoStepRemoveCommit: "  · eliminar el commit `chore(release): %s` (git reset --hard HEAD~1)",
+	UndoStepFilesRevert:  "    %s y cualquier archivo de versión vuelven a su estado anterior",
+	UndoProceedPrompt:    "  ¿Continuar? [y/N] ",
+	UndoCancelled:        "Cancelado. Nada cambió.",
+
+	UndoDoneDeletedTag:    "etiqueta %s eliminada",
+	UndoDoneRemovedCommit: "commit de lanzamiento eliminado",
+	UndoResetFailed:       "la etiqueta %s se eliminó, pero quitar el commit de lanzamiento falló (termina con `git reset --hard HEAD~1`): %w",
 }

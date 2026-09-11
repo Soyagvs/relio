@@ -8,6 +8,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/ui"
@@ -18,11 +19,9 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "post",
-		Short: "Generate copy-paste release text for social posts",
-		Long: "Build a short, plain-text announcement from commits since the last tag.\n" +
-			"Only the text goes to stdout, so `relio post | pbcopy` works cleanly.\n" +
-			"Experimental preview of the v0.3.0 content generator — nothing is published.",
-		Args: cobra.NoArgs,
+		Short: i18n.T(i18n.PostShort),
+		Long:  i18n.T(i18n.PostLong),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
 			if err != nil {
@@ -33,7 +32,7 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return err
 			}
 			if plan.NothingToRelease() {
-				fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
+				fmt.Fprintln(cmd.ErrOrStderr(), ui.Info(i18n.T(i18n.PostNoCommits)))
 				return nil
 			}
 
@@ -42,23 +41,34 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return err
 			}
 			// Text only on stdout so it can be piped straight to the clipboard.
-			fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:"))
+			fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render(i18n.T(i18n.PostCopyHint)))
 			fmt.Fprintln(cmd.OutOrStdout(), text)
 			return nil
 		},
 	}
 
+	// The enumerated values here are the literal argument the user passes to
+	// --format, so this usage string stays untranslated on purpose — see
+	// postFormatItems below for the translated display labels shown in the
+	// interactive picker.
 	c.Flags().StringVar(&format, "format", "minimal", "minimal | social | technical | casual | changelog")
 	return c
 }
 
-// postFormats is the menu of styles offered by `Release text` in the UI.
-var postFormats = []pick.Item{
-	{Label: "Minimal", Desc: "Same as the releases browser: project, version, date, commits, grouped notes with hashes", Value: "minimal"},
-	{Label: "Social", Desc: "Shortest: \"Project -- Release\", version · date · time, then \"type  description\" lines", Value: "social"},
-	{Label: "Technical", Desc: "Terse bullet list, for a changelog or a dev channel", Value: "technical"},
-	{Label: "Casual", Desc: "Loose tone: \"proj v1.4.0 is out. → …\"", Value: "casual"},
-	{Label: "Changelog", Desc: "The exact section that goes into CHANGELOG.md", Value: "changelog"},
+// postFormatItems is the menu of styles offered by `Release text` in the UI.
+// It is a function, not a package-level var, so its Label/Desc strings are
+// localized at call time — a var would freeze at "en" before Execute() ever
+// resolves the language (the same class of bug help.go's refCommands/etc.
+// hit in PR6a). Four of the five Desc strings are byte-identical to
+// cmd/help.go's HelpPost*Desc keys and reuse them; only "Minimal" differs.
+func postFormatItems() []pick.Item {
+	return []pick.Item{
+		{Label: i18n.T(i18n.PostFormatMinimalLabel), Desc: i18n.T(i18n.PostFormatMinimalDesc), Value: "minimal"},
+		{Label: i18n.T(i18n.PostFormatSocialLabel), Desc: i18n.T(i18n.HelpPostSocialDesc), Value: "social"},
+		{Label: i18n.T(i18n.PostFormatTechnicalLabel), Desc: i18n.T(i18n.HelpPostTechnicalDesc), Value: "technical"},
+		{Label: i18n.T(i18n.PostFormatCasualLabel), Desc: i18n.T(i18n.HelpPostCasualDesc), Value: "casual"},
+		{Label: i18n.T(i18n.PostFormatChangelogLabel), Desc: i18n.T(i18n.HelpPostChangelogDesc), Value: "changelog"},
+	}
 }
 
 // renderPost builds the announcement text for the given format.
@@ -75,7 +85,7 @@ func renderPost(project string, plan release.Plan, format string) (string, error
 	case "changelog":
 		return ui.Markdownish(plan.Section()), nil
 	default:
-		return "", fmt.Errorf("unknown format %q (minimal|social|technical|casual|changelog)", format)
+		return "", fmt.Errorf(i18n.T(i18n.PostUnknownFormat), format)
 	}
 }
 
@@ -154,14 +164,14 @@ func socialRows(commits []conventional.Commit) []socialRow {
 //	fix   Supervisor login
 func socialPost(project string, p release.Plan) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", ui.Key.Render(titleCase(project)+" -- Release"))
+	fmt.Fprintf(&b, "%s\n\n", ui.Key.Render(i18n.T(i18n.PostSocialHeader, titleCase(project))))
 	fmt.Fprintf(&b, "%s %s\n\n",
 		ui.Ok.Render(p.Next.String()),
 		ui.Dim.Render(fmt.Sprintf("· %s · %s", p.Now.Format("02.01.06"), p.Now.Format("15:04"))))
 
 	rows := socialRows(p.Commits)
 	if len(rows) == 0 {
-		b.WriteString(ui.Dim.Render("(no notable changes)"))
+		b.WriteString(ui.Dim.Render(i18n.T(i18n.PostSocialNoNotableChanges)))
 		return b.String()
 	}
 	width := 0
@@ -182,13 +192,13 @@ func technicalPost(project string, p release.Plan) string {
 	for _, it := range bulletList(p.Notes, 5) {
 		fmt.Fprintf(&b, "%s %s\n", ui.Dim.Render("•"), it)
 	}
-	fmt.Fprintf(&b, "\n%s", ui.Dim.Render(fmt.Sprintf("%d commits · %s", len(p.Commits), p.Next.String())))
+	fmt.Fprintf(&b, "\n%s", ui.Dim.Render(i18n.T(i18n.PostTechnicalCommitsSummary, len(p.Commits), p.Next.String())))
 	return b.String()
 }
 
 func casualPost(project string, p release.Plan) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s %s\n\n", ui.Key.Render(project), ui.Ok.Render(p.Next.String()), ui.Dim.Render("is out."))
+	fmt.Fprintf(&b, "%s %s %s\n\n", ui.Key.Render(project), ui.Ok.Render(p.Next.String()), ui.Dim.Render(i18n.T(i18n.PostCasualIsOut)))
 	for _, it := range bulletList(p.Notes, 4) {
 		fmt.Fprintf(&b, "%s %s\n", ui.Key.Render("→"), it)
 	}

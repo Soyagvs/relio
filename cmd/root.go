@@ -426,7 +426,7 @@ func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) e
 		return nil
 	}
 
-	format, chosen, err := pick.Run("Release text — pick a format", postFormats)
+	format, chosen, err := pick.Run("Release text — pick a format", postFormatItems())
 	if err != nil {
 		return err
 	}
