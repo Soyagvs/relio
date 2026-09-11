@@ -18,6 +18,31 @@ var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
+// TestTruncate covers the shared implementation promoted from the menu
+// package so both the menu and the Settings screen truncate long labels and
+// descriptions identically.
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		in       string
+		maxRunes int
+		want     string
+	}{
+		{"short", 10, "short"},
+		{"exactly10!", 10, "exactly10!"},
+		{"this is too long", 8, "this is…"},
+		{"x", 1, "x"},
+		{"toolong", 1, "…"},
+		{"anything", 0, ""},
+		{"anything", -1, ""},
+		{"日本語のテキスト", 4, "日本語…"},
+	}
+	for _, tt := range tests {
+		if got := Truncate(tt.in, tt.maxRunes); got != tt.want {
+			t.Errorf("Truncate(%q, %d) = %q, want %q", tt.in, tt.maxRunes, got, tt.want)
+		}
+	}
+}
+
 func TestBigBannerHasRepoURL(t *testing.T) {
 	out := BigBanner("v1.2.3", "")
 	for _, want := range []string{"github.com/Soyagvs/relio", "created by", Tagline, "█"} {

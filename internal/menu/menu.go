@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -29,6 +30,7 @@ const (
 	ReleaseImage
 	Auth
 	Setup
+	Settings
 	Guide
 	Help
 	Exit
@@ -41,6 +43,25 @@ type item struct {
 	group  int // a faint rule is drawn wherever this changes between rows
 }
 
+// Label returns the rendered label for it. Every item is hardcoded English
+// except Settings, which is localized: it is looked up here (at render time)
+// rather than baked into the items literal below, because that literal is a
+// package-level var evaluated before the CLI resolves the active language.
+func (it item) Label() string {
+	if it.action == Settings {
+		return i18n.T(i18n.MenuSettingsLabel)
+	}
+	return it.label
+}
+
+// Desc mirrors Label for the item's description column.
+func (it item) Desc() string {
+	if it.action == Settings {
+		return i18n.T(i18n.MenuSettingsDesc)
+	}
+	return it.desc
+}
+
 var items = []item{
 	{"Release", "Create a release — final or rc, and optionally push + publish", Release, 1},
 	{"Status", "What's unreleased and the version it suggests", Status, 1},
@@ -50,6 +71,7 @@ var items = []item{
 	{"Release image", "Save or share a PNG release card", ReleaseImage, 2},
 	{"Auth", "GitHub connection — status and how to link", Auth, 3},
 	{"Setup", "Create or inspect .release.yaml", Setup, 3},
+	{"Settings", "Language and release-footer preferences", Settings, 3},
 	{"Guide", "Step-by-step walkthrough of the whole flow", Guide, 3},
 	{"Help", "Every command and flag", Help, 3},
 	{"Exit", "Leave Relio", Exit, 4},
@@ -180,7 +202,7 @@ func (m model) rowWidth() int {
 	natural := 0
 	for i, it := range items {
 		// Plain body: "  " marker + num + "  " + padded label + "  " + desc.
-		body := fmt.Sprintf("  %d  %s  %s", i+1, padLabel(it.label), it.desc)
+		body := fmt.Sprintf("  %d  %s  %s", i+1, padLabel(it.Label()), it.Desc())
 		if w := utf8.RuneCountInString(body); w > natural {
 			natural = w
 		}
@@ -200,22 +222,6 @@ func padLabel(label string) string {
 	return label + strings.Repeat(" ", max(0, labelCol-utf8.RuneCountInString(label)))
 }
 
-// truncate shortens s to at most maxRunes visible runes, replacing the tail with
-// "…" when it has to cut.
-func truncate(s string, maxRunes int) string {
-	if maxRunes <= 0 {
-		return ""
-	}
-	if utf8.RuneCountInString(s) <= maxRunes {
-		return s
-	}
-	r := []rune(s)
-	if maxRunes == 1 {
-		return "…"
-	}
-	return string(r[:maxRunes-1]) + "…"
-}
-
 func (m model) View() string {
 	if m.done {
 		// The chosen action prints its own output next; stay quiet on exit.
@@ -232,7 +238,7 @@ func (m model) View() string {
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString("  " + headline.Render(truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
+	b.WriteString("  " + headline.Render(ui.Truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
 
 	for i, it := range items {
 		// A faint rule wherever the group changes, so the menu reads in bands.
@@ -245,12 +251,12 @@ func (m model) View() string {
 		if i == m.cursor {
 			marker = "▸ "
 		}
-		label := padLabel(it.label)
+		label := padLabel(it.Label())
 
 		// Fixed-width prefix, then the description truncated so the whole body
 		// fits in exactly rowW visible columns and nothing ever wraps.
 		prefix := marker + num + "  " + label + "  "
-		desc := truncate(it.desc, max(0, rowW-utf8.RuneCountInString(prefix)))
+		desc := ui.Truncate(it.Desc(), max(0, rowW-utf8.RuneCountInString(prefix)))
 
 		// Colorize the already-fitted pieces; visible widths are unchanged.
 		numOut, labelOut := numDim.Render(num), label
@@ -276,7 +282,7 @@ func (m model) View() string {
 	}
 
 	hint := "↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"
-	b.WriteString("\n  " + ui.Dim.Render(truncate(hint, max(0, rowW-2))))
+	b.WriteString("\n  " + ui.Dim.Render(ui.Truncate(hint, max(0, rowW-2))))
 	return b.String()
 }
 

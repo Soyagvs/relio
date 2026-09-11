@@ -535,3 +535,20 @@ func Success(lines []string) string {
 
 // Info prints a dimmed informational line with a leading marker.
 func Info(s string) string { return Dim.Render("· " + s) }
+
+// Truncate shortens s to at most maxRunes visible runes, replacing the tail
+// with "…" when it has to cut. Shared by the menu and Settings screens so
+// there is exactly one implementation of this truncation behavior.
+func Truncate(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	r := []rune(s)
+	if maxRunes == 1 {
+		return "…"
+	}
+	return string(r[:maxRunes-1]) + "…"
+}

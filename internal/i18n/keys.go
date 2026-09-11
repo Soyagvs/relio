@@ -15,4 +15,20 @@ const (
 	PlanPrerelease     MessageID = "plan.prerelease"
 	PlanFinalize       MessageID = "plan.finalize"
 	PlanCommitsSince   MessageID = "plan.commits_since" // "%d commits since %s"
+
+	// Settings screen (internal/settings) and its one menu entry. This is a
+	// greenfield surface authored i18n-native from birth — not converted from
+	// a later slice.
+	MenuSettingsLabel MessageID = "menu.settings_label"
+	MenuSettingsDesc  MessageID = "menu.settings_desc"
+
+	SettingsTitle                MessageID = "settings.title"
+	SettingsLanguageSection      MessageID = "settings.language_section"
+	SettingsFooterSection        MessageID = "settings.footer_section"
+	SettingsContributorsLabel    MessageID = "settings.contributors_label"
+	SettingsContributorsDesc     MessageID = "settings.contributors_desc"
+	SettingsCompareLinkLabel     MessageID = "settings.compare_link_label"
+	SettingsCompareLinkDesc      MessageID = "settings.compare_link_desc"
+	SettingsFooterDisabledReason MessageID = "settings.footer_disabled_reason"
+	SettingsHint                 MessageID = "settings.hint"
 )

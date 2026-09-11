@@ -22,6 +22,7 @@ import (
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/releases"
 	"github.com/soyagvs/relio/internal/semver"
+	"github.com/soyagvs/relio/internal/settings"
 	"github.com/soyagvs/relio/internal/ui"
 	"github.com/soyagvs/relio/internal/update"
 	"github.com/soyagvs/relio/internal/wizard"
@@ -184,7 +185,8 @@ func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 func isHardQuit(err error) bool {
 	return errors.Is(err, pick.ErrQuit) ||
 		errors.Is(err, releases.ErrQuit) ||
-		errors.Is(err, guide.ErrQuit)
+		errors.Is(err, guide.ErrQuit) ||
+		errors.Is(err, settings.ErrQuit)
 }
 
 // runMenu shows the animated entry banner together with the main menu. Every
@@ -274,6 +276,18 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 
 		case menu.Setup:
 			if err := runMenuSetup(cmd, f); err != nil {
+				return err
+			}
+
+		case menu.Settings:
+			root := ""
+			if repo, err := gitrepo.Open(f.dir); err == nil {
+				root = repo.Root()
+			}
+			if err := settings.Run(root); err != nil {
+				if isHardQuit(err) {
+					return nil
+				}
 				return err
 			}
 

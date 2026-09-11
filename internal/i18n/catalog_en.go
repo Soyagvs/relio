@@ -10,4 +10,17 @@ var en = map[MessageID]string{
 	PlanPrerelease:     " (pre-release)",
 	PlanFinalize:       " (finalize)",
 	PlanCommitsSince:   "%d commits since %s",
+
+	MenuSettingsLabel: "Settings",
+	MenuSettingsDesc:  "Language and release-footer preferences",
+
+	SettingsTitle:                "Settings",
+	SettingsLanguageSection:      "Language",
+	SettingsFooterSection:        "Changelog footer",
+	SettingsContributorsLabel:    "Contributors line",
+	SettingsContributorsDesc:     "Add a contributors line to the changelog footer",
+	SettingsCompareLinkLabel:     "Compare link",
+	SettingsCompareLinkDesc:      "Add a GitHub compare link to the changelog footer",
+	SettingsFooterDisabledReason: "Open a project with .release.yaml to edit these",
+	SettingsHint:                 "↑/↓ move · space toggle · q back",
 }

@@ -50,7 +50,7 @@ func selectAction(a Action) model {
 func TestSelectEveryAction(t *testing.T) {
 	for _, a := range []Action{
 		Release, Status, Check, ViewReleases, ReleaseText, ReleaseImage,
-		Auth, Setup, Guide, Help, Exit,
+		Auth, Setup, Settings, Guide, Help, Exit,
 	} {
 		if got := selectAction(a).result; got != a {
 			t.Errorf("selecting %v gave %v", a, got)
@@ -67,10 +67,24 @@ func TestHelpAndGuideKeys(t *testing.T) {
 	}
 }
 
-// Rows 1–9 answer to a digit; rows 10–11 (Help, Exit) are arrow-only.
+// Rows 1–9 answer to a digit; rows 10–12 (Guide, Help, Exit) are arrow-only.
 func TestDigitJumpStopsAtRowNine(t *testing.T) {
-	if m := send(model{}, "9"); m.result != Guide {
-		t.Errorf(`"9" => %v, want Guide (row 9)`, m.result)
+	if m := send(model{}, "9"); m.result != Settings {
+		t.Errorf(`"9" => %v, want Settings (row 9)`, m.result)
+	}
+}
+
+// Guide moved to arrow-only when Settings was inserted at row 9; a digit
+// jump must not reach it anymore.
+func TestDigitJumpDoesNotReachGuide(t *testing.T) {
+	guideIdx := -1
+	for i, it := range items {
+		if it.action == Guide {
+			guideIdx = i
+		}
+	}
+	if guideIdx < digitRows {
+		t.Fatalf("Guide is at index %d, want >= digitRows (%d) — arrow-only", guideIdx, digitRows)
 	}
 }
 
