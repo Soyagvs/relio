@@ -128,4 +128,43 @@ const (
 	ReleasesHintShowExit       MessageID = "releases.hint_show_exit"
 	ReleasesHintDelete         MessageID = "releases.hint_delete"
 	ReleasesHintBack           MessageID = "releases.hint_back"
+
+	// Guide (internal/guide) — `relio guide`'s eight-step walkthrough, both
+	// the interactive Bubble Tea stepper and the plain-text fallback: every
+	// step's title/body, the two conditional hints, the three "run it now"
+	// action labels, the shared happy-path phrase, the plain-text header and
+	// footer, and the interactive stepper's own chrome (step counter, the two
+	// footer variants) (PR5c).
+	GuideStep1Title            MessageID = "guide.step1_title"
+	GuideStep1Body             MessageID = "guide.step1_body"
+	GuideStep1NoRepoHint       MessageID = "guide.step1_no_repo_hint"
+	GuideStep2Title            MessageID = "guide.step2_title"
+	GuideStep2ConfiguredBody   MessageID = "guide.step2_configured_body" // "Already set up (project: %s), ..."
+	GuideStep2UnconfiguredBody MessageID = "guide.step2_unconfigured_body"
+	GuideStep3Title            MessageID = "guide.step3_title"
+	GuideStep3Body             MessageID = "guide.step3_body"
+	GuideStep3CheckHint        MessageID = "guide.step3_check_hint"
+	GuideStep4Title            MessageID = "guide.step4_title"
+	GuideStep4Body             MessageID = "guide.step4_body"
+	GuideStep5Title            MessageID = "guide.step5_title"
+	GuideStep5Body             MessageID = "guide.step5_body"
+	GuideStep6Title            MessageID = "guide.step6_title"
+	GuideStep6Body             MessageID = "guide.step6_body"
+	GuideStep6NoTokenHint      MessageID = "guide.step6_no_token_hint"
+	GuideStep7Title            MessageID = "guide.step7_title"
+	GuideStep7Body             MessageID = "guide.step7_body"
+	GuideStep8Title            MessageID = "guide.step8_title"
+	GuideStep8Body             MessageID = "guide.step8_body" // "Happy path:  %s.\nSee ..."
+
+	GuideActionRunInit   MessageID = "guide.action_run_init"
+	GuideActionRunCheck  MessageID = "guide.action_run_check"
+	GuideActionRunStatus MessageID = "guide.action_run_status"
+
+	GuideHappyPath   MessageID = "guide.happy_path"
+	GuidePlainHeader MessageID = "guide.plain_header"
+	GuidePlainFooter MessageID = "guide.plain_footer" // "The happy path:  %s"
+
+	GuideStepCounter      MessageID = "guide.step_counter"       // "Step %d of %d"
+	GuideFooterWithAction MessageID = "guide.footer_with_action" // "[y] %s · enter skip · ← back · q quit"
+	GuideFooterNoAction   MessageID = "guide.footer_no_action"   // "enter continue · ← back · q quit"
 )

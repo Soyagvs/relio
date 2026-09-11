@@ -11,6 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -42,100 +43,81 @@ func buildSteps(ctx Context) []step {
 	steps := make([]step, 0, 8)
 
 	// 1
-	s1 := "The flow is:  code → commit → push → relio → version + CHANGELOG + tag. " +
-		"Nothing is written until you confirm the preview, and Relio never pushes on its own unless you ask it to."
+	s1 := i18n.T(i18n.GuideStep1Body)
 	if !ctx.HasRepo {
-		s1 += "\nRun this inside a git repository to follow the steps below."
+		s1 += "\n" + i18n.T(i18n.GuideStep1NoRepoHint)
 	}
-	steps = append(steps, step{title: "What Relio does", body: s1})
+	steps = append(steps, step{title: i18n.T(i18n.GuideStep1Title), body: s1})
 
 	// 2
 	if ctx.HasConfig {
 		steps = append(steps, step{
-			title: "Set up `.release.yaml`",
-			body: fmt.Sprintf("Already set up (project: %s), so you can skip `relio init`. This is "+
-				"Relio's own config at the repo root — not your package.json / pyproject.toml. "+
-				"Configuration only, never secrets: changelog file, tag prefix, and optionally "+
-				"version_files and hooks.", ctx.Project),
+			title: i18n.T(i18n.GuideStep2Title),
+			body:  i18n.T(i18n.GuideStep2ConfiguredBody, ctx.Project),
 		})
 	} else {
 		s := step{
-			title: "Set up `.release.yaml`",
-			body: "Relio needs its own file, `.release.yaml`, at the repo root — separate from any " +
-				"version file your language already has (package.json, pyproject.toml, …), and always " +
-				"read from the project root no matter where you run relio from. Configuration only, " +
-				"never secrets: changelog file, tag prefix, and optionally version_files (list those " +
-				"language files here to keep them in sync) and hooks. Create it with `relio init`, or " +
-				"hand-write a minimal one — just `project: <name>` works.",
+			title: i18n.T(i18n.GuideStep2Title),
+			body:  i18n.T(i18n.GuideStep2UnconfiguredBody),
 		}
 		if ctx.RunInit != nil {
-			s.actionLabel, s.action = "run relio init now", ctx.RunInit
+			s.actionLabel, s.action = i18n.T(i18n.GuideActionRunInit), ctx.RunInit
 		}
 		steps = append(steps, s)
 	}
 
 	// 3
 	s3 := step{
-		title: "Write Conventional Commits",
-		body: "`feat:` bumps the minor; `fix:` / `perf:` / `refactor:` bump the patch; " +
-			"`feat!:` or a `BREAKING CHANGE:` footer bumps the major. Commits without a type are ignored for versioning.",
+		title: i18n.T(i18n.GuideStep3Title),
+		body:  i18n.T(i18n.GuideStep3Body),
 	}
 	if ctx.RunCheck != nil {
-		s3.actionLabel, s3.action = "run relio check now", ctx.RunCheck
-		s3.body += " Run `relio check` to see which of your commits qualify."
+		s3.actionLabel, s3.action = i18n.T(i18n.GuideActionRunCheck), ctx.RunCheck
+		s3.body += " " + i18n.T(i18n.GuideStep3CheckHint)
 	}
 	steps = append(steps, s3)
 
 	// 4
 	s4 := step{
-		title: "See what's pending",
-		body:  "`relio status` lists the unreleased commits and the version they suggest.",
+		title: i18n.T(i18n.GuideStep4Title),
+		body:  i18n.T(i18n.GuideStep4Body),
 	}
 	if ctx.RunStatus != nil {
-		s4.actionLabel, s4.action = "run relio status now", ctx.RunStatus
+		s4.actionLabel, s4.action = i18n.T(i18n.GuideActionRunStatus), ctx.RunStatus
 	}
 	steps = append(steps, s4)
 
 	// 5
 	steps = append(steps, step{
-		title: "Create the release",
-		body: "Run `relio` with no arguments: you get a preview, then a small wizard " +
-			"(Create / change the bump / cancel). On confirm it writes the CHANGELOG.md section, " +
-			"commits it as `chore(release): vX.Y.Z`, and creates the annotated tag — nothing before the confirm.\n" +
-			"`relio --rc` cuts a release candidate you can iterate on; running `relio` again on an rc finalizes it.",
+		title: i18n.T(i18n.GuideStep5Title),
+		body:  i18n.T(i18n.GuideStep5Body),
 	})
 
 	// 6
-	s6 := "Push with `git push --follow-tags`. Or `relio --publish` to push and create the GitHub Release " +
-		"with the changelog notes as its body — that needs a GitHub token (GITHUB_TOKEN / GH_TOKEN / `gh auth login`)."
+	s6 := i18n.T(i18n.GuideStep6Body)
 	if !ctx.HasToken {
-		s6 += "\nNo GitHub token is set yet."
+		s6 += "\n" + i18n.T(i18n.GuideStep6NoTokenHint)
 	}
-	steps = append(steps, step{title: "Get it out", body: s6})
+	steps = append(steps, step{title: i18n.T(i18n.GuideStep6Title), body: s6})
 
 	// 7
 	steps = append(steps, step{
-		title: "Optional extras",
-		body: "`relio post` prints announcement text for socials. `relio image` renders a PNG release card. " +
-			"`.release.yaml` `version_files:` writes the new version into package.json / pyproject.toml / …. " +
-			"`.release.yaml` `release.hooks.before` / `.after` run shell commands around the release.",
+		title: i18n.T(i18n.GuideStep7Title),
+		body:  i18n.T(i18n.GuideStep7Body),
 	})
 
 	// 8
 	steps = append(steps, step{
-		title: "You're set",
-		body: "Happy path:  relio init → write feat:/fix: commits → relio status → relio → git push --follow-tags.\n" +
-			"See `relio help` for every command and flag, and the README for the full `.release.yaml` reference.",
+		title: i18n.T(i18n.GuideStep8Title),
+		body:  i18n.T(i18n.GuideStep8Body, i18n.T(i18n.GuideHappyPath)),
 	})
 
 	return steps
 }
 
-const happyPath = "relio init → write feat:/fix: commits → relio status → relio → git push --follow-tags"
-
 // PrintPlain writes every step as text, with no actions and no prompts.
 func PrintPlain(w io.Writer, ctx Context) error {
-	fmt.Fprintln(w, "Relio — guide")
+	fmt.Fprintln(w, i18n.T(i18n.GuidePlainHeader))
 	fmt.Fprintln(w)
 	for i, s := range buildSteps(ctx) {
 		fmt.Fprintf(w, "%d. %s\n", i+1, s.title)
@@ -144,7 +126,7 @@ func PrintPlain(w io.Writer, ctx Context) error {
 		}
 		fmt.Fprintln(w)
 	}
-	fmt.Fprintln(w, "The happy path:  "+happyPath)
+	fmt.Fprintln(w, i18n.T(i18n.GuidePlainFooter, i18n.T(i18n.GuideHappyPath)))
 	return nil
 }
 
@@ -232,7 +214,7 @@ func (m teaModel) View() string {
 	s := m.steps[m.i]
 
 	var b strings.Builder
-	b.WriteString(ui.Dim.Render(fmt.Sprintf("Step %d of %d", m.i+1, len(m.steps))) + "\n\n")
+	b.WriteString(ui.Dim.Render(i18n.T(i18n.GuideStepCounter, m.i+1, len(m.steps))) + "\n\n")
 	b.WriteString(ui.Title.Render(s.title) + "\n\n")
 	for _, line := range wrapLines(s.body, 76) {
 		b.WriteString("  " + line + "\n")
@@ -246,9 +228,9 @@ func (m teaModel) View() string {
 
 func (m teaModel) footer() string {
 	if m.steps[m.i].action != nil {
-		return "[y] " + m.steps[m.i].actionLabel + " · enter skip · ← back · q quit"
+		return i18n.T(i18n.GuideFooterWithAction, m.steps[m.i].actionLabel)
 	}
-	return "enter continue · ← back · q quit"
+	return i18n.T(i18n.GuideFooterNoAction)
 }
 
 // Run shows the interactive stepper and blocks until the user leaves it.
