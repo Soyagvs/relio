@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 )
 
@@ -358,26 +359,28 @@ func Banner(project, version string) string {
 	return mark + "  " + meta
 }
 
-// PlanBox renders the version summary card shown before confirmation.
+// PlanBox renders the version summary card shown before confirmation. This is
+// interactive chrome, not artifact vocabulary: it routes through i18n.T and
+// IS localized — see internal/ui/artifact_invariance_test.go.
 func PlanBox(p release.Plan) string {
 	row := func(k, v string) string {
 		return Dim.Render(fmt.Sprintf("%-16s", k)) + v
 	}
 	bumpLabel := p.Bump.String()
 	if p.BumpForced {
-		bumpLabel += Dim.Render(" (forced)")
+		bumpLabel += Dim.Render(i18n.T(i18n.PlanForced))
 	}
 	nextLine := Ok.Render(p.Next.String())
 	if p.Prerelease {
-		nextLine += Dim.Render(" (pre-release)")
+		nextLine += Dim.Render(i18n.T(i18n.PlanPrerelease))
 	}
 	if p.Finalizing {
-		nextLine += Dim.Render(" (finalize)")
+		nextLine += Dim.Render(i18n.T(i18n.PlanFinalize))
 	}
 	lines := []string{
-		row("Current version", p.Current.String()),
-		row("Detected change", bumpLabel),
-		row("Next version", nextLine),
+		row(i18n.T(i18n.PlanCurrentVersion), p.Current.String()),
+		row(i18n.T(i18n.PlanDetectedChange), bumpLabel),
+		row(i18n.T(i18n.PlanNextVersion), nextLine),
 	}
 	return box.Render(strings.Join(lines, "\n"))
 }
@@ -398,7 +401,7 @@ func Notes(n changelog.Notes) string {
 		if len(items) == 0 {
 			continue
 		}
-		b.WriteString(group.Render(string(g)) + "\n")
+		b.WriteString(group.Render(g.Label()) + "\n")
 		for _, it := range items {
 			if HideHashes || it.Hash == "" {
 				b.WriteString("  " + Dim.Render("•") + " " + it.Text + "\n")
@@ -472,7 +475,7 @@ func PlanView(p release.Plan) string {
 	if h := hooks(p); h != "" {
 		parts = append(parts, h, "")
 	}
-	parts = append(parts, Dim.Render(fmt.Sprintf("%d commits since %s", len(p.Commits), commitBase(p))))
+	parts = append(parts, Dim.Render(i18n.T(i18n.PlanCommitsSince, len(p.Commits), commitBase(p))))
 	return strings.Join(parts, "\n")
 }
 

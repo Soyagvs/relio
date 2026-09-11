@@ -35,6 +35,12 @@ const (
 // groupOrder is the canonical rendering order.
 var groupOrder = []Group{Added, Changed, Deprecated, Removed, Fixed, Security}
 
+// Label is the verbatim English section name for g — the text that reaches
+// CHANGELOG.md and GitHub Release bodies. It is artifact vocabulary: it MUST
+// NEVER be passed through i18n.T or otherwise localized. See
+// internal/ui/artifact_invariance_test.go, which pins this contract.
+func (g Group) Label() string { return string(g) }
+
 // groupFor maps a conventional commit type to a changelog group. The bool is
 // false when the type should be omitted from the changelog.
 func groupFor(typ string) (Group, bool) {

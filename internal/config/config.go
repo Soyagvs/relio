@@ -26,6 +26,10 @@ type Config struct {
 	Release    ReleaseConfig `yaml:"release"`
 	GitHub     GitHubConfig  `yaml:"github"`
 	Content    ContentConfig `yaml:"content"`
+	// Language is the project-level UI language override, applied on top of
+	// the user's global preference. Empty means "inherit the global
+	// preference". See userconfig.Config.Language for the global default.
+	Language string `yaml:"language,omitempty"`
 }
 
 // ReleaseConfig controls what a `release` run touches.
@@ -230,6 +234,23 @@ func Load(root string) (Config, error) {
 		return Config{}, err
 	}
 	return c, nil
+}
+
+// Language reads only the language key from root/.release.yaml, tolerantly:
+// a missing file, a parse error, or an absent key all return "". It
+// deliberately does not run validate() — a config that fails validation is
+// reported by the command that actually needs it, not by language
+// resolution at startup.
+func Language(root string) string {
+	data, err := os.ReadFile(Path(root))
+	if err != nil {
+		return ""
+	}
+	var c Config
+	if err := yaml.Unmarshal(data, &c); err != nil {
+		return ""
+	}
+	return c.Language
 }
 
 func (c Config) validate() error {

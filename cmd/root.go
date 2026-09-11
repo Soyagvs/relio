@@ -68,6 +68,12 @@ func NewRootCmd() *cobra.Command {
 		Version:       version,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			ui.HideHashes = f.noHash
+			// Idempotent re-resolution: Execute() already resolved the
+			// language before the tree was built (so Short/Long/flag usage
+			// text render correctly), but tests that construct the tree
+			// directly via NewRootCmd() skip that step. f.dir reflects the
+			// parsed --dir/-C flag by the time this runs.
+			resolveLanguage(f.dir, cmd.ErrOrStderr())
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRoot(cmd, f)
@@ -97,8 +103,13 @@ func NewRootCmd() *cobra.Command {
 	return root
 }
 
-// Execute runs the CLI and returns the process exit code.
+// Execute runs the CLI and returns the process exit code. The language is
+// resolved from os.Args BEFORE NewRootCmd() builds the command tree: cobra
+// evaluates Short/Long and flag usage strings at construction time, and
+// --help short-circuits before PersistentPreRun ever fires, so resolving
+// there would leave --help permanently English.
 func Execute() int {
+	resolveLanguage(prescanDir(os.Args[1:]), os.Stderr)
 	if err := NewRootCmd().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, ui.Warn.Render("✗ ")+err.Error())
 		return 1

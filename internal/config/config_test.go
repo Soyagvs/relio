@@ -264,6 +264,72 @@ func TestLoadWithoutHooks(t *testing.T) {
 	}
 }
 
+func TestLanguageFieldRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	want := Default("x")
+	want.Language = "es"
+	if err := want.Save(dir); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Language != "es" {
+		t.Errorf("Language = %q, want es", got.Language)
+	}
+}
+
+func TestLanguageHelperReadsKeyTolerantly(t *testing.T) {
+	dir := t.TempDir()
+	body := "project: x\nlanguage: es\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Language(dir); got != "es" {
+		t.Errorf("Language(dir) = %q, want es", got)
+	}
+}
+
+func TestLanguageHelperReturnsEmptyOnMissingFile(t *testing.T) {
+	if got := Language(t.TempDir()); got != "" {
+		t.Errorf("Language(missing) = %q, want empty", got)
+	}
+}
+
+func TestLanguageHelperReturnsEmptyOnParseError(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("not: [valid: yaml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Language(dir); got != "" {
+		t.Errorf("Language(bad yaml) = %q, want empty", got)
+	}
+}
+
+func TestLanguageHelperReturnsEmptyWhenAbsent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("project: x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Language(dir); got != "" {
+		t.Errorf("Language(no key) = %q, want empty", got)
+	}
+}
+
+func TestLanguageHelperSkipsValidation(t *testing.T) {
+	// A config that fails validate() (unsupported versioning) must still
+	// yield its language key — Language() deliberately does not validate.
+	dir := t.TempDir()
+	body := "project: x\nversioning: calver\nlanguage: es\n"
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Language(dir); got != "es" {
+		t.Errorf("Language(invalid-but-has-language) = %q, want es", got)
+	}
+}
+
 func TestLoadRejectsUnsupportedVersioning(t *testing.T) {
 	dir := t.TempDir()
 	bad := "project: x\nversioning: calver\n"
