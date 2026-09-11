@@ -17,6 +17,7 @@ import (
 	"github.com/soyagvs/relio/internal/editor"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/guide"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/menu"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/release"
@@ -57,13 +58,9 @@ func NewRootCmd() *cobra.Command {
 	f := &releaseFlags{}
 
 	root := &cobra.Command{
-		Use:   "relio",
-		Short: "Turn finished code into a published release",
-		Long: ui.Title.Render("⬢ "+ui.AppName) + "\n\n" +
-			"  Read the repo's git activity and turn it into a version, changelog,\n" +
-			"  and tag — in one command, with a preview before anything is written.\n\n" +
-			"  Run `relio` on its own for the interactive menu. Use the\n" +
-			"  subcommands below for setup, extras, and scripting.",
+		Use:           "relio",
+		Short:         i18n.T(i18n.RootShort),
+		Long:          ui.Title.Render("⬢ "+ui.AppName) + "\n\n" + i18n.T(i18n.RootLong),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
@@ -81,24 +78,24 @@ func NewRootCmd() *cobra.Command {
 		},
 	}
 
-	root.SetVersionTemplate(fmt.Sprintf("%s %s (commit %s, built %s)\n", ui.AppName, version, commit, date))
+	root.SetVersionTemplate(fmt.Sprintf(i18n.T(i18n.VersionInfoLine), ui.AppName, version, commit, date))
 
 	pf := root.PersistentFlags()
-	pf.StringVarP(&f.dir, "dir", "C", ".", "run as if relio was started in `path`")
-	pf.BoolVar(&f.noHash, "no-hash", false, "hide commit hashes in release notes")
+	pf.StringVarP(&f.dir, "dir", "C", ".", i18n.T(i18n.FlagDirUsage))
+	pf.BoolVar(&f.noHash, "no-hash", false, i18n.T(i18n.FlagNoHashUsage))
 
 	lf := root.Flags()
-	lf.BoolVar(&f.patch, "patch", false, "force a PATCH bump")
-	lf.BoolVar(&f.minor, "minor", false, "force a MINOR bump")
-	lf.BoolVar(&f.major, "major", false, "force a MAJOR bump")
-	lf.BoolVarP(&f.yes, "yes", "y", false, "skip the interactive menu and confirmation")
-	lf.BoolVar(&f.noChangelog, "no-changelog", false, "do not touch the changelog file")
-	lf.BoolVar(&f.noTag, "no-tag", false, "do not create the git tag")
-	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, "do not update the files listed in version_files")
-	lf.BoolVar(&f.publish, "publish", false, "push and create the GitHub Release after tagging")
-	lf.BoolVar(&f.rc, "rc", false, "cut a release candidate (vX.Y.Z-rc.N) instead of the final version")
-	lf.BoolVar(&f.noHooks, "no-hooks", false, "skip the before/after hooks in .release.yaml for this run")
-	lf.BoolVar(&f.edit, "edit", false, "open the generated release notes in your editor before writing")
+	lf.BoolVar(&f.patch, "patch", false, i18n.T(i18n.FlagPatchUsage))
+	lf.BoolVar(&f.minor, "minor", false, i18n.T(i18n.FlagMinorUsage))
+	lf.BoolVar(&f.major, "major", false, i18n.T(i18n.FlagMajorUsage))
+	lf.BoolVarP(&f.yes, "yes", "y", false, i18n.T(i18n.FlagYesUsage))
+	lf.BoolVar(&f.noChangelog, "no-changelog", false, i18n.T(i18n.FlagNoChangelogUsage))
+	lf.BoolVar(&f.noTag, "no-tag", false, i18n.T(i18n.FlagNoTagUsage))
+	lf.BoolVar(&f.noVersionFiles, "no-version-files", false, i18n.T(i18n.FlagNoVersionFilesUsage))
+	lf.BoolVar(&f.publish, "publish", false, i18n.T(i18n.FlagPublishUsage))
+	lf.BoolVar(&f.rc, "rc", false, i18n.T(i18n.FlagRCUsage))
+	lf.BoolVar(&f.noHooks, "no-hooks", false, i18n.T(i18n.FlagNoHooksUsage))
+	lf.BoolVar(&f.edit, "edit", false, i18n.T(i18n.FlagEditUsage))
 
 	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newUndoCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
 	return root

@@ -4,63 +4,72 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
 // reference is the full command + flag listing shown by the menu's Help entry.
 type refRow struct{ name, desc string }
 
-var (
-	refCommands = []refRow{
-		{"relio", "Create a release: version + changelog + tag from commits since the last tag"},
-		{"relio status", "Show what's unreleased since the last tag and the version it suggests"},
-		{"relio check", "List which commits since the last tag are Conventional Commits (--strict)"},
-		{"relio guide", "Walk through the whole release flow step by step"},
-		{"relio stats", "Relio's public GitHub download stats (read-only, no telemetry)"},
-		{"relio init", "Create .release.yaml in the current repo (configuration only, never secrets)"},
-		{"relio post", "Print copy-paste release text for social posts (text on stdout only)"},
-		{"relio image", "Make a release card image — save it, upload it for a link, or both (--shape, --theme, --hash, --upload, --link-only)"},
-		{"relio auth", "Inspect the GitHub token relio will use (`relio auth status`)"},
-		{"relio version", "Print the Relio version"},
+// helpTables builds the reference rows at call time — never as package-level
+// vars — so every desc resolves through i18n.T() against whatever language
+// is active when helpReference() is invoked, not whatever was active at
+// package init (which is always "en", before Execute() ever runs). Row
+// *names* (command syntax, flag syntax) stay literal English on purpose:
+// they are code the user types verbatim, not prose. Menu-row names reuse
+// internal/menu's own i18n keys instead of duplicating them.
+func helpTables() (commands, releaseFlags, postFlags, imageFlags, menu []refRow) {
+	commands = []refRow{
+		{"relio", i18n.T(i18n.HelpCmdRelioDesc)},
+		{"relio status", i18n.T(i18n.HelpCmdStatusDesc)},
+		{"relio check", i18n.T(i18n.HelpCmdCheckDesc)},
+		{"relio guide", i18n.T(i18n.HelpCmdGuideDesc)},
+		{"relio stats", i18n.T(i18n.HelpCmdStatsDesc)},
+		{"relio init", i18n.T(i18n.HelpCmdInitDesc)},
+		{"relio post", i18n.T(i18n.HelpCmdPostDesc)},
+		{"relio image", i18n.T(i18n.HelpCmdImageDesc)},
+		{"relio auth", i18n.T(i18n.HelpCmdAuthDesc)},
+		{"relio version", i18n.T(i18n.VersionShort)},
 	}
-	refReleaseFlags = []refRow{
-		{"--patch / --minor / --major", "Force the version bump instead of inferring it from the commits"},
-		{"-y, --yes", "Skip the menu and the confirmation (required in CI or a non-interactive shell)"},
-		{"--no-changelog", "Do not modify the changelog file"},
-		{"--no-tag", "Do not create the git tag"},
-		{"--rc", "Cut a release candidate (vX.Y.Z-rc.N); run `relio` on an rc to finalize it"},
-		{"--publish", "After tagging, push the branch and tag to origin and create the GitHub Release"},
-		{"--no-hash", "Hide the commit hash on each release-note line"},
-		{"-C, --dir <path>", "Run as if Relio was started in <path>"},
+	releaseFlags = []refRow{
+		{"--patch / --minor / --major", i18n.T(i18n.HelpFlagBumpDesc)},
+		{"-y, --yes", i18n.T(i18n.HelpFlagYesDesc)},
+		{"--no-changelog", i18n.T(i18n.HelpFlagNoChangelogDesc)},
+		{"--no-tag", i18n.T(i18n.HelpFlagNoTagDesc)},
+		{"--rc", i18n.T(i18n.HelpFlagRCDesc)},
+		{"--publish", i18n.T(i18n.HelpFlagPublishDesc)},
+		{"--no-hash", i18n.T(i18n.HelpFlagNoHashDesc)},
+		{"-C, --dir <path>", i18n.T(i18n.HelpFlagDirDesc)},
 	}
-	refPostFlags = []refRow{
-		{"--format minimal", "Same output as the releases browser: project, version, date, commits, grouped notes (default)"},
-		{"--format social", "Shortest: \"Project -- Release\", version · date · time, then \"type  description\" lines"},
-		{"--format technical", "Terse bullet list, for a changelog or a dev channel"},
-		{"--format casual", "Loose tone: \"proj v1.4.0 is out. → …\""},
-		{"--format changelog", "The exact section that goes into CHANGELOG.md"},
+	postFlags = []refRow{
+		{"--format minimal", i18n.T(i18n.HelpPostMinimalDesc)},
+		{"--format social", i18n.T(i18n.HelpPostSocialDesc)},
+		{"--format technical", i18n.T(i18n.HelpPostTechnicalDesc)},
+		{"--format casual", i18n.T(i18n.HelpPostCasualDesc)},
+		{"--format changelog", i18n.T(i18n.HelpPostChangelogDesc)},
 	}
-	refImageFlags = []refRow{
-		{"--shape", "horizontal (1200×630) | vertical (1080×1920) | square (1080×1080)"},
-		{"--theme", "orange (default) | green | purple accent"},
-		{"--hash", "show the commit hash on each line"},
-		{"--upload", "also upload to a temp host (litterbox 72h) and print a link + QR"},
-		{"--link-only", "upload for a link + QR without writing a local file"},
+	imageFlags = []refRow{
+		{"--shape", i18n.T(i18n.HelpImageShapeDesc)},
+		{"--theme", i18n.T(i18n.HelpImageThemeDesc)},
+		{"--hash", i18n.T(i18n.HelpImageHashDesc)},
+		{"--upload", i18n.T(i18n.HelpImageUploadDesc)},
+		{"--link-only", i18n.T(i18n.HelpImageLinkOnlyDesc)},
 	}
-	refMenu = []refRow{
-		{"Release", "Pick final vs rc and whether to publish, then run `relio`"},
-		{"Status", "What's unreleased and the suggested version (same as `relio status`)"},
-		{"Check", "Which commits since the last tag are Conventional Commits (same as `relio check`)"},
-		{"Releases", "List versions, read a version's notes, or delete one (git tag + changelog section)"},
-		{"Announcement", "Pick a post format and print copy-paste text (same as `relio post`)"},
-		{"Release image", "Pick a release + shape, then save the card, upload it for a link, or both (same as `relio image`)"},
-		{"Auth", "GitHub connection — status and how to link (see `relio auth status`)"},
-		{"Setup", "Create or inspect .release.yaml (same as `relio init`)"},
-		{"Guide", "Step-by-step walkthrough (same as `relio guide`)"},
-		{"Help", "This screen"},
-		{"Exit", "Leave Relio"},
+	menu = []refRow{
+		{i18n.T(i18n.MenuReleaseLabel), i18n.T(i18n.HelpMenuReleaseDesc)},
+		{i18n.T(i18n.MenuStatusLabel), i18n.T(i18n.HelpMenuStatusDesc)},
+		{i18n.T(i18n.MenuCheckLabel), i18n.T(i18n.HelpMenuCheckDesc)},
+		{i18n.T(i18n.MenuViewReleasesLabel), i18n.T(i18n.HelpMenuReleasesDesc)},
+		{i18n.T(i18n.MenuReleaseTextLabel), i18n.T(i18n.HelpMenuAnnouncementDesc)},
+		{i18n.T(i18n.MenuReleaseImageLabel), i18n.T(i18n.HelpMenuReleaseImageDesc)},
+		{i18n.T(i18n.MenuAuthLabel), i18n.T(i18n.HelpMenuAuthDesc)},
+		{i18n.T(i18n.MenuSetupLabel), i18n.T(i18n.HelpMenuSetupDesc)},
+		{i18n.T(i18n.MenuGuideLabel), i18n.T(i18n.HelpMenuGuideDesc)},
+		{i18n.T(i18n.MenuHelpLabel), i18n.T(i18n.HelpMenuHelpDesc)},
+		{i18n.T(i18n.MenuExitLabel), i18n.T(i18n.MenuExitDesc)},
 	}
-)
+	return
+}
 
 func helpReference() string {
 	var b strings.Builder
@@ -80,12 +89,13 @@ func helpReference() string {
 		b.WriteString("\n")
 	}
 
-	section("Commands", refCommands)
-	section("Release flags", refReleaseFlags)
-	section("post flags", refPostFlags)
-	section("image flags", refImageFlags)
-	section("Menu", refMenu)
+	commands, releaseFlags, postFlags, imageFlags, menu := helpTables()
+	section(i18n.T(i18n.HelpSectionCommands), commands)
+	section(i18n.T(i18n.HelpSectionReleaseFlags), releaseFlags)
+	section(i18n.T(i18n.HelpSectionPostFlags), postFlags)
+	section(i18n.T(i18n.HelpSectionImageFlags), imageFlags)
+	section(i18n.T(i18n.HelpSectionMenu), menu)
 
-	b.WriteString(ui.Dim.Render("Conventional Commits drive the version: fix→patch, feat→minor, feat!/BREAKING→major."))
+	b.WriteString(ui.Dim.Render(i18n.T(i18n.HelpFooter)))
 	return b.String()
 }

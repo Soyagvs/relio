@@ -167,4 +167,89 @@ const (
 	GuideStepCounter      MessageID = "guide.step_counter"       // "Step %d of %d"
 	GuideFooterWithAction MessageID = "guide.footer_with_action" // "[y] %s · enter skip · ← back · q quit"
 	GuideFooterNoAction   MessageID = "guide.footer_no_action"   // "enter continue · ← back · q quit"
+
+	// Root command (cmd/root.go): Short/Long text and every persistent/local
+	// flag's usage string. NewRootCmd() must be called AFTER the active
+	// language is resolved — Execute() prescans os.Args for -C/--dir and
+	// resolves the language before building the tree, because cobra bakes
+	// these strings into the *cobra.Command struct at construction time
+	// (PR6a).
+	RootShort MessageID = "root.short"
+	RootLong  MessageID = "root.long"
+
+	FlagDirUsage            MessageID = "flag.dir_usage"
+	FlagNoHashUsage         MessageID = "flag.no_hash_usage"
+	FlagPatchUsage          MessageID = "flag.patch_usage"
+	FlagMinorUsage          MessageID = "flag.minor_usage"
+	FlagMajorUsage          MessageID = "flag.major_usage"
+	FlagYesUsage            MessageID = "flag.yes_usage"
+	FlagNoChangelogUsage    MessageID = "flag.no_changelog_usage"
+	FlagNoTagUsage          MessageID = "flag.no_tag_usage"
+	FlagNoVersionFilesUsage MessageID = "flag.no_version_files_usage"
+	FlagPublishUsage        MessageID = "flag.publish_usage"
+	FlagRCUsage             MessageID = "flag.rc_usage"
+	FlagNoHooksUsage        MessageID = "flag.no_hooks_usage"
+	FlagEditUsage           MessageID = "flag.edit_usage"
+
+	// Version output shared by cmd/root.go's --version template and
+	// cmd/version.go's `relio version` command, plus that command's own
+	// Short text and update-available nudge (PR6a).
+	VersionInfoLine        MessageID = "version.info_line" // "%s %s (commit %s, built %s)\n"
+	VersionShort           MessageID = "version.short"
+	VersionUpdateAvailable MessageID = "version.update_available" // "▲ v%s available — brew upgrade relio"
+
+	// Help reference screen (cmd/help.go): section headers, the footer line,
+	// and every row's description. Row *names* (command syntax, flag
+	// syntax) stay literal English on purpose — they are code the user
+	// types verbatim, not prose. Menu-row names reuse the existing
+	// MenuXLabel keys from internal/menu's own conversion instead of
+	// duplicating them (PR6a).
+	HelpSectionCommands     MessageID = "help.section_commands"
+	HelpSectionReleaseFlags MessageID = "help.section_release_flags"
+	HelpSectionPostFlags    MessageID = "help.section_post_flags"
+	HelpSectionImageFlags   MessageID = "help.section_image_flags"
+	HelpSectionMenu         MessageID = "help.section_menu"
+	HelpFooter              MessageID = "help.footer"
+
+	HelpCmdRelioDesc  MessageID = "help.cmd_relio_desc"
+	HelpCmdStatusDesc MessageID = "help.cmd_status_desc"
+	HelpCmdCheckDesc  MessageID = "help.cmd_check_desc"
+	HelpCmdGuideDesc  MessageID = "help.cmd_guide_desc"
+	HelpCmdStatsDesc  MessageID = "help.cmd_stats_desc"
+	HelpCmdInitDesc   MessageID = "help.cmd_init_desc"
+	HelpCmdPostDesc   MessageID = "help.cmd_post_desc"
+	HelpCmdImageDesc  MessageID = "help.cmd_image_desc"
+	HelpCmdAuthDesc   MessageID = "help.cmd_auth_desc"
+
+	HelpFlagBumpDesc        MessageID = "help.flag_bump_desc"
+	HelpFlagYesDesc         MessageID = "help.flag_yes_desc"
+	HelpFlagNoChangelogDesc MessageID = "help.flag_no_changelog_desc"
+	HelpFlagNoTagDesc       MessageID = "help.flag_no_tag_desc"
+	HelpFlagRCDesc          MessageID = "help.flag_rc_desc"
+	HelpFlagPublishDesc     MessageID = "help.flag_publish_desc"
+	HelpFlagNoHashDesc      MessageID = "help.flag_no_hash_desc"
+	HelpFlagDirDesc         MessageID = "help.flag_dir_desc"
+
+	HelpPostMinimalDesc   MessageID = "help.post_minimal_desc"
+	HelpPostSocialDesc    MessageID = "help.post_social_desc"
+	HelpPostTechnicalDesc MessageID = "help.post_technical_desc"
+	HelpPostCasualDesc    MessageID = "help.post_casual_desc"
+	HelpPostChangelogDesc MessageID = "help.post_changelog_desc"
+
+	HelpImageShapeDesc    MessageID = "help.image_shape_desc"
+	HelpImageThemeDesc    MessageID = "help.image_theme_desc"
+	HelpImageHashDesc     MessageID = "help.image_hash_desc"
+	HelpImageUploadDesc   MessageID = "help.image_upload_desc"
+	HelpImageLinkOnlyDesc MessageID = "help.image_link_only_desc"
+
+	HelpMenuReleaseDesc      MessageID = "help.menu_release_desc"
+	HelpMenuStatusDesc       MessageID = "help.menu_status_desc"
+	HelpMenuCheckDesc        MessageID = "help.menu_check_desc"
+	HelpMenuReleasesDesc     MessageID = "help.menu_releases_desc"
+	HelpMenuAnnouncementDesc MessageID = "help.menu_announcement_desc"
+	HelpMenuReleaseImageDesc MessageID = "help.menu_release_image_desc"
+	HelpMenuAuthDesc         MessageID = "help.menu_auth_desc"
+	HelpMenuSetupDesc        MessageID = "help.menu_setup_desc"
+	HelpMenuGuideDesc        MessageID = "help.menu_guide_desc"
+	HelpMenuHelpDesc         MessageID = "help.menu_help_desc"
 )

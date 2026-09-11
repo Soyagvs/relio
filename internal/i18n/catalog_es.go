@@ -152,4 +152,78 @@ var es = map[MessageID]string{
 	GuideStepCounter:      "Paso %d de %d",
 	GuideFooterWithAction: "[y] %s · enter saltar · ← atrás · q salir",
 	GuideFooterNoAction:   "enter continuar · ← atrás · q salir",
+
+	RootShort: "Convierte código terminado en un lanzamiento publicado",
+	RootLong: "  Lee la actividad de git del repositorio y la convierte en una versión,\n" +
+		"  un historial de cambios y una etiqueta — en un solo comando, con una vista\n" +
+		"  previa antes de escribir nada.\n\n" +
+		"  Ejecuta `relio` solo para el menú interactivo. Usa los\n" +
+		"  subcomandos de abajo para configuración, extras y scripting.",
+
+	FlagDirUsage:            "ejecuta como si relio se hubiera iniciado en `path`",
+	FlagNoHashUsage:         "oculta los hashes de commit en las notas de lanzamiento",
+	FlagPatchUsage:          "fuerza un incremento PATCH",
+	FlagMinorUsage:          "fuerza un incremento MINOR",
+	FlagMajorUsage:          "fuerza un incremento MAJOR",
+	FlagYesUsage:            "omite el menú interactivo y la confirmación",
+	FlagNoChangelogUsage:    "no modifica el archivo de historial de cambios",
+	FlagNoTagUsage:          "no crea la etiqueta de git",
+	FlagNoVersionFilesUsage: "no actualiza los archivos listados en version_files",
+	FlagPublishUsage:        "hace push y crea el GitHub Release después de etiquetar",
+	FlagRCUsage:             "genera un release candidate (vX.Y.Z-rc.N) en vez de la versión final",
+	FlagNoHooksUsage:        "omite los hooks before/after de .release.yaml en esta ejecución",
+	FlagEditUsage:           "abre las notas de lanzamiento generadas en tu editor antes de escribir",
+
+	VersionInfoLine:        "%s %s (commit %s, compilado %s)\n",
+	VersionShort:           "Imprime la versión de Relio",
+	VersionUpdateAvailable: "▲ v%s disponible — brew upgrade relio",
+
+	HelpSectionCommands:     "Comandos",
+	HelpSectionReleaseFlags: "Opciones de lanzamiento",
+	HelpSectionPostFlags:    "opciones de post",
+	HelpSectionImageFlags:   "opciones de image",
+	HelpSectionMenu:         "Menú",
+	HelpFooter:              "Conventional Commits definen la versión: fix→patch, feat→minor, feat!/BREAKING→major.",
+
+	HelpCmdRelioDesc:  "Crea un lanzamiento: versión + historial de cambios + etiqueta a partir de los commits desde la última etiqueta",
+	HelpCmdStatusDesc: "Muestra qué queda sin publicar desde la última etiqueta y la versión que sugiere",
+	HelpCmdCheckDesc:  "Lista qué commits desde la última etiqueta son Conventional Commits (--strict)",
+	HelpCmdGuideDesc:  "Recorre todo el flujo de lanzamiento paso a paso",
+	HelpCmdStatsDesc:  "Estadísticas públicas de descargas de Relio en GitHub (solo lectura, sin telemetría)",
+	HelpCmdInitDesc:   "Crea .release.yaml en el repositorio actual (solo configuración, nunca secretos)",
+	HelpCmdPostDesc:   "Imprime texto de lanzamiento para copiar y pegar en redes (texto solo en stdout)",
+	HelpCmdImageDesc:  "Crea una imagen de tarjeta de lanzamiento — guárdala, súbela para obtener un enlace, o ambas cosas (--shape, --theme, --hash, --upload, --link-only)",
+	HelpCmdAuthDesc:   "Inspecciona el token de GitHub que relio usará (`relio auth status`)",
+
+	HelpFlagBumpDesc:        "Fuerza el incremento de versión en vez de inferirlo de los commits",
+	HelpFlagYesDesc:         "Omite el menú y la confirmación (necesario en CI o una shell no interactiva)",
+	HelpFlagNoChangelogDesc: "No modifica el archivo de historial de cambios",
+	HelpFlagNoTagDesc:       "No crea la etiqueta de git",
+	HelpFlagRCDesc:          "Genera un release candidate (vX.Y.Z-rc.N); ejecuta `relio` sobre un rc para finalizarlo",
+	HelpFlagPublishDesc:     "Después de etiquetar, hace push de la rama y la etiqueta a origin y crea el GitHub Release",
+	HelpFlagNoHashDesc:      "Oculta el hash de commit en cada línea de las notas de lanzamiento",
+	HelpFlagDirDesc:         "Ejecuta como si Relio se hubiera iniciado en <path>",
+
+	HelpPostMinimalDesc:   "Igual que el navegador de lanzamientos: proyecto, versión, fecha, commits, notas agrupadas (por defecto)",
+	HelpPostSocialDesc:    "El más corto: \"Project -- Release\", versión · fecha · hora, luego líneas \"tipo  descripción\"",
+	HelpPostTechnicalDesc: "Lista de viñetas concisa, para un historial de cambios o un canal de desarrollo",
+	HelpPostCasualDesc:    "Tono informal: \"proj v1.4.0 is out. → …\"",
+	HelpPostChangelogDesc: "La sección exacta que va en CHANGELOG.md",
+
+	HelpImageShapeDesc:    "horizontal (1200×630) | vertical (1080×1920) | cuadrado (1080×1080)",
+	HelpImageThemeDesc:    "naranja (por defecto) | verde | acento morado",
+	HelpImageHashDesc:     "muestra el hash de commit en cada línea",
+	HelpImageUploadDesc:   "también sube a un host temporal (litterbox 72h) e imprime un enlace + QR",
+	HelpImageLinkOnlyDesc: "sube para obtener un enlace + QR sin escribir un archivo local",
+
+	HelpMenuReleaseDesc:      "Elige final o rc y si publicar, luego ejecuta `relio`",
+	HelpMenuStatusDesc:       "Qué queda sin publicar y la versión sugerida (igual que `relio status`)",
+	HelpMenuCheckDesc:        "Qué commits desde la última etiqueta son Conventional Commits (igual que `relio check`)",
+	HelpMenuReleasesDesc:     "Lista versiones, lee las notas de una versión, o elimina una (etiqueta de git + sección del historial de cambios)",
+	HelpMenuAnnouncementDesc: "Elige un formato de post e imprime texto para copiar y pegar (igual que `relio post`)",
+	HelpMenuReleaseImageDesc: "Elige un lanzamiento + forma, luego guarda la tarjeta, súbela para un enlace, o ambas cosas (igual que `relio image`)",
+	HelpMenuAuthDesc:         "Conexión con GitHub — estado y cómo vincularla (ver `relio auth status`)",
+	HelpMenuSetupDesc:        "Crea o inspecciona .release.yaml (igual que `relio init`)",
+	HelpMenuGuideDesc:        "Recorrido paso a paso (igual que `relio guide`)",
+	HelpMenuHelpDesc:         "Esta pantalla",
 }
