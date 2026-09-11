@@ -9,13 +9,17 @@ import (
 	"github.com/soyagvs/relio/internal/ghrelease"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/guide"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 )
 
+// newGuideCmd's Short reuses cmd/help.go's HelpCmdGuideDesc key — the two
+// strings are byte-identical, so this avoids declaring a duplicate key
+// (same convention as cmd/post.go's postFormatItems() reusing HelpPost*Desc).
 func newGuideCmd(f *releaseFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "guide",
-		Short: "Walk through the whole release flow step by step",
+		Short: i18n.T(i18n.HelpCmdGuideDesc),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := runGuide(cmd, f); err != nil && !errors.Is(err, guide.ErrQuit) {

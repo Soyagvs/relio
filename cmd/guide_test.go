@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/soyagvs/relio/internal/i18n"
 )
 
 func TestNewGuideCmdShape(t *testing.T) {
@@ -52,5 +54,38 @@ func TestRunGuidePlainRendersAllSteps(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "[y]") {
 		t.Errorf("guide plain output should carry no prompts:\n%s", out.String())
+	}
+}
+
+// TestNewGuideCmdShortLocalizesAtConstructionTime proves newGuideCmd()'s
+// Short resolves through the active i18n catalog at construction time. It
+// reuses cmd/help.go's HelpCmdGuideDesc key — byte-identical to the
+// original hardcoded English literal — instead of declaring a duplicate.
+func TestNewGuideCmdShortLocalizesAtConstructionTime(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	cmdEN := newGuideCmd(&releaseFlags{})
+	i18n.SetLanguage("es")
+	cmdES := newGuideCmd(&releaseFlags{})
+
+	if cmdES.Short == cmdEN.Short {
+		t.Errorf("guide Short unchanged across languages: %q", cmdES.Short)
+	}
+}
+
+// TestGoldenEnglishGuideCmdUnchanged pins cmd/guide.go's hardcoded English
+// Short literal against i18n.T() under the default "en" language.
+func TestGoldenEnglishGuideCmdUnchanged(t *testing.T) {
+	prev := i18n.Current()
+	if prev != "en" {
+		i18n.SetLanguage("en")
+	}
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	c := newGuideCmd(&releaseFlags{})
+	if c.Short != "Walk through the whole release flow step by step" {
+		t.Errorf("Short = %q", c.Short)
 	}
 }

@@ -316,4 +316,92 @@ var es = map[MessageID]string{
 	UndoDoneDeletedTag:    "etiqueta %s eliminada",
 	UndoDoneRemovedCommit: "commit de lanzamiento eliminado",
 	UndoResetFailed:       "la etiqueta %s se eliminó, pero quitar el commit de lanzamiento falló (termina con `git reset --hard HEAD~1`): %w",
+
+	StatsShort: "Muestra las estadísticas públicas de descargas y de GitHub de Relio",
+	StatsLong: "Estadísticas públicas de solo lectura desde la API REST de GitHub: conteos de\n" +
+		"descargas de assets de lanzamiento, desgloses por lanzamiento y por plataforma,\n" +
+		"estrellas y forks.\n\n" +
+		"\"Descargas\" = veces que se descargó un asset de lanzamiento — NO usuarios\n" +
+		"únicos ni instalaciones activas. No se requiere autenticación; define\n" +
+		"GITHUB_TOKEN para aumentar el límite de la API. Relio no envía ninguna\n" +
+		"telemetría.",
+
+	StatsFlagRepoUsage:       "propietario/nombre a consultar",
+	StatsFlagPrereleaseUsage: "incluye pre-lanzamientos en la lista de lanzamientos",
+
+	StatsHeader:               "Relio -- estadísticas",
+	StatsDownloadsSection:     "Descargas",
+	StatsTotalLabel:           "total",
+	StatsLatestReleaseLabel:   "último lanzamiento",
+	StatsReleasesSection:      "Lanzamientos",
+	StatsPrereleaseSuffix:     " (pre)",
+	StatsOlderCount:           "… y %d más antiguos",
+	StatsLatestReleaseSection: "Último lanzamiento (%s)",
+	StatsGitHubSection:        "GitHub",
+	StatsStarsLabel:           "estrellas",
+	StatsForksLabel:           "bifurcaciones",
+	StatsFooterNote:           "descargas = descargas de assets de lanzamiento, no usuarios únicos ni instalaciones",
+
+	AuthShort: "Inspecciona el token de GitHub que relio usará",
+	AuthLong: "Relio se autentica en GitHub con un token de acceso personal, no con un\n" +
+		"inicio de sesión propio. Revisa RELIO_GITHUB_TOKEN, GITHUB_TOKEN y GH_TOKEN\n" +
+		"en ese orden, y si no encuentra ninguno recurre a `gh auth token`. `status`\n" +
+		"muestra cuál encontró y a quién pertenece.",
+
+	AuthStatusShort:      "Muestra qué token encontró relio y a quién pertenece",
+	AuthNotAuthenticated: "no autenticado (define GITHUB_TOKEN o ejecuta `gh auth login`)",
+	AuthLoggedInAs:       "sesión iniciada como %s (vía %s)",
+
+	AuthLoginShort:  "Cómo darle a relio un token de GitHub",
+	AuthLoginBody:   "Aún no hay inicio de sesión por device-flow. Define GITHUB_TOKEN con un PAT con alcance `repo`, o ejecuta `gh auth login` y relio reutilizará el token de `gh`.",
+	AuthLogoutShort: "Cómo quitar el token de GitHub",
+	AuthLogoutBody:  "Relio no almacena nada. Anula RELIO_GITHUB_TOKEN / GITHUB_TOKEN / GH_TOKEN, o ejecuta `gh auth logout`.",
+
+	ImageShort: "Crea una imagen para compartir de un lanzamiento",
+	ImageLong: "Renderiza una tarjeta de lanzamiento oscura con estilo de desarrollador. Todo\n" +
+		"lo que aparece en ella proviene del lanzamiento real.\n\n" +
+		"En una terminal, Relio pregunta qué hacer con ella: guardarla en el\n" +
+		"directorio actual, subirla para un QR + enlace, o ambas cosas. Sin TTY y\n" +
+		"sin flags, simplemente la guarda en el directorio actual.\n\n" +
+		"Los flags omiten las preguntas:\n" +
+		"  --version    etiqueta de lanzamiento     --shape   horizontal|vertical|square\n" +
+		"  --theme      orange|green|purple         --hash    muestra los hashes de commit\n" +
+		"  --upload     también sube a un host temporal (litterbox, 72h): enlace + QR\n" +
+		"  --link-only  solo sube — no escribe un archivo en disco",
+
+	ImageFlagVersionUsage:  "etiqueta de lanzamiento a renderizar (por defecto: la más reciente)",
+	ImageFlagHashUsage:     "muestra el hash de commit en cada línea",
+	ImageFlagUploadUsage:   "también sube a un host temporal (litterbox 72h) y muestra un enlace + QR",
+	ImageFlagLinkOnlyUsage: "sube para un enlace + QR sin escribir un archivo local",
+
+	ImageShapeHorizontalLabel: "Horizontal",
+	ImageShapeHorizontalDesc:  "1200×630 — para Twitter / OpenGraph",
+	ImageShapeVerticalLabel:   "Vertical",
+	ImageShapeVerticalDesc:    "1080×1920 — historia de Instagram",
+	ImageShapeSquareLabel:     "Cuadrado",
+	ImageShapeSquareDesc:      "1080×1080",
+
+	ImageThemeOrangeLabel: "Naranja",
+	ImageThemeOrangeDesc:  "El valor predeterminado de Relio",
+	ImageThemeGreenLabel:  "Verde",
+	ImageThemeGreenDesc:   "Acento verde azulado",
+	ImageThemePurpleLabel: "Morado",
+	ImageThemePurpleDesc:  "Acento morado",
+
+	ImagePickReleaseTitle: "Elige un lanzamiento",
+	ImagePickShapeTitle:   "Elige una forma",
+	ImagePickThemeTitle:   "Elige un color",
+	ImagePickDestTitle:    "¿Qué debería hacer Relio con la imagen?",
+
+	ImageNoReleasesYet:     "Aún no hay lanzamientos — crea uno primero.",
+	ImageNoSuchRelease:     "no existe el lanzamiento %q",
+	ImageSaved:             "guardado %s",
+	ImageStillSavedLocally: "  la imagen sigue guardada localmente",
+
+	ImageDestBothLabel: "Guardar + enlace de descarga",
+	ImageDestBothDesc:  "Escribirla en %s y subirla para un QR + enlace",
+	ImageDestSaveLabel: "Solo guardar",
+	ImageDestSaveDesc:  "Escribirla en %s",
+	ImageDestLinkLabel: "Solo enlace de descarga",
+	ImageDestLinkDesc:  "Subirla para un QR + enlace — no se escribe nada en disco",
 }

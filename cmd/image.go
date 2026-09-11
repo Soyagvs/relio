@@ -16,6 +16,7 @@ import (
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/ui"
 	"github.com/soyagvs/relio/internal/upload"
@@ -35,18 +36,9 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "image",
-		Short: "Make a shareable image of a release",
-		Long: "Render a dark, developer-styled release card. Everything on it comes\n" +
-			"from the real release.\n\n" +
-			"In a terminal, Relio asks what to do with it: save it to the current\n" +
-			"directory, upload it for a QR + link, or both. With no TTY and no flags\n" +
-			"it just saves to the current directory.\n\n" +
-			"Flags skip the prompts:\n" +
-			"  --version    release tag            --shape   horizontal|vertical|square\n" +
-			"  --theme      orange|green|purple    --hash    show commit hashes\n" +
-			"  --upload     also upload to a temp host (litterbox, 72h): link + QR\n" +
-			"  --link-only  upload only — do not write a file to disk",
-		Args: cobra.NoArgs,
+		Short: i18n.T(i18n.ImageShort),
+		Long:  i18n.T(i18n.ImageLong),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, cfg, err := openRepoAndConfig(f.dir)
 			if err != nil {
@@ -56,25 +48,38 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVar(&im.version, "version", "", "release tag to render (default: latest)")
+	c.Flags().StringVar(&im.version, "version", "", i18n.T(i18n.ImageFlagVersionUsage))
+	// --shape/--theme list the literal values the user types verbatim, so
+	// these usage strings stay untranslated on purpose — see shapeItems()/
+	// themeItems() below for the translated display labels shown in the
+	// interactive pickers, matching cmd/post.go's --format convention.
 	c.Flags().StringVar(&im.shape, "shape", "", "horizontal | vertical | square (default: horizontal)")
 	c.Flags().StringVar(&im.theme, "theme", "", "orange | green | purple (default: orange)")
-	c.Flags().BoolVar(&im.hash, "hash", false, "show the commit hash on each line")
-	c.Flags().BoolVar(&im.upload, "upload", false, "also upload to a temp host (litterbox 72h) and show a link + QR")
-	c.Flags().BoolVar(&im.linkOnly, "link-only", false, "upload for a link + QR without writing a local file")
+	c.Flags().BoolVar(&im.hash, "hash", false, i18n.T(i18n.ImageFlagHashUsage))
+	c.Flags().BoolVar(&im.upload, "upload", false, i18n.T(i18n.ImageFlagUploadUsage))
+	c.Flags().BoolVar(&im.linkOnly, "link-only", false, i18n.T(i18n.ImageFlagLinkOnlyUsage))
 	return c
 }
 
-var shapeItems = []pick.Item{
-	{Label: "Horizontal", Desc: "1200×630 — Twitter / OpenGraph", Value: "horizontal"},
-	{Label: "Vertical", Desc: "1080×1920 — Instagram story", Value: "vertical"},
-	{Label: "Square", Desc: "1080×1080", Value: "square"},
+// shapeItems and themeItems are the menus offered by the --shape/--theme
+// pickers. They are functions, not package-level vars, so their Label/Desc
+// strings are localized at call time — a var would freeze at "en" before
+// Execute() ever resolves the language (the same class of bug postFormatItems()
+// fixed in cmd/post.go, PR6c).
+func shapeItems() []pick.Item {
+	return []pick.Item{
+		{Label: i18n.T(i18n.ImageShapeHorizontalLabel), Desc: i18n.T(i18n.ImageShapeHorizontalDesc), Value: "horizontal"},
+		{Label: i18n.T(i18n.ImageShapeVerticalLabel), Desc: i18n.T(i18n.ImageShapeVerticalDesc), Value: "vertical"},
+		{Label: i18n.T(i18n.ImageShapeSquareLabel), Desc: i18n.T(i18n.ImageShapeSquareDesc), Value: "square"},
+	}
 }
 
-var themeItems = []pick.Item{
-	{Label: "Orange", Desc: "The Relio default", Value: "orange"},
-	{Label: "Green", Desc: "Teal-green accent", Value: "green"},
-	{Label: "Purple", Desc: "Purple accent", Value: "purple"},
+func themeItems() []pick.Item {
+	return []pick.Item{
+		{Label: i18n.T(i18n.ImageThemeOrangeLabel), Desc: i18n.T(i18n.ImageThemeOrangeDesc), Value: "orange"},
+		{Label: i18n.T(i18n.ImageThemeGreenLabel), Desc: i18n.T(i18n.ImageThemeGreenDesc), Value: "green"},
+		{Label: i18n.T(i18n.ImageThemePurpleLabel), Desc: i18n.T(i18n.ImageThemePurpleDesc), Value: "purple"},
+	}
 }
 
 func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags) error {
@@ -86,7 +91,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		return err
 	}
 	if len(tags) == 0 {
-		fmt.Fprintln(out, ui.Info("No releases yet — create one first."))
+		fmt.Fprintln(out, ui.Info(i18n.T(i18n.ImageNoReleasesYet)))
 		return nil
 	}
 
@@ -99,7 +104,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 				items[i] = pick.Item{Label: t.Name, Desc: t.DateTime + " · " + t.Subject, Value: t.Name}
 			}
 			var ok bool
-			if version, ok, err = pick.Run("Pick a release", items); err != nil || !ok {
+			if version, ok, err = pick.Run(i18n.T(i18n.ImagePickReleaseTitle), items); err != nil || !ok {
 				return err
 			}
 		} else {
@@ -115,14 +120,14 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		}
 	}
 	if idx < 0 {
-		return fmt.Errorf("no such release %q", version)
+		return fmt.Errorf(i18n.T(i18n.ImageNoSuchRelease), version)
 	}
 
 	// Resolve the shape: flag, else prompt (TTY), else horizontal.
 	shape, valid := card.ParseShape(im.shape)
 	if !valid {
 		if interactive {
-			name, ok, perr := pick.Run("Pick a shape", shapeItems)
+			name, ok, perr := pick.Run(i18n.T(i18n.ImagePickShapeTitle), shapeItems())
 			if perr != nil || !ok {
 				return perr
 			}
@@ -136,7 +141,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	theme := strings.ToLower(im.theme)
 	if !validTheme(theme) {
 		if interactive {
-			name, ok, perr := pick.Run("Pick a colour", themeItems)
+			name, ok, perr := pick.Run(i18n.T(i18n.ImagePickThemeTitle), themeItems())
 			if perr != nil || !ok {
 				return perr
 			}
@@ -175,10 +180,10 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	// Decide what to do with the image: save it, upload it for a link, or both.
 	save, link, ask := imageDest(im, interactive)
 	if ask {
-		ans, ok, perr := pick.Run("What should Relio do with the image?", []pick.Item{
-			{Label: "Save + download link", Desc: "Write it to " + destDir + " and upload for a QR + link", Value: "both"},
-			{Label: "Save only", Desc: "Write it to " + destDir, Value: "save"},
-			{Label: "Download link only", Desc: "Upload for a QR + link — nothing written to disk", Value: "link"},
+		ans, ok, perr := pick.Run(i18n.T(i18n.ImagePickDestTitle), []pick.Item{
+			{Label: i18n.T(i18n.ImageDestBothLabel), Desc: i18n.T(i18n.ImageDestBothDesc, destDir), Value: "both"},
+			{Label: i18n.T(i18n.ImageDestSaveLabel), Desc: i18n.T(i18n.ImageDestSaveDesc, destDir), Value: "save"},
+			{Label: i18n.T(i18n.ImageDestLinkLabel), Desc: i18n.T(i18n.ImageDestLinkDesc), Value: "link"},
 		})
 		if perr != nil || !ok {
 			return perr
@@ -192,7 +197,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			return err
 		}
 		abs, _ := filepath.Abs(localPath)
-		fmt.Fprintln(out, ui.Success([]string{"saved " + localPath}))
+		fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ImageSaved, localPath)}))
 		fmt.Fprintln(out, ui.Dim.Render("  "+abs))
 		uploadSrc = localPath
 	}
@@ -219,7 +224,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		if uerr != nil {
 			fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error())
 			if save {
-				fmt.Fprintln(out, ui.Dim.Render("  the image is still saved locally"))
+				fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ImageStillSavedLocally)))
 			}
 			return nil
 		}

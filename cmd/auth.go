@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/ghrelease"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -21,7 +22,7 @@ var lookupToken = ghrelease.Token
 func authStatus(w io.Writer) error {
 	token, source := lookupToken()
 	if token == "" {
-		fmt.Fprintln(w, ui.Info("not authenticated (set GITHUB_TOKEN or run `gh auth login`)"))
+		fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthNotAuthenticated)))
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -30,7 +31,7 @@ func authStatus(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(w, ui.Info(fmt.Sprintf("logged in as %s (via %s)", login, source)))
+	fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthLoggedInAs, login, source)))
 	return nil
 }
 
@@ -40,16 +41,13 @@ func authStatus(w io.Writer) error {
 func newAuthCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "auth",
-		Short: "Inspect the GitHub token relio will use",
-		Long: "Relio authenticates to GitHub with a personal access token, not its own login.\n" +
-			"It checks RELIO_GITHUB_TOKEN, GITHUB_TOKEN and GH_TOKEN in that order, then\n" +
-			"falls back to `gh auth token`. `status` shows which one was found and who it\n" +
-			"belongs to.",
+		Short: i18n.T(i18n.AuthShort),
+		Long:  i18n.T(i18n.AuthLong),
 	}
 
 	status := &cobra.Command{
 		Use:   "status",
-		Short: "Show which token relio found and who it belongs to",
+		Short: i18n.T(i18n.AuthStatusShort),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return authStatus(cmd.OutOrStdout())
@@ -69,13 +67,9 @@ func newAuthCmd() *cobra.Command {
 	}
 
 	c.AddCommand(
-		note("login", "How to give relio a GitHub token",
-			"No device-flow login yet. Set GITHUB_TOKEN to a PAT with `repo` scope, or run "+
-				"`gh auth login` and relio will reuse the `gh` token."),
+		note("login", i18n.T(i18n.AuthLoginShort), i18n.T(i18n.AuthLoginBody)),
 		status,
-		note("logout", "How to drop the GitHub token",
-			"Relio stores nothing. Unset RELIO_GITHUB_TOKEN / GITHUB_TOKEN / GH_TOKEN, or run "+
-				"`gh auth logout`."),
+		note("logout", i18n.T(i18n.AuthLogoutShort), i18n.T(i18n.AuthLogoutBody)),
 	)
 	return c
 }

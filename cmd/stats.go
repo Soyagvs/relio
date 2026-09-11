@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/ghstats"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -21,13 +22,9 @@ func newStatsCmd() *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "stats",
-		Short: "Show Relio's public download and GitHub stats",
-		Long: "Read-only public statistics from the GitHub REST API: release asset\n" +
-			"download counts, per-release and per-platform breakdowns, stars and forks.\n\n" +
-			"\"Downloads\" = times a release asset was downloaded — NOT unique users or\n" +
-			"active installs. No authentication is required; set GITHUB_TOKEN to raise\n" +
-			"the API rate limit. Relio sends no telemetry of any kind.",
-		Args: cobra.NoArgs,
+		Short: i18n.T(i18n.StatsShort),
+		Long:  i18n.T(i18n.StatsLong),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := ghstats.Fetch(cmd.Context(), nil, repo)
 			if err != nil {
@@ -38,14 +35,14 @@ func newStatsCmd() *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVar(&repo, "repo", defaultRepo, "owner/name to query")
-	c.Flags().BoolVar(&pre, "prerelease", false, "include pre-releases in the release list")
+	c.Flags().StringVar(&repo, "repo", defaultRepo, i18n.T(i18n.StatsFlagRepoUsage))
+	c.Flags().BoolVar(&pre, "prerelease", false, i18n.T(i18n.StatsFlagPrereleaseUsage))
 	return c
 }
 
 func renderStats(s *ghstats.Stats, includePre bool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", ui.Key.Render("Relio -- stats"))
+	fmt.Fprintf(&b, "%s\n\n", ui.Key.Render(i18n.T(i18n.StatsHeader)))
 
 	row := func(label, val string) {
 		fmt.Fprintf(&b, "  %s %s\n", ui.Dim.Render(fmt.Sprintf("%-18s", label)), val)
@@ -56,9 +53,9 @@ func renderStats(s *ghstats.Stats, includePre bool) string {
 		latestDownloads = s.Latest.Downloads
 	}
 
-	fmt.Fprintln(&b, ui.Key.Render("Downloads"))
-	row("total", num(s.TotalDownloads))
-	row("latest release", num(latestDownloads))
+	fmt.Fprintln(&b, ui.Key.Render(i18n.T(i18n.StatsDownloadsSection)))
+	row(i18n.T(i18n.StatsTotalLabel), num(s.TotalDownloads))
+	row(i18n.T(i18n.StatsLatestReleaseLabel), num(latestDownloads))
 
 	// per-release list
 	rels := make([]ghstats.Release, 0, len(s.Releases))
@@ -69,7 +66,7 @@ func renderStats(s *ghstats.Stats, includePre bool) string {
 		rels = append(rels, r)
 	}
 	if len(rels) > 0 {
-		fmt.Fprintf(&b, "\n%s\n", ui.Key.Render("Releases"))
+		fmt.Fprintf(&b, "\n%s\n", ui.Key.Render(i18n.T(i18n.StatsReleasesSection)))
 
 		const maxRows = 12
 		older := 0
@@ -87,12 +84,12 @@ func renderStats(s *ghstats.Stats, includePre bool) string {
 		for _, r := range rels {
 			tag := r.Tag
 			if r.Prerelease {
-				tag += " (pre)"
+				tag += i18n.T(i18n.StatsPrereleaseSuffix)
 			}
 			fmt.Fprintf(&b, "  %s %s\n", ui.Dim.Render(fmt.Sprintf("%-*s", w+6, tag)), num(r.Downloads))
 		}
 		if older > 0 {
-			fmt.Fprintf(&b, "  %s\n", ui.Dim.Render(fmt.Sprintf("… and %d older", older)))
+			fmt.Fprintf(&b, "  %s\n", ui.Dim.Render(i18n.T(i18n.StatsOlderCount, older)))
 		}
 	}
 
@@ -116,7 +113,7 @@ func renderStats(s *ghstats.Stats, includePre bool) string {
 			return pcs[i].plat < pcs[j].plat
 		})
 		if len(pcs) > 0 {
-			fmt.Fprintf(&b, "\n%s\n", ui.Key.Render("Latest release ("+s.Latest.Tag+")"))
+			fmt.Fprintf(&b, "\n%s\n", ui.Key.Render(i18n.T(i18n.StatsLatestReleaseSection, s.Latest.Tag)))
 			w := 0
 			for _, p := range pcs {
 				if len(p.plat) > w {
@@ -129,11 +126,11 @@ func renderStats(s *ghstats.Stats, includePre bool) string {
 		}
 	}
 
-	fmt.Fprintf(&b, "\n%s\n", ui.Key.Render("GitHub"))
-	row("stars", num(s.Stars))
-	row("forks", num(s.Forks))
+	fmt.Fprintf(&b, "\n%s\n", ui.Key.Render(i18n.T(i18n.StatsGitHubSection)))
+	row(i18n.T(i18n.StatsStarsLabel), num(s.Stars))
+	row(i18n.T(i18n.StatsForksLabel), num(s.Forks))
 
-	fmt.Fprintf(&b, "\n%s\n", ui.Dim.Render("downloads = release-asset downloads, not unique users or installs"))
+	fmt.Fprintf(&b, "\n%s\n", ui.Dim.Render(i18n.T(i18n.StatsFooterNote)))
 	return b.String()
 }
 

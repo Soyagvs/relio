@@ -314,4 +314,90 @@ var en = map[MessageID]string{
 	UndoDoneDeletedTag:    "deleted tag %s",
 	UndoDoneRemovedCommit: "removed the release commit",
 	UndoResetFailed:       "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w",
+
+	StatsShort: "Show Relio's public download and GitHub stats",
+	StatsLong: "Read-only public statistics from the GitHub REST API: release asset\n" +
+		"download counts, per-release and per-platform breakdowns, stars and forks.\n\n" +
+		"\"Downloads\" = times a release asset was downloaded — NOT unique users or\n" +
+		"active installs. No authentication is required; set GITHUB_TOKEN to raise\n" +
+		"the API rate limit. Relio sends no telemetry of any kind.",
+
+	StatsFlagRepoUsage:       "owner/name to query",
+	StatsFlagPrereleaseUsage: "include pre-releases in the release list",
+
+	StatsHeader:               "Relio -- stats",
+	StatsDownloadsSection:     "Downloads",
+	StatsTotalLabel:           "total",
+	StatsLatestReleaseLabel:   "latest release",
+	StatsReleasesSection:      "Releases",
+	StatsPrereleaseSuffix:     " (pre)",
+	StatsOlderCount:           "… and %d older",
+	StatsLatestReleaseSection: "Latest release (%s)",
+	StatsGitHubSection:        "GitHub",
+	StatsStarsLabel:           "stars",
+	StatsForksLabel:           "forks",
+	StatsFooterNote:           "downloads = release-asset downloads, not unique users or installs",
+
+	AuthShort: "Inspect the GitHub token relio will use",
+	AuthLong: "Relio authenticates to GitHub with a personal access token, not its own login.\n" +
+		"It checks RELIO_GITHUB_TOKEN, GITHUB_TOKEN and GH_TOKEN in that order, then\n" +
+		"falls back to `gh auth token`. `status` shows which one was found and who it\n" +
+		"belongs to.",
+
+	AuthStatusShort:      "Show which token relio found and who it belongs to",
+	AuthNotAuthenticated: "not authenticated (set GITHUB_TOKEN or run `gh auth login`)",
+	AuthLoggedInAs:       "logged in as %s (via %s)",
+
+	AuthLoginShort:  "How to give relio a GitHub token",
+	AuthLoginBody:   "No device-flow login yet. Set GITHUB_TOKEN to a PAT with `repo` scope, or run `gh auth login` and relio will reuse the `gh` token.",
+	AuthLogoutShort: "How to drop the GitHub token",
+	AuthLogoutBody:  "Relio stores nothing. Unset RELIO_GITHUB_TOKEN / GITHUB_TOKEN / GH_TOKEN, or run `gh auth logout`.",
+
+	ImageShort: "Make a shareable image of a release",
+	ImageLong: "Render a dark, developer-styled release card. Everything on it comes\n" +
+		"from the real release.\n\n" +
+		"In a terminal, Relio asks what to do with it: save it to the current\n" +
+		"directory, upload it for a QR + link, or both. With no TTY and no flags\n" +
+		"it just saves to the current directory.\n\n" +
+		"Flags skip the prompts:\n" +
+		"  --version    release tag            --shape   horizontal|vertical|square\n" +
+		"  --theme      orange|green|purple    --hash    show commit hashes\n" +
+		"  --upload     also upload to a temp host (litterbox, 72h): link + QR\n" +
+		"  --link-only  upload only — do not write a file to disk",
+
+	ImageFlagVersionUsage:  "release tag to render (default: latest)",
+	ImageFlagHashUsage:     "show the commit hash on each line",
+	ImageFlagUploadUsage:   "also upload to a temp host (litterbox 72h) and show a link + QR",
+	ImageFlagLinkOnlyUsage: "upload for a link + QR without writing a local file",
+
+	ImageShapeHorizontalLabel: "Horizontal",
+	ImageShapeHorizontalDesc:  "1200×630 — Twitter / OpenGraph",
+	ImageShapeVerticalLabel:   "Vertical",
+	ImageShapeVerticalDesc:    "1080×1920 — Instagram story",
+	ImageShapeSquareLabel:     "Square",
+	ImageShapeSquareDesc:      "1080×1080",
+
+	ImageThemeOrangeLabel: "Orange",
+	ImageThemeOrangeDesc:  "The Relio default",
+	ImageThemeGreenLabel:  "Green",
+	ImageThemeGreenDesc:   "Teal-green accent",
+	ImageThemePurpleLabel: "Purple",
+	ImageThemePurpleDesc:  "Purple accent",
+
+	ImagePickReleaseTitle: "Pick a release",
+	ImagePickShapeTitle:   "Pick a shape",
+	ImagePickThemeTitle:   "Pick a colour",
+	ImagePickDestTitle:    "What should Relio do with the image?",
+
+	ImageNoReleasesYet:     "No releases yet — create one first.",
+	ImageNoSuchRelease:     "no such release %q",
+	ImageSaved:             "saved %s",
+	ImageStillSavedLocally: "  the image is still saved locally",
+
+	ImageDestBothLabel: "Save + download link",
+	ImageDestBothDesc:  "Write it to %s and upload for a QR + link",
+	ImageDestSaveLabel: "Save only",
+	ImageDestSaveDesc:  "Write it to %s",
+	ImageDestLinkLabel: "Download link only",
+	ImageDestLinkDesc:  "Upload for a QR + link — nothing written to disk",
 }

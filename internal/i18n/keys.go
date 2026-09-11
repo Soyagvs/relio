@@ -377,4 +377,92 @@ const (
 	UndoDoneDeletedTag    MessageID = "undo.done_deleted_tag" // "deleted tag %s"
 	UndoDoneRemovedCommit MessageID = "undo.done_removed_commit"
 	UndoResetFailed       MessageID = "undo.reset_failed" // "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w"
+
+	// Stats command (cmd/stats.go): Short/Long text, the --repo/--prerelease
+	// flag usage strings, and every literal in renderStats — the header,
+	// section headers, row labels, the prerelease tag suffix, the "N older"
+	// line, the "Latest release (%s)" line, and the footer note (PR6d).
+	StatsShort MessageID = "stats.short"
+	StatsLong  MessageID = "stats.long"
+
+	StatsFlagRepoUsage       MessageID = "stats.flag_repo_usage"
+	StatsFlagPrereleaseUsage MessageID = "stats.flag_prerelease_usage"
+
+	StatsHeader               MessageID = "stats.header"
+	StatsDownloadsSection     MessageID = "stats.downloads_section"
+	StatsTotalLabel           MessageID = "stats.total_label"
+	StatsLatestReleaseLabel   MessageID = "stats.latest_release_label"
+	StatsReleasesSection      MessageID = "stats.releases_section"
+	StatsPrereleaseSuffix     MessageID = "stats.prerelease_suffix"
+	StatsOlderCount           MessageID = "stats.older_count"            // "… and %d older"
+	StatsLatestReleaseSection MessageID = "stats.latest_release_section" // "Latest release (%s)"
+	StatsGitHubSection        MessageID = "stats.github_section"
+	StatsStarsLabel           MessageID = "stats.stars_label"
+	StatsForksLabel           MessageID = "stats.forks_label"
+	StatsFooterNote           MessageID = "stats.footer_note"
+
+	// Auth command (cmd/auth.go): the group's and `status` subcommand's
+	// Short/Long text, authStatus's not-authenticated and logged-in-as
+	// lines, and the login/logout note commands' Short/body text (PR6d).
+	AuthShort MessageID = "auth.short"
+	AuthLong  MessageID = "auth.long"
+
+	AuthStatusShort      MessageID = "auth.status_short"
+	AuthNotAuthenticated MessageID = "auth.not_authenticated"
+	AuthLoggedInAs       MessageID = "auth.logged_in_as" // "logged in as %s (via %s)"
+
+	AuthLoginShort  MessageID = "auth.login_short"
+	AuthLoginBody   MessageID = "auth.login_body"
+	AuthLogoutShort MessageID = "auth.logout_short"
+	AuthLogoutBody  MessageID = "auth.logout_body"
+
+	// Image command (cmd/image.go): Short/Long text, the --version/--hash/
+	// --upload/--link-only flag usage strings (--shape/--theme list literal
+	// values the user types and stay untranslated, matching cmd/post.go's
+	// --format convention), the shape/theme picker items (rebuilt as
+	// shapeItems()/themeItems() call-time functions for the same reason
+	// postFormatItems() was — a package var would freeze at "en" before
+	// Execute() ever resolves the language), every pick.Run title, the
+	// no-releases notice, the unknown-release error, the saved-file
+	// confirmation, the save/link/both dest picker's item labels/descs, and
+	// the still-saved-locally fallback note shown after an upload failure
+	// (PR6d).
+	ImageShort MessageID = "image.short"
+	ImageLong  MessageID = "image.long"
+
+	ImageFlagVersionUsage  MessageID = "image.flag_version_usage"
+	ImageFlagHashUsage     MessageID = "image.flag_hash_usage"
+	ImageFlagUploadUsage   MessageID = "image.flag_upload_usage"
+	ImageFlagLinkOnlyUsage MessageID = "image.flag_link_only_usage"
+
+	ImageShapeHorizontalLabel MessageID = "image.shape_horizontal_label"
+	ImageShapeHorizontalDesc  MessageID = "image.shape_horizontal_desc"
+	ImageShapeVerticalLabel   MessageID = "image.shape_vertical_label"
+	ImageShapeVerticalDesc    MessageID = "image.shape_vertical_desc"
+	ImageShapeSquareLabel     MessageID = "image.shape_square_label"
+	ImageShapeSquareDesc      MessageID = "image.shape_square_desc"
+
+	ImageThemeOrangeLabel MessageID = "image.theme_orange_label"
+	ImageThemeOrangeDesc  MessageID = "image.theme_orange_desc"
+	ImageThemeGreenLabel  MessageID = "image.theme_green_label"
+	ImageThemeGreenDesc   MessageID = "image.theme_green_desc"
+	ImageThemePurpleLabel MessageID = "image.theme_purple_label"
+	ImageThemePurpleDesc  MessageID = "image.theme_purple_desc"
+
+	ImagePickReleaseTitle MessageID = "image.pick_release_title"
+	ImagePickShapeTitle   MessageID = "image.pick_shape_title"
+	ImagePickThemeTitle   MessageID = "image.pick_theme_title"
+	ImagePickDestTitle    MessageID = "image.pick_dest_title"
+
+	ImageNoReleasesYet     MessageID = "image.no_releases_yet"
+	ImageNoSuchRelease     MessageID = "image.no_such_release" // "no such release %q"
+	ImageSaved             MessageID = "image.saved"           // "saved %s"
+	ImageStillSavedLocally MessageID = "image.still_saved_locally"
+
+	ImageDestBothLabel MessageID = "image.dest_both_label"
+	ImageDestBothDesc  MessageID = "image.dest_both_desc" // "Write it to %s and upload for a QR + link"
+	ImageDestSaveLabel MessageID = "image.dest_save_label"
+	ImageDestSaveDesc  MessageID = "image.dest_save_desc" // "Write it to %s"
+	ImageDestLinkLabel MessageID = "image.dest_link_label"
+	ImageDestLinkDesc  MessageID = "image.dest_link_desc"
 )
