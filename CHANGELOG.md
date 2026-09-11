@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.9.0] - 2026-09-11
+
+### Added
+
+- config: Add SetFields yaml.Node path-setter for .release.yaml
+- i18n: Add catalog core, global config, and startup wiring
+- i18n: Convert guide walkthrough to i18n.T()
+- i18n: Convert pick's own chrome to i18n.T()
+- i18n: Convert post/publish/undo/hooks commands to i18n.T()
+- i18n: Convert releases browser chrome to i18n.T()
+- i18n: Convert remaining menu items and chrome to i18n.T()
+- i18n: Convert remaining ui.go chrome to i18n.T()
+- i18n: Convert root/help/version command metadata to i18n.T()
+- i18n: Convert stats/auth/image/guide commands to i18n.T()
+- i18n: Convert status/check/init commands to i18n.T()
+- i18n: Convert wizard to i18n.T()
+- settings: Add interactive Settings screen and menu wiring
+
+### Fixed
+
+- menu: Return to menu instead of exiting on q/esc
+
 ## [1.8.0] - 2026-09-10
 
 ### Added
