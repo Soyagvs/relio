@@ -47,6 +47,8 @@ func key(s string) tea.Msg {
 		return tea.KeyMsg{Type: tea.KeyDown}
 	case "esc":
 		return tea.KeyMsg{Type: tea.KeyEsc}
+	case "ctrl+c":
+		return tea.KeyMsg{Type: tea.KeyCtrlC}
 	default:
 		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
 	}
@@ -155,6 +157,43 @@ func TestQuitProducesStaticView(t *testing.T) {
 	sv := m.View()
 	if !strings.Contains(sv, "v0.2.0") || !strings.Contains(sv, "v0.1.0") {
 		t.Errorf("static view should keep the list:\n%s", sv)
+	}
+}
+
+func TestQBacksOutWithoutKilling(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+	m = send(m, "q")
+	if !m.quit {
+		t.Fatal("q should set quit")
+	}
+	if m.killed {
+		t.Error("q should not set killed — it is a soft back-out, not a hard quit")
+	}
+}
+
+func TestCtrlCKills(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+	m = send(m, "ctrl+c")
+	if !m.quit || !m.killed {
+		t.Fatalf("ctrl+c should set quit and killed, got quit=%v killed=%v", m.quit, m.killed)
+	}
+}
+
+func TestCtrlCKillsFromConfirmDelete(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+	m = send(m, "d") // arm delete
+	if m.mode != confirmDelete {
+		t.Fatal("d should enter confirmDelete")
+	}
+	m = send(m, "ctrl+c")
+	if !m.killed {
+		t.Errorf("ctrl+c from the delete prompt should hard-quit (killed=true), got killed=%v", m.killed)
+	}
+	if len(fr.deleted) != 0 {
+		t.Errorf("ctrl+c must not delete anything, got %v", fr.deleted)
 	}
 }
 

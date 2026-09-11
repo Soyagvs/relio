@@ -4,6 +4,7 @@
 package releases
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -27,6 +28,10 @@ type repoPort interface {
 	CommitsBetween(from, to string) ([]conventional.Raw, error)
 }
 
+// ErrQuit is returned by Run when the user hard-quits with ctrl+c, as opposed
+// to leaving the browser with q/esc (which returns nil).
+var ErrQuit = errors.New("releases: quit")
+
 type mode int
 
 const (
@@ -46,7 +51,8 @@ type model struct {
 	status string
 	err    string
 	quit   bool
-	picked int // index chosen with Enter to print on exit; -1 = none
+	killed bool // hard-quit with ctrl+c
+	picked int  // index chosen with Enter to print on exit; -1 = none
 }
 
 func newModel(repo repoPort, project, changelogPath string) model {
@@ -86,6 +92,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.mode == confirmDelete {
 		switch key.String() {
+		case "ctrl+c":
+			m.quit = true
+			m.killed = true
+			return m, tea.Quit
 		case "y", "Y":
 			m = m.doDelete()
 		case "n", "N", "esc", "q":
@@ -96,7 +106,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch key.String() {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c":
+		m.quit = true
+		m.killed = true
+		return m, tea.Quit
+	case "q", "esc":
 		m.quit = true
 		return m, tea.Quit
 	case "up", "k":
@@ -271,6 +285,12 @@ func Run(repo *gitrepo.Repo, cfg config.Config) error {
 		path = "CHANGELOG.md"
 	}
 	m := newModel(repo, cfg.Project, repo.Root()+string(os.PathSeparator)+path)
-	_, err := tea.NewProgram(m).Run()
-	return err
+	final, err := tea.NewProgram(m).Run()
+	if err != nil {
+		return err
+	}
+	if final.(model).killed {
+		return ErrQuit
+	}
+	return nil
 }

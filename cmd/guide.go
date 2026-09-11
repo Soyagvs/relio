@@ -18,7 +18,10 @@ func newGuideCmd(f *releaseFlags) *cobra.Command {
 		Short: "Walk through the whole release flow step by step",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGuide(cmd, f)
+			if err := runGuide(cmd, f); err != nil && !errors.Is(err, guide.ErrQuit) {
+				return err
+			}
+			return nil
 		},
 	}
 }

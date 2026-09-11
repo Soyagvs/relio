@@ -4,6 +4,7 @@
 package guide
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -171,12 +172,17 @@ func wrapLines(s string, width int) []string {
 	return out
 }
 
+// ErrQuit is returned by Run when the user hard-quits with ctrl+c, rather than
+// leaving the walkthrough with q/esc (which returns nil).
+var ErrQuit = errors.New("guide: quit")
+
 // teaModel is the interactive stepper.
 type teaModel struct {
-	steps []step
-	i     int
-	msg   string // transient line under the body (an action's error)
-	done  bool
+	steps  []step
+	i      int
+	msg    string // transient line under the body (an action's error)
+	done   bool
+	killed bool // hard-quit with ctrl+c
 }
 
 func (m teaModel) Init() tea.Cmd { return nil }
@@ -188,7 +194,11 @@ func (m teaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cur := m.steps[m.i]
 	switch k.String() {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c":
+		m.done = true
+		m.killed = true
+		return m, tea.Quit
+	case "q", "esc":
 		m.done = true
 		return m, tea.Quit
 	case "left", "h":
@@ -243,6 +253,12 @@ func (m teaModel) footer() string {
 
 // Run shows the interactive stepper and blocks until the user leaves it.
 func Run(ctx Context) error {
-	_, err := tea.NewProgram(teaModel{steps: buildSteps(ctx)}).Run()
-	return err
+	final, err := tea.NewProgram(teaModel{steps: buildSteps(ctx)}).Run()
+	if err != nil {
+		return err
+	}
+	if final.(teaModel).killed {
+		return ErrQuit
+	}
+	return nil
 }

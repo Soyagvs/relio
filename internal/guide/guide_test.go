@@ -79,6 +79,27 @@ func TestPrintPlainWithConfigNamesProjectAndSkipsInitOffer(t *testing.T) {
 	}
 }
 
+func TestStepperQLeavesWithoutKilling(t *testing.T) {
+	m := teaModel{steps: buildSteps(Context{})}
+	n, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	m = n.(teaModel)
+	if !m.done {
+		t.Fatal("q should set done")
+	}
+	if m.killed {
+		t.Error("q should not set killed — it is a soft back-out, not a hard quit")
+	}
+}
+
+func TestStepperCtrlCKills(t *testing.T) {
+	m := teaModel{steps: buildSteps(Context{})}
+	n, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	m = n.(teaModel)
+	if !m.done || !m.killed {
+		t.Fatalf("ctrl+c should set done and killed, got done=%v killed=%v", m.done, m.killed)
+	}
+}
+
 func TestStepperAdvancesAndRunsAction(t *testing.T) {
 	ran := false
 	m := teaModel{steps: buildSteps(Context{HasRepo: true, RunInit: func() error { ran = true; return nil }})}
