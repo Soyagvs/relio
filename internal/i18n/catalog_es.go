@@ -22,4 +22,7 @@ var es = map[MessageID]string{
 	SettingsCompareLinkDesc:      "Añade un enlace de comparación de GitHub al pie del historial de cambios",
 	SettingsFooterDisabledReason: "Abre un proyecto con .release.yaml para editar estas opciones",
 	SettingsHint:                 "↑/↓ mover · espacio alternar · q volver",
+
+	PickCancelled: "→ cancelado",
+	PickHint:      "↑/↓ mover · enter seleccionar · q cancelar",
 }

@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -66,7 +67,7 @@ func (m model) View() string {
 		return ui.Dim.Render("→ "+m.items[m.cursor].Label) + "\n"
 	}
 	if m.quit {
-		return ui.Dim.Render("→ cancelled") + "\n"
+		return ui.Dim.Render(i18n.T(i18n.PickCancelled)) + "\n"
 	}
 
 	var b strings.Builder
@@ -81,7 +82,7 @@ func (m model) View() string {
 			b.WriteString("    " + ui.Dim.Render(it.Desc) + "\n")
 		}
 	}
-	b.WriteString("\n" + ui.Dim.Render("↑/↓ move · enter select · q cancel"))
+	b.WriteString("\n" + ui.Dim.Render(i18n.T(i18n.PickHint)))
 	return b.String()
 }
 

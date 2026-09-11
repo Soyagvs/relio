@@ -31,4 +31,11 @@ const (
 	SettingsCompareLinkDesc      MessageID = "settings.compare_link_desc"
 	SettingsFooterDisabledReason MessageID = "settings.footer_disabled_reason"
 	SettingsHint                 MessageID = "settings.hint"
+
+	// Pick (internal/pick) — the reusable single-select list Bubble Tea
+	// component used for sub-choices reached from the main menu. Only the
+	// component's own chrome is covered here: item Label/Desc/Value strings
+	// are supplied by callers and localized in those callers' own surfaces.
+	PickCancelled MessageID = "pick.cancelled"
+	PickHint      MessageID = "pick.hint"
 )
