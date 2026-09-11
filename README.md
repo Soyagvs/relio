@@ -257,6 +257,9 @@ A few rows do more than run a flagless command:
 - **Auth** shows which GitHub token Relio found and who it belongs to, or
   explains how to connect one.
 - **Setup** runs `relio init` (or tells you the config already exists).
+- **Settings** switches the UI language (English / Español) and toggles the
+  changelog-footer preferences (contributors line, compare link) — see
+  [Language](#language) for details. It's menu-only, there's no equivalent flag.
 
 The design intent, in one line: **anything the flags can do, the menu can do.**
 The flags are the scripting surface; the menu is the interactive one.
