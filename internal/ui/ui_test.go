@@ -276,6 +276,101 @@ func TestInfoAndSuccessMarkersAreLanguageInvariant(t *testing.T) {
 	}
 }
 
+// TestRemainingChromeLiteralsAreLocalized is the PR4c-2 golden test for
+// ui.go's last hardcoded chrome literals outside the Notes/ReleaseText
+// English boundary: the banner tagline, the "created by" credit word, the
+// "available" update-notice word, versionLabel's "dev build" fallback, and
+// PlanView's hooks/version-files section labels plus the "the beginning"
+// commit-count fallback. Unlike Info/Success (PR4c-1, glyph-only), each of
+// these carries a translatable word, so — like PlanBox/PlanView (slice 1) —
+// they must actually change under a different active language, not just
+// stay put like a glyph marker.
+func TestRemainingChromeLiteralsAreLocalized(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+
+	if _, ok := i18n.SetLanguage("en"); !ok {
+		t.Fatal("SetLanguage(en) rejected the reference language")
+	}
+
+	enBanner := BigBanner("v1.2.3", "")
+	for _, want := range []string{Tagline, "created by"} {
+		if !strings.Contains(enBanner, want) {
+			t.Errorf("en banner missing %q:\n%s", want, enBanner)
+		}
+	}
+	enBannerWithUpdate := BigBanner("v1.2.3", "v1.3.0")
+	if !strings.Contains(enBannerWithUpdate, "▲ v1.3.0 available") {
+		t.Errorf("en banner missing update-available notice:\n%s", enBannerWithUpdate)
+	}
+	if got := versionLabel(""); got != "dev build" {
+		t.Errorf(`versionLabel("") = %q, want "dev build"`, got)
+	}
+
+	hookedPlan := release.Plan{
+		Current: semver.Version{Major: 1, Minor: 5, Prefix: "v"},
+		Next:    semver.Version{Major: 1, Minor: 6, Prefix: "v"},
+	}
+	hookedPlan.Config.Release.Hooks = config.HooksConfig{
+		Before: config.StringList{"make test"},
+		After:  config.StringList{"./scripts/notify.sh", "echo done"},
+	}
+	hookedPlan.VersionChanges = []versionfile.Change{{Rel: "package.json", Old: "1.5.0", New: "1.6.0"}}
+	enHooked := PlanView(hookedPlan)
+	for _, want := range []string{"hooks", "before: make test", "after: 2 commands", "Version files"} {
+		if !strings.Contains(enHooked, want) {
+			t.Errorf("en PlanView missing %q:\n%s", want, enHooked)
+		}
+	}
+
+	beginningPlan := release.Plan{
+		Current: semver.Version{Major: 0, Minor: 0, Prefix: "v"},
+		Next:    semver.Version{Major: 0, Minor: 1, Prefix: "v"},
+	}
+	enSince := PlanView(beginningPlan)
+	if !strings.Contains(enSince, "the beginning") {
+		t.Errorf(`en PlanView missing "the beginning" fallback:\n%s`, enSince)
+	}
+
+	if _, ok := i18n.SetLanguage("es"); !ok {
+		t.Fatal("SetLanguage(es) rejected a registered language")
+	}
+
+	esBanner := BigBanner("v1.2.3", "")
+	if esBanner == enBanner {
+		t.Error("banner did not change under es — tagline/created-by literal did not localize (or the cache ignored the active language)")
+	}
+	if strings.Contains(esBanner, Tagline) || strings.Contains(esBanner, "created by") {
+		t.Errorf("es banner still contains English chrome:\n%s", esBanner)
+	}
+	if got := versionLabel(""); got == "dev build" {
+		t.Errorf(`versionLabel("") did not localize under es, still got %q`, got)
+	}
+
+	esBannerWithUpdate := BigBanner("v1.2.3", "v1.3.0")
+	if esBannerWithUpdate == enBannerWithUpdate {
+		t.Error("banner update-available notice did not change under es")
+	}
+	if strings.Contains(esBannerWithUpdate, "available") {
+		t.Errorf("es banner still contains the English \"available\" word:\n%s", esBannerWithUpdate)
+	}
+
+	esHooked := PlanView(hookedPlan)
+	if esHooked == enHooked {
+		t.Error("PlanView hooks/version-files chrome did not change under es")
+	}
+	if strings.Contains(esHooked, "hooks") || strings.Contains(esHooked, "before: make test") || strings.Contains(esHooked, "Version files") {
+		t.Errorf("es PlanView still contains English hooks/version-files chrome:\n%s", esHooked)
+	}
+
+	esSince := PlanView(beginningPlan)
+	if esSince == enSince {
+		t.Error(`PlanView "the beginning" fallback did not change under es`)
+	}
+	if strings.Contains(esSince, "the beginning") {
+		t.Errorf(`es PlanView still contains the English "the beginning" fallback:\n%s`, esSince)
+	}
+}
+
 func TestNotesShowsCommitHash(t *testing.T) {
 	n := changelog.Notes{Groups: map[changelog.Group][]changelog.Item{
 		changelog.Fixed: {

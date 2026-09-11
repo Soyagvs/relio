@@ -59,7 +59,10 @@ const (
 	RepoURL = "github.com/Soyagvs/relio"
 )
 
-// Tagline sits under the wordmark, in purple.
+// Tagline sits under the wordmark, in purple. It is the English reference
+// string for i18n.BannerTagline (see catalog_en.go) — bannerLower renders
+// the localized i18n.T(i18n.BannerTagline), not this constant directly, but
+// the two must stay in sync so the default (English) banner is unchanged.
 const Tagline = "turn commits into releases"
 
 // "RELI" of the wordmark, ANSI Shadow block style, rendered in white. The "O" is
@@ -254,13 +257,13 @@ func bannerLower(version, available string) string {
 
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(bannerIndent + tagMark.Render(Tagline) + "\n")
+	b.WriteString(bannerIndent + tagMark.Render(i18n.T(i18n.BannerTagline)) + "\n")
 	b.WriteString(bannerIndent + rule + "\n")
 	b.WriteString(bannerIndent + Key.Render(versionLabel(version)) +
-		Dim.Render("   ·   created by ") + author.Render(Author) + "\n")
+		Dim.Render("   ·   "+i18n.T(i18n.BannerCreatedBy)+" ") + author.Render(Author) + "\n")
 	b.WriteString(bannerIndent + Dim.Render(RepoURL) + "\n")
 	if available != "" {
-		b.WriteString(bannerIndent + Key.Render("▲ v"+strings.TrimPrefix(available, "v")+" available") + "\n")
+		b.WriteString(bannerIndent + Key.Render(i18n.T(i18n.BannerUpdateAvailable, strings.TrimPrefix(available, "v"))) + "\n")
 	}
 	return b.String()
 }
@@ -271,7 +274,11 @@ func bannerLower(version, available string) string {
 // (a bare "1.2.3") — the repo URL, and the author credit all sit flush left
 // below it.
 func BigBanner(version, available string) string {
-	key := version + "\x00" + available
+	// The active language is part of the cache key: the banner's tagline
+	// and "created by" credit route through i18n.T, so the same
+	// version/available pair renders different text once the active
+	// language changes (e.g. after a Settings screen language switch).
+	key := i18n.Current() + "\x00" + version + "\x00" + available
 	if s, ok := bannerCache[key]; ok {
 		return s
 	}
@@ -344,7 +351,7 @@ func BannerIntro(w io.Writer, version, available string, animate bool) {
 func versionLabel(version string) string {
 	v := strings.TrimSpace(version)
 	if v == "" || v == "dev" {
-		return "dev build"
+		return i18n.T(i18n.BannerDevBuild)
 	}
 	return "v" + strings.TrimPrefix(v, "v")
 }
@@ -490,15 +497,15 @@ func hooks(p release.Plan) string {
 		if len(cmds) == 1 {
 			return cmds[0]
 		}
-		return fmt.Sprintf("%d commands", len(cmds))
+		return i18n.T(i18n.PlanHooksCommandsCount, len(cmds))
 	}
 	var b strings.Builder
-	b.WriteString(group.Render("hooks") + "\n")
+	b.WriteString(group.Render(i18n.T(i18n.PlanHooksLabel)) + "\n")
 	if len(before) > 0 {
-		b.WriteString("  " + Dim.Render("before: "+summary(before)) + "\n")
+		b.WriteString("  " + Dim.Render(i18n.T(i18n.PlanHooksBefore)+summary(before)) + "\n")
 	}
 	if len(after) > 0 {
-		b.WriteString("  " + Dim.Render("after: "+summary(after)) + "\n")
+		b.WriteString("  " + Dim.Render(i18n.T(i18n.PlanHooksAfter)+summary(after)) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -510,7 +517,7 @@ func versionFiles(p release.Plan) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(group.Render("Version files") + "\n")
+	b.WriteString(group.Render(i18n.T(i18n.PlanVersionFilesLabel)) + "\n")
 	for _, c := range p.VersionChanges {
 		b.WriteString("  " + c.Rel + "   " + Dim.Render(c.Old+" → "+c.New) + "\n")
 	}
@@ -519,7 +526,7 @@ func versionFiles(p release.Plan) string {
 
 func commitBase(p release.Plan) string {
 	if p.Current.String() == "v0.0.0" {
-		return "the beginning"
+		return i18n.T(i18n.PlanSinceBeginning)
 	}
 	return p.Current.String()
 }

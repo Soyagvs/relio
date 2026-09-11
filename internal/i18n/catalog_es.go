@@ -51,4 +51,16 @@ var es = map[MessageID]string{
 
 	PickCancelled: "→ cancelado",
 	PickHint:      "↑/↓ mover · enter seleccionar · q cancelar",
+
+	BannerTagline:         "convierte commits en lanzamientos",
+	BannerCreatedBy:       "creado por",
+	BannerDevBuild:        "compilación de desarrollo",
+	BannerUpdateAvailable: "▲ v%s disponible",
+
+	PlanHooksLabel:         "ganchos",
+	PlanHooksBefore:        "antes: ",
+	PlanHooksAfter:         "después: ",
+	PlanHooksCommandsCount: "%d comandos",
+	PlanVersionFilesLabel:  "Archivos de versión",
+	PlanSinceBeginning:     "el principio",
 }

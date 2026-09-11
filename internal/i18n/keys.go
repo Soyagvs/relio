@@ -69,4 +69,23 @@ const (
 	// are supplied by callers and localized in those callers' own surfaces.
 	PickCancelled MessageID = "pick.cancelled"
 	PickHint      MessageID = "pick.hint"
+
+	// Remaining ui.go chrome (PR4c-2): the entry banner's tagline and
+	// "created by" credit, versionLabel's "dev build" fallback, and
+	// PlanView's hooks/version-files section labels plus the "since the
+	// beginning" fallback used when there is no prior tag. ui.Notes,
+	// ui.ReleaseText, ui.ReleaseHeader, and ui.ReleaseMeta are the artifact
+	// English boundary and are NEVER routed through these or any other
+	// i18n.T call — see internal/ui/artifact_invariance_test.go.
+	BannerTagline         MessageID = "banner.tagline"
+	BannerCreatedBy       MessageID = "banner.created_by"
+	BannerDevBuild        MessageID = "banner.dev_build"
+	BannerUpdateAvailable MessageID = "banner.update_available" // "▲ v%s available"
+
+	PlanHooksLabel         MessageID = "plan.hooks_label"
+	PlanHooksBefore        MessageID = "plan.hooks_before"
+	PlanHooksAfter         MessageID = "plan.hooks_after"
+	PlanHooksCommandsCount MessageID = "plan.hooks_commands_count" // "%d commands"
+	PlanVersionFilesLabel  MessageID = "plan.version_files_label"
+	PlanSinceBeginning     MessageID = "plan.since_beginning"
 )
