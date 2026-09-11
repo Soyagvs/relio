@@ -9,6 +9,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/config"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/versionfile"
@@ -237,6 +238,41 @@ func TestPlanViewWithoutHooks(t *testing.T) {
 	}
 	if strings.Contains(PlanView(p), "hooks") {
 		t.Error("PlanView showed a hooks line with no hooks configured")
+	}
+}
+
+// TestInfoAndSuccessMarkersAreLanguageInvariant is the PR4c-1 golden test for
+// ui.go's warn/prompt/status-message wrapper functions. Info and Success each
+// prepend a leading marker glyph ("· ", "✓") to a fully caller-supplied
+// message — the same shape as pick.go's untouched "→ "+Label line (PR4a):
+// the wrapper's own literal carries no translatable word, only a symbol, so
+// there is nothing for i18n.T to localize. This test locks that finding in:
+// a future change that accidentally routes either marker through i18n.T with
+// per-language variation must fail here.
+func TestInfoAndSuccessMarkersAreLanguageInvariant(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+
+	langs := i18n.Languages()
+	if len(langs) < 2 {
+		t.Fatalf("language registry has fewer than 2 entries (%d); this test proves nothing", len(langs))
+	}
+
+	if _, ok := i18n.SetLanguage("en"); !ok {
+		t.Fatal("SetLanguage(en) rejected the reference language")
+	}
+	baselineInfo := Info("message")
+	baselineSuccess := Success([]string{"done"})
+
+	for _, lang := range langs {
+		if _, ok := i18n.SetLanguage(lang.ID); !ok {
+			t.Fatalf("SetLanguage(%q) rejected a registered language", lang.ID)
+		}
+		if got := Info("message"); got != baselineInfo {
+			t.Errorf("Info diverged under language %q: got %q, want %q — Info's own literal is a glyph marker, not translatable text; only the caller-supplied message may vary", lang.ID, got, baselineInfo)
+		}
+		if got := Success([]string{"done"}); got != baselineSuccess {
+			t.Errorf("Success diverged under language %q: got %q, want %q — Success's own literal is a glyph marker, not translatable text; only caller-supplied lines may vary", lang.ID, got, baselineSuccess)
+		}
 	}
 }
 
