@@ -37,44 +37,33 @@ const (
 )
 
 type item struct {
-	label  string
-	desc   string
-	action Action
-	group  int // a faint rule is drawn wherever this changes between rows
+	labelID i18n.MessageID
+	descID  i18n.MessageID
+	action  Action
+	group   int // a faint rule is drawn wherever this changes between rows
 }
 
-// Label returns the rendered label for it. Every item is hardcoded English
-// except Settings, which is localized: it is looked up here (at render time)
-// rather than baked into the items literal below, because that literal is a
-// package-level var evaluated before the CLI resolves the active language.
-func (it item) Label() string {
-	if it.action == Settings {
-		return i18n.T(i18n.MenuSettingsLabel)
-	}
-	return it.label
-}
+// Label returns the rendered label for it, looked up at render time so it
+// always reflects the active language (SetLanguage may run after items is
+// initialized).
+func (it item) Label() string { return i18n.T(it.labelID) }
 
 // Desc mirrors Label for the item's description column.
-func (it item) Desc() string {
-	if it.action == Settings {
-		return i18n.T(i18n.MenuSettingsDesc)
-	}
-	return it.desc
-}
+func (it item) Desc() string { return i18n.T(it.descID) }
 
 var items = []item{
-	{"Release", "Create a release — final or rc, and optionally push + publish", Release, 1},
-	{"Status", "What's unreleased and the version it suggests", Status, 1},
-	{"Check", "Which commits since the last tag are Conventional Commits", Check, 1},
-	{"Releases", "Browse versions, read notes, delete one", ViewReleases, 2},
-	{"Announcement", "Copy-paste release text — pick a format", ReleaseText, 2},
-	{"Release image", "Save or share a PNG release card", ReleaseImage, 2},
-	{"Auth", "GitHub connection — status and how to link", Auth, 3},
-	{"Setup", "Create or inspect .release.yaml", Setup, 3},
-	{"Settings", "Language and release-footer preferences", Settings, 3},
-	{"Guide", "Step-by-step walkthrough of the whole flow", Guide, 3},
-	{"Help", "Every command and flag", Help, 3},
-	{"Exit", "Leave Relio", Exit, 4},
+	{i18n.MenuReleaseLabel, i18n.MenuReleaseDesc, Release, 1},
+	{i18n.MenuStatusLabel, i18n.MenuStatusDesc, Status, 1},
+	{i18n.MenuCheckLabel, i18n.MenuCheckDesc, Check, 1},
+	{i18n.MenuViewReleasesLabel, i18n.MenuViewReleasesDesc, ViewReleases, 2},
+	{i18n.MenuReleaseTextLabel, i18n.MenuReleaseTextDesc, ReleaseText, 2},
+	{i18n.MenuReleaseImageLabel, i18n.MenuReleaseImageDesc, ReleaseImage, 2},
+	{i18n.MenuAuthLabel, i18n.MenuAuthDesc, Auth, 3},
+	{i18n.MenuSetupLabel, i18n.MenuSetupDesc, Setup, 3},
+	{i18n.MenuSettingsLabel, i18n.MenuSettingsDesc, Settings, 3},
+	{i18n.MenuGuideLabel, i18n.MenuGuideDesc, Guide, 3},
+	{i18n.MenuHelpLabel, i18n.MenuHelpDesc, Help, 3},
+	{i18n.MenuExitLabel, i18n.MenuExitDesc, Exit, 4},
 }
 
 // digitRows is how many leading items answer to a 1–9 keypress; the rest
@@ -238,7 +227,7 @@ func (m model) View() string {
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString("  " + headline.Render(ui.Truncate(strings.ToUpper(ui.AppName)+" menu", max(0, rowW-2))) + "\n\n")
+	b.WriteString("  " + headline.Render(ui.Truncate(i18n.T(i18n.MenuHeadline, strings.ToUpper(ui.AppName)), max(0, rowW-2))) + "\n\n")
 
 	for i, it := range items {
 		// A faint rule wherever the group changes, so the menu reads in bands.
@@ -281,7 +270,7 @@ func (m model) View() string {
 		b.WriteString(body + "\n")
 	}
 
-	hint := "↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"
+	hint := i18n.T(i18n.MenuHint)
 	b.WriteString("\n  " + ui.Dim.Render(ui.Truncate(hint, max(0, rowW-2))))
 	return b.String()
 }

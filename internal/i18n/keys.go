@@ -16,6 +16,37 @@ const (
 	PlanFinalize       MessageID = "plan.finalize"
 	PlanCommitsSince   MessageID = "plan.commits_since" // "%d commits since %s"
 
+	// Main menu (internal/menu) chrome: the headline, the digit-jump hint,
+	// and every item's label/desc. MenuSettingsLabel/Desc predate this block
+	// (added greenfield with the Settings screen itself); the rest were
+	// converted from hardcoded English literals in slice 4b.
+	MenuHeadline MessageID = "menu.headline" // "%s menu" — %s is the uppercased app name
+
+	MenuHint MessageID = "menu.hint"
+
+	MenuReleaseLabel      MessageID = "menu.release_label"
+	MenuReleaseDesc       MessageID = "menu.release_desc"
+	MenuStatusLabel       MessageID = "menu.status_label"
+	MenuStatusDesc        MessageID = "menu.status_desc"
+	MenuCheckLabel        MessageID = "menu.check_label"
+	MenuCheckDesc         MessageID = "menu.check_desc"
+	MenuViewReleasesLabel MessageID = "menu.view_releases_label"
+	MenuViewReleasesDesc  MessageID = "menu.view_releases_desc"
+	MenuReleaseTextLabel  MessageID = "menu.release_text_label"
+	MenuReleaseTextDesc   MessageID = "menu.release_text_desc"
+	MenuReleaseImageLabel MessageID = "menu.release_image_label"
+	MenuReleaseImageDesc  MessageID = "menu.release_image_desc"
+	MenuAuthLabel         MessageID = "menu.auth_label"
+	MenuAuthDesc          MessageID = "menu.auth_desc"
+	MenuSetupLabel        MessageID = "menu.setup_label"
+	MenuSetupDesc         MessageID = "menu.setup_desc"
+	MenuGuideLabel        MessageID = "menu.guide_label"
+	MenuGuideDesc         MessageID = "menu.guide_desc"
+	MenuHelpLabel         MessageID = "menu.help_label"
+	MenuHelpDesc          MessageID = "menu.help_desc"
+	MenuExitLabel         MessageID = "menu.exit_label"
+	MenuExitDesc          MessageID = "menu.exit_desc"
+
 	// Settings screen (internal/settings) and its one menu entry. This is a
 	// greenfield surface authored i18n-native from birth — not converted from
 	// a later slice.

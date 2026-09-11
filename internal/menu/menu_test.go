@@ -7,6 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/soyagvs/relio/internal/i18n"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 func send(m model, keys ...string) model {
@@ -93,16 +96,89 @@ func TestCheckItemPresent(t *testing.T) {
 	for _, it := range items {
 		if it.action == Check {
 			found = true
-			if it.label != "Check" {
-				t.Errorf("Check label = %q", it.label)
+			if it.Label() != "Check" {
+				t.Errorf("Check label = %q", it.Label())
 			}
-			if it.desc == "" {
+			if it.Desc() == "" {
 				t.Error("Check needs a description")
 			}
 		}
 	}
 	if !found {
 		t.Error("no menu item wired to Check")
+	}
+}
+
+// TestGoldenEnglishDefaultUnchanged pins every hardcoded English menu string
+// (every item's label/desc, the headline suffix, and the digit-jump hint)
+// against i18n.T() under the default "en" language: converting menu.go's
+// remaining literals to i18n.T() calls MUST NOT change a single byte of
+// English output. This is the RED/refactor safety net for the menu.go ->
+// i18n.T() conversion (slice 4b).
+func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
+	prev := i18n.Current()
+	if prev != "en" {
+		i18n.SetLanguage("en")
+	}
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	wantLabels := map[Action]string{
+		Release:      "Release",
+		Status:       "Status",
+		Check:        "Check",
+		ViewReleases: "Releases",
+		ReleaseText:  "Announcement",
+		ReleaseImage: "Release image",
+		Auth:         "Auth",
+		Setup:        "Setup",
+		Settings:     "Settings",
+		Guide:        "Guide",
+		Help:         "Help",
+		Exit:         "Exit",
+	}
+	wantDescs := map[Action]string{
+		Release:      "Create a release — final or rc, and optionally push + publish",
+		Status:       "What's unreleased and the version it suggests",
+		Check:        "Which commits since the last tag are Conventional Commits",
+		ViewReleases: "Browse versions, read notes, delete one",
+		ReleaseText:  "Copy-paste release text — pick a format",
+		ReleaseImage: "Save or share a PNG release card",
+		Auth:         "GitHub connection — status and how to link",
+		Setup:        "Create or inspect .release.yaml",
+		Settings:     "Language and release-footer preferences",
+		Guide:        "Step-by-step walkthrough of the whole flow",
+		Help:         "Every command and flag",
+		Exit:         "Leave Relio",
+	}
+
+	if len(items) != len(wantLabels) || len(items) != len(wantDescs) {
+		t.Fatalf("items has %d entries, golden tables have %d labels / %d descs — update all three together", len(items), len(wantLabels), len(wantDescs))
+	}
+	for _, it := range items {
+		if got, want := it.Label(), wantLabels[it.action]; got != want {
+			t.Errorf("action %v: Label() = %q, want %q", it.action, got, want)
+		}
+		if got, want := it.Desc(), wantDescs[it.action]; got != want {
+			t.Errorf("action %v: Desc() = %q, want %q", it.action, got, want)
+		}
+	}
+
+	wantHint := "↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"
+	if got := i18n.T(i18n.MenuHint); got != wantHint {
+		t.Errorf("i18n.T(MenuHint) under en = %q, want %q", got, wantHint)
+	}
+
+	wantHeadline := "RELIO menu"
+	if got := i18n.T(i18n.MenuHeadline, strings.ToUpper(ui.AppName)); got != wantHeadline {
+		t.Errorf("i18n.T(MenuHeadline, ...) under en = %q, want %q", got, wantHeadline)
+	}
+
+	v := model{width: 80}.View()
+	if !strings.Contains(v, wantHint) {
+		t.Errorf("View() missing hint line:\n%s", v)
+	}
+	if !strings.Contains(v, wantHeadline) {
+		t.Errorf("View() missing headline:\n%s", v)
 	}
 }
 
