@@ -74,4 +74,24 @@ var es = map[MessageID]string{
 	WizardConfirmed:     "→ confirmado %s",
 	WizardCancelled:     "→ cancelado",
 	WizardHint:          "↑/↓ mover · enter seleccionar · y confirmar · q cancelar",
+
+	ReleasesTitle:           "Lanzamientos",
+	ReleasesEmpty:           "Aún no hay lanzamientos. Crea uno desde el menú.",
+	ReleasesEmptyHint:       "q volver",
+	ReleasesNoNotes:         "(sin notas para esta versión)",
+	ReleasesNonePlaceholder: "(ninguno)",
+
+	ReleasesDeleteConfirm:          "¿Eliminar %s? Esto elimina la etiqueta de git y su sección del historial de cambios.  [y/N]",
+	ReleasesDeleteCancelled:        "Eliminación cancelada.",
+	ReleasesDeleted:                "Eliminado %s (%s).",
+	ReleasesRemovedTag:             "etiqueta",
+	ReleasesRemovedTagAndChangelog: "etiqueta + sección del historial de cambios",
+	ReleasesChangelogWriteError:    "etiqueta eliminada, pero historial de cambios: %v",
+
+	ReleasesHintPrintNotesExit: "mostrar notas y salir",
+	ReleasesHintDeleteRelease:  "eliminar lanzamiento",
+	ReleasesHintMove:           "mover",
+	ReleasesHintShowExit:       "mostrar y salir",
+	ReleasesHintDelete:         "eliminar",
+	ReleasesHintBack:           "volver",
 }

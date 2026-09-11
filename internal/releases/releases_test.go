@@ -1,6 +1,7 @@
 package releases
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 type fakeRepo struct {
@@ -224,5 +227,172 @@ func TestCursorClampsAfterDeletingLast(t *testing.T) {
 	m = send(m, "d", "y")
 	if m.cursor != 0 {
 		t.Errorf("cursor = %d, want 0 after deleting last row", m.cursor)
+	}
+}
+
+// TestGoldenEnglishDefaultUnchanged pins releases.go's own chrome against
+// i18n.T() under the default "en" language: converting releases.go's
+// literals to i18n.T() calls MUST NOT change a single byte of English
+// output. This is the RED/refactor safety net for the releases.go ->
+// i18n.T() conversion (slice 5b). It intentionally never exercises
+// notesFor's ui.Notes/ui.ReleaseText path — that content stays English by
+// a separate, permanent contract enforced by
+// internal/ui/artifact_invariance_test.go, not by this test.
+func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
+	prev := i18n.Current()
+	if prev != "en" {
+		i18n.SetLanguage("en")
+	}
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+
+	// Title, byte-identical to the historical hardcoded string.
+	wantTitle := ui.Title.Render("⬢ Releases") + "\n\n"
+	v := m.View()
+	if !strings.HasPrefix(v, wantTitle) {
+		t.Errorf("View() title = %q, want prefix %q", v, wantTitle)
+	}
+
+	// Footer hints, byte-identical to the historical hardcoded strings.
+	wantEnterHint := ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit")
+	if !strings.Contains(v, wantEnterHint) {
+		t.Errorf("View() missing enter hint %q:\n%s", wantEnterHint, v)
+	}
+	wantDeleteHint := ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release")
+	if !strings.Contains(v, wantDeleteHint) {
+		t.Errorf("View() missing delete hint %q:\n%s", wantDeleteHint, v)
+	}
+	wantFooter := keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
+		keyHint("d", "delete") + keyHint("q", "back")
+	if !strings.HasSuffix(v, wantFooter) {
+		t.Errorf("View() does not end with the expected footer:\n%s", v)
+	}
+
+	// Delete-confirmation prompt, byte-identical to the historical hardcoded
+	// string.
+	confirming := send(m, "d")
+	wantConfirm := "\n" + ui.Warn.Render("Delete v0.2.0? This removes the git tag and its changelog section.  [y/N]")
+	if cv := confirming.View(); !strings.HasSuffix(cv, wantConfirm) {
+		t.Errorf("confirmDelete View() = %q, want suffix %q", cv, wantConfirm)
+	}
+
+	// Delete-cancelled status, byte-identical to the historical hardcoded
+	// string.
+	fr2, path2 := setup(t)
+	m2 := newModel(fr2, "demo", path2)
+	cancelled := send(m2, "d", "n")
+	if cv := cancelled.View(); !strings.Contains(cv, "Delete cancelled.") {
+		t.Errorf("View() after cancel missing %q:\n%s", "Delete cancelled.", cv)
+	}
+
+	// Deleted status (tag + changelog section removed), byte-identical to
+	// the historical hardcoded string.
+	fr3, path3 := setup(t)
+	m3 := newModel(fr3, "demo", path3)
+	deleted := send(m3, "d", "y")
+	if dv := deleted.View(); !strings.Contains(dv, "Deleted v0.2.0 (tag + changelog section).") {
+		t.Errorf("View() after delete missing %q:\n%s", "Deleted v0.2.0 (tag + changelog section).", dv)
+	}
+
+	// Empty-state chrome, byte-identical to the historical hardcoded
+	// strings.
+	empty := &fakeRepo{}
+	em := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
+	wantEmpty := wantTitle + ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n" + ui.Dim.Render("q back")
+	if ev := em.View(); ev != wantEmpty {
+		t.Errorf("empty View() = %q, want %q", ev, wantEmpty)
+	}
+
+	// staticView "(none)" placeholder, byte-identical.
+	quitEmpty := send(em, "q")
+	wantNone := ui.Title.Render("⬢ Releases") + "\n" + ui.Dim.Render("  (none)") + "\n"
+	if sv := quitEmpty.View(); sv != wantNone {
+		t.Errorf("empty staticView() = %q, want %q", sv, wantNone)
+	}
+
+	// notesFor's "(no notes for this version)" fallback, byte-identical —
+	// this exercises only the fallback placeholder, never
+	// ui.Notes/ui.ReleaseText.
+	noNotes := &fakeRepo{tags: []gitrepo.TagInfo{{Name: "v0.1.0", Date: "2026-08-01"}}}
+	nm := newModel(noNotes, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
+	wantNoNotes := ui.Dim.Render("(no notes for this version)")
+	if nv := nm.View(); !strings.Contains(nv, wantNoNotes) {
+		t.Errorf("View() missing no-notes fallback %q:\n%s", wantNoNotes, nv)
+	}
+}
+
+// TestChromeLocalizesUnderSpanish proves releases.go's chrome — title,
+// empty-state message, footer hints, delete-confirmation prompt, delete
+// outcome status lines, and the no-notes fallback — actually routes
+// through i18n.T (not just accidentally identical in English): switching
+// to "es" must change every one of them and must never leak the English
+// literal. notesFor's ui.Notes/ui.ReleaseText path is deliberately NOT
+// exercised for divergence here — that boundary is asserted invariant, not
+// localized, by internal/ui/artifact_invariance_test.go.
+func TestChromeLocalizesUnderSpanish(t *testing.T) {
+	prev := i18n.Current()
+	i18n.SetLanguage("es")
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+	v := m.View()
+
+	if !strings.Contains(v, "Lanzamientos") {
+		t.Errorf("es View() missing localized title, got:\n%s", v)
+	}
+	if strings.Contains(v, "print notes & exit") || strings.Contains(v, "delete release") {
+		t.Errorf("es View() still contains English footer hints:\n%s", v)
+	}
+	for _, spanish := range []string{"mostrar notas y salir", "eliminar lanzamiento", "mover", "mostrar y salir", "eliminar", "volver"} {
+		if !strings.Contains(v, spanish) {
+			t.Errorf("es View() missing localized hint %q, got:\n%s", spanish, v)
+		}
+	}
+
+	confirming := send(m, "d")
+	cv := confirming.View()
+	if strings.Contains(cv, "This removes the git tag") {
+		t.Errorf("es confirmDelete View() still contains English, got:\n%s", cv)
+	}
+	if !strings.Contains(cv, "¿Eliminar v0.2.0? Esto elimina la etiqueta de git y su sección del historial de cambios.") {
+		t.Errorf("es confirmDelete View() missing localized prompt, got:\n%s", cv)
+	}
+
+	fr2, path2 := setup(t)
+	m2 := newModel(fr2, "demo", path2)
+	cancelled := send(m2, "d", "n")
+	if cv := cancelled.View(); !strings.Contains(cv, "Eliminación cancelada.") || strings.Contains(cv, "Delete cancelled.") {
+		t.Errorf("es View() after cancel = %q, want localized cancellation", cv)
+	}
+
+	fr3, path3 := setup(t)
+	m3 := newModel(fr3, "demo", path3)
+	deleted := send(m3, "d", "y")
+	if dv := deleted.View(); !strings.Contains(dv, "Eliminado v0.2.0 (etiqueta + sección del historial de cambios).") || strings.Contains(dv, "Deleted") {
+		t.Errorf("es View() after delete = %q, want localized deletion", dv)
+	}
+
+	empty := &fakeRepo{}
+	em := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
+	ev := em.View()
+	if !strings.Contains(ev, "Aún no hay lanzamientos. Crea uno desde el menú.") || strings.Contains(ev, "No releases yet") {
+		t.Errorf("es empty View() = %q, want localized empty state", ev)
+	}
+	if !strings.Contains(ev, "q volver") {
+		t.Errorf("es empty View() missing localized back hint, got:\n%s", ev)
+	}
+
+	quitEmpty := send(em, "q")
+	if sv := quitEmpty.View(); !strings.Contains(sv, "(ninguno)") || strings.Contains(sv, "(none)") {
+		t.Errorf("es staticView() = %q, want localized none placeholder", sv)
+	}
+
+	noNotes := &fakeRepo{tags: []gitrepo.TagInfo{{Name: "v0.1.0", Date: "2026-08-01"}}}
+	nm := newModel(noNotes, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
+	if nv := nm.View(); !strings.Contains(nv, "(sin notas para esta versión)") || strings.Contains(nv, "no notes for this version") {
+		t.Errorf("es View() missing localized no-notes fallback, got:\n%s", nv)
 	}
 }

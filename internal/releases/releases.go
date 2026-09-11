@@ -16,6 +16,7 @@ import (
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -100,7 +101,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.doDelete()
 		case "n", "N", "esc", "q":
 			m.mode = browse
-			m.status = "Delete cancelled."
+			m.status = i18n.T(i18n.ReleasesDeleteCancelled)
 		}
 		return m, nil
 	}
@@ -149,19 +150,19 @@ func (m model) doDelete() model {
 		return m
 	}
 
-	removed := "tag"
+	removed := i18n.T(i18n.ReleasesRemovedTag)
 	if m.changelog != "" && changelog.ExtractSection(m.changelog, tag.Name) != "" {
 		updated := changelog.RemoveSection(m.changelog, tag.Name)
 		if err := os.WriteFile(m.changelogPath, []byte(updated), 0o644); err != nil {
-			m.err = fmt.Sprintf("tag deleted, but changelog: %v", err)
+			m.err = i18n.T(i18n.ReleasesChangelogWriteError, err)
 			m.reload()
 			return m
 		}
-		removed = "tag + changelog section"
+		removed = i18n.T(i18n.ReleasesRemovedTagAndChangelog)
 	}
 
 	m.reload()
-	m.status = fmt.Sprintf("Deleted %s (%s).", tag.Name, removed)
+	m.status = i18n.T(i18n.ReleasesDeleted, tag.Name, removed)
 	return m
 }
 
@@ -195,7 +196,7 @@ func (m model) notesFor(idx int) string {
 	if msg, _ := m.repo.TagMessage(tag.Name); strings.TrimSpace(msg) != "" {
 		return strings.TrimSpace(msg)
 	}
-	return ui.Dim.Render("(no notes for this version)")
+	return ui.Dim.Render(i18n.T(i18n.ReleasesNoNotes))
 }
 
 var (
@@ -211,14 +212,14 @@ func (m model) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(ui.Title.Render("⬢ Releases") + "\n\n")
+	b.WriteString(ui.Title.Render("⬢ "+i18n.T(i18n.ReleasesTitle)) + "\n\n")
 
 	if m.err != "" {
 		b.WriteString(ui.Warn.Render("✗ "+m.err) + "\n\n")
 	}
 	if len(m.tags) == 0 {
-		b.WriteString(ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n")
-		b.WriteString(ui.Dim.Render("q back"))
+		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmpty)) + "\n\n")
+		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmptyHint)))
 		return b.String()
 	}
 
@@ -239,15 +240,15 @@ func (m model) View() string {
 
 	if m.mode == confirmDelete {
 		tag, _ := m.selected()
-		b.WriteString("\n" + ui.Warn.Render(fmt.Sprintf("Delete %s? This removes the git tag and its changelog section.  [y/N]", tag.Name)))
+		b.WriteString("\n" + ui.Warn.Render(i18n.T(i18n.ReleasesDeleteConfirm, tag.Name)))
 	} else {
 		if m.status != "" {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
-		b.WriteString("\n\n" + ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit"))
-		b.WriteString("\n" + ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release"))
-		b.WriteString("\n\n" + keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
-			keyHint("d", "delete") + keyHint("q", "back"))
+		b.WriteString("\n\n" + ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintPrintNotesExit)))
+		b.WriteString("\n" + ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintDeleteRelease)))
+		b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("enter", i18n.T(i18n.ReleasesHintShowExit)) +
+			keyHint("d", i18n.T(i18n.ReleasesHintDelete)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
 	}
 	return b.String()
 }
@@ -265,9 +266,9 @@ func (m model) staticView() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(ui.Title.Render("⬢ Releases") + "\n")
+	b.WriteString(ui.Title.Render("⬢ "+i18n.T(i18n.ReleasesTitle)) + "\n")
 	if len(m.tags) == 0 {
-		b.WriteString(ui.Dim.Render("  (none)") + "\n")
+		b.WriteString(ui.Dim.Render("  "+i18n.T(i18n.ReleasesNonePlaceholder)) + "\n")
 	}
 	for _, t := range m.tags {
 		b.WriteString(fmt.Sprintf("  %-12s  %s  %s\n", t.Name, t.Date, ui.Dim.Render(t.Subject)))

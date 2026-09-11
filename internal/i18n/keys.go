@@ -102,4 +102,30 @@ const (
 	WizardConfirmed     MessageID = "wizard.confirmed" // "→ confirmed %s"
 	WizardCancelled     MessageID = "wizard.cancelled"
 	WizardHint          MessageID = "wizard.hint"
+
+	// Releases (internal/releases) — the interactive release browser: title,
+	// empty-state message, delete-confirmation prompt, delete outcome status
+	// lines, the notesFor fallback placeholder shown when no notes exist at
+	// all, and footer hints (PR5b). notesFor's ui.Notes/ui.ReleaseText/
+	// ui.ReleaseHeader/ui.ReleaseMeta path is NEVER routed through these or
+	// any other i18n.T call — see internal/ui/artifact_invariance_test.go.
+	ReleasesTitle           MessageID = "releases.title"
+	ReleasesEmpty           MessageID = "releases.empty"
+	ReleasesEmptyHint       MessageID = "releases.empty_hint"
+	ReleasesNoNotes         MessageID = "releases.no_notes"
+	ReleasesNonePlaceholder MessageID = "releases.none_placeholder"
+
+	ReleasesDeleteConfirm          MessageID = "releases.delete_confirm" // "Delete %s? This removes the git tag and its changelog section.  [y/N]"
+	ReleasesDeleteCancelled        MessageID = "releases.delete_cancelled"
+	ReleasesDeleted                MessageID = "releases.deleted" // "Deleted %s (%s)."
+	ReleasesRemovedTag             MessageID = "releases.removed_tag"
+	ReleasesRemovedTagAndChangelog MessageID = "releases.removed_tag_and_changelog"
+	ReleasesChangelogWriteError    MessageID = "releases.changelog_write_error" // "tag deleted, but changelog: %v"
+
+	ReleasesHintPrintNotesExit MessageID = "releases.hint_print_notes_exit"
+	ReleasesHintDeleteRelease  MessageID = "releases.hint_delete_release"
+	ReleasesHintMove           MessageID = "releases.hint_move"
+	ReleasesHintShowExit       MessageID = "releases.hint_show_exit"
+	ReleasesHintDelete         MessageID = "releases.hint_delete"
+	ReleasesHintBack           MessageID = "releases.hint_back"
 )

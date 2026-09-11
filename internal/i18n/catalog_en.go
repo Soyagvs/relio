@@ -75,4 +75,24 @@ var en = map[MessageID]string{
 	WizardConfirmed:     "→ confirmed %s",
 	WizardCancelled:     "→ cancelled",
 	WizardHint:          "↑/↓ move · enter select · y confirm · q cancel",
+
+	ReleasesTitle:           "Releases",
+	ReleasesEmpty:           "No releases yet. Create one from the menu.",
+	ReleasesEmptyHint:       "q back",
+	ReleasesNoNotes:         "(no notes for this version)",
+	ReleasesNonePlaceholder: "(none)",
+
+	ReleasesDeleteConfirm:          "Delete %s? This removes the git tag and its changelog section.  [y/N]",
+	ReleasesDeleteCancelled:        "Delete cancelled.",
+	ReleasesDeleted:                "Deleted %s (%s).",
+	ReleasesRemovedTag:             "tag",
+	ReleasesRemovedTagAndChangelog: "tag + changelog section",
+	ReleasesChangelogWriteError:    "tag deleted, but changelog: %v",
+
+	ReleasesHintPrintNotesExit: "print notes & exit",
+	ReleasesHintDeleteRelease:  "delete release",
+	ReleasesHintMove:           "move",
+	ReleasesHintShowExit:       "show & exit",
+	ReleasesHintDelete:         "delete",
+	ReleasesHintBack:           "back",
 }
