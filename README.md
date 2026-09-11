@@ -118,6 +118,7 @@ Pushing and creating the GitHub Release is opt-in — `--publish`.
 - [Syncing the version into project files](#syncing-the-version-into-project-files)
 - [Release hooks](#release-hooks)
 - [Configuration — `.release.yaml`](#configuration--releaseyaml)
+- [Language](#language)
 - [Non-interactive / CI usage](#non-interactive--ci-usage)
 - [Project layout](#project-layout)
 - [Roadmap](#roadmap)
@@ -230,7 +231,8 @@ another action.
   6  Release image    Save or share a PNG release card
   7  Auth             GitHub connection — status and how to link
   8  Setup            Create or inspect .release.yaml
-  9  Guide            Step-by-step walkthrough of the whole flow
+  9  Settings         Language and release-footer preferences
+     Guide            Step-by-step walkthrough of the whole flow
      Help             Every command and flag
      Exit             Leave Relio
 
@@ -240,7 +242,7 @@ another action.
 | Key | Does |
 | --- | ---- |
 | `↑` / `↓` | move the cursor |
-| `1`–`9` | jump straight to that row and select it (the first nine rows only) |
+| `1`–`9` | jump straight to that row and select it (the first nine rows only — **Guide**, **Help**, and **Exit** are arrow-only) |
 | `?` | open **Help** |
 | `g` | open the **Guide** |
 | `enter` | run the highlighted row |
@@ -963,6 +965,7 @@ back to the default shown.
 project: azeink            # free text — shown on cards, posts, and the banner
 versioning: semver         # only "semver" is supported
 commits: conventional      # only "conventional" is supported
+language: ""               # "" = inherit the global preference; "en" / "es" to pin this repo
 
 release:
     # changelog: and tag: are omit-default-true — leave them out to keep both
@@ -1002,6 +1005,39 @@ content:
 Unknown `versioning` / `commits` values are rejected with a clear error. `omit
 version_files` and `hooks` entirely if you don't use them — they carry no
 defaults.
+
+<p align="center">
+  <img src="assets/divider.svg" alt="" width="100%">
+</p>
+
+## Language
+
+Relio's interactive screens, `--help`, and command output can run in English or
+Español. Pick a language from the menu's **Settings** entry (`relio` → `9`) — it
+applies immediately and is saved for next time. There is no flag; the language
+is resolved once, before any command runs:
+
+1. `.release.yaml`'s `language:` key at the repository root, if set (per-repo
+   override — currently edit this file by hand, there's no UI writer for it yet)
+2. the global preference saved by the Settings screen
+3. `en`, if neither is set
+
+The global preference lives outside any repository, in a small `config.yaml`
+Relio manages for you:
+
+| OS | Path |
+| --- | ---- |
+| Linux | `$XDG_CONFIG_HOME/relio/config.yaml` (falls back to `~/.config/relio/config.yaml`) |
+| macOS | `~/Library/Application Support/relio/config.yaml` |
+| Windows | `%AppData%\relio\config.yaml` |
+
+A missing or unreadable file is never an error — Relio just runs in English.
+Content Relio writes to disk — `CHANGELOG.md` sections, GitHub Release bodies,
+and `relio post` output — always stays in English regardless of the UI
+language, so generated artifacts read consistently for every audience.
+
+Translation coverage grows over time; any string not yet translated for a
+language falls back to its English text rather than showing a raw key.
 
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
@@ -1071,12 +1107,15 @@ cmd/                 Cobra command wiring (root, status, check, guide, stats, in
 tools/
   statsnap/          one-shot job behind stats.yml: fetch counts, upsert a row, redraw the SVGs
 internal/
+  i18n/              UI translation catalog (English / Español) + active-language resolution
+  userconfig/        global config.yaml (per-OS user config dir) — currently just the language preference
+  settings/          Bubble Tea Settings screen (language, release-footer toggles)
   conventional/      Conventional Commits parser
   semver/            version parsing + bump rules + pre-release counters
   changelog/         Keep a Changelog rendering, section extract/remove
   versionfile/       regex-based version sync for package.json / *.toml / VERSION / custom patterns
   hook/              before/after shell hooks (sh -c / cmd /c), streamed, RELIO_* env
-  config/            .release.yaml load / save
+  config/            .release.yaml load / save / in-place field edits (SetFields)
   gitrepo/           thin wrapper over the git binary
   release/           orchestration: build a plan, apply it
   ghstats/           read-only GitHub REST client for `relio stats`
