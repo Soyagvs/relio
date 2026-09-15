@@ -38,6 +38,7 @@ func Run(w io.Writer, dir string, commands []string, env Env) error {
 			"RELIO_TAG="+env.Tag,
 			"RELIO_PREVIOUS_TAG="+env.PreviousTag,
 		)
+		cmd.Stdin = os.Stdin
 		cmd.Stdout = w
 		cmd.Stderr = w
 
