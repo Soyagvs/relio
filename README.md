@@ -1,6 +1,6 @@
 <!-- Hero image goes here. Drop a file at docs/hero.png (≈720px wide). -->
 <p align="center">
-  <img width="2048" height="768" alt="Relio" src="https://github.com/user-attachments/assets/3a28d468-ab07-4024-8f39-a58c9b16ea42" />
+  <img width="2056" height="765" alt="ChatGPT Image 15 sept 2026, 19_22_46" src="https://github.com/user-attachments/assets/fddec483-221b-4937-8107-7244bf694b43" />
 </p>
 
 <h1 align="center">Relio</h1>
