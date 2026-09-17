@@ -38,3 +38,15 @@ jobs:
           # The repo has pre-existing lint debt; gate new code only so this
           # doesn't turn into an unrelated mass-fix PR.
           only-new-issues: true
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      # @latest, unlike golangci-lint's pinned version above: govulncheck's
+      # value comes from checking against a live, growing vulnerability
+      # database, so an old checker binary is the wrong thing to pin.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
