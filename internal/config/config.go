@@ -88,12 +88,15 @@ func (s StringList) MarshalYAML() (any, error) {
 	}
 }
 
-// HooksConfig holds the shell commands run around a release: `before` after the
-// user confirms but before anything is written (a failure aborts the release),
-// `after` once the tag and any publish step are done (a failure only warns).
+// HooksConfig holds the shell commands run around a release: `validate` before
+// the plan preview is shown / before you're asked to confirm (a failure aborts
+// the release), `before` after the user confirms but before anything is
+// written (a failure aborts the release), `after` once the tag and any publish
+// step are done (a failure only warns).
 type HooksConfig struct {
-	Before StringList `yaml:"before,omitempty"`
-	After  StringList `yaml:"after,omitempty"`
+	Before   StringList `yaml:"before,omitempty"`
+	Validate StringList `yaml:"validate,omitempty"`
+	After    StringList `yaml:"after,omitempty"`
 }
 
 // ChangelogEnabled reports whether a release run updates the changelog file. An

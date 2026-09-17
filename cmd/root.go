@@ -467,6 +467,13 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		return nil
 	}
 
+	if !f.noHooks && len(cfg.Release.Hooks.Validate) > 0 {
+		fmt.Fprintln(out)
+		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.Validate, plan, prev); err != nil {
+			return fmt.Errorf("validate hook failed — nothing was written: %w", err)
+		}
+	}
+
 	if interactive {
 		// Print the preview to the scrollback first so it survives the wizard
 		// clearing its own frame — the user can copy it afterwards.

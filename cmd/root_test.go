@@ -96,6 +96,76 @@ func TestDoReleaseBeforeHookAbort(t *testing.T) {
 	}
 }
 
+func TestDoReleaseValidateHookAbort(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Validate = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true}
+	err := doRelease(&buf, r, cfg, f, semver.None, false)
+	if err == nil {
+		t.Fatalf("expected an error, got nil\noutput:\n%s", buf.String())
+	}
+	if !strings.Contains(err.Error(), "validate hook failed") {
+		t.Errorf("error = %q, want it to mention 'validate hook failed'", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("tag v1.6.0 was created despite the validate hook aborting")
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "CHANGELOG.md")); serr == nil {
+		t.Error("CHANGELOG.md was written despite the validate hook aborting")
+	}
+	log := exec.Command("git", "log", "--oneline")
+	log.Dir = dir
+	out, _ := log.CombinedOutput()
+	if strings.Contains(string(out), "chore(release)") {
+		t.Errorf("a release commit was made despite the abort:\n%s", out)
+	}
+}
+
+func TestDoReleaseValidateHookSucceeds(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Validate = config.StringList{"exit 0"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true}
+	if err := doRelease(&buf, r, cfg, f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (validate hook succeeded)\noutput:\n%s", err, buf.String())
+	}
+	if has, _ := r.HasTag("v1.6.0"); !has {
+		t.Errorf("tag v1.6.0 was not created\noutput:\n%s", buf.String())
+	}
+}
+
+func TestDoReleaseNoHooksFlagSkipsValidate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Validate = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, noHooks: true}
+	if err := doRelease(&buf, r, cfg, f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (--no-hooks should skip the failing validate hook)", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); !has {
+		t.Error("tag v1.6.0 was not created with --no-hooks")
+	}
+}
+
 func TestDoReleaseAfterHookNonFatal(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("hook assertions use the `sh` shell")

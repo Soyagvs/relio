@@ -344,7 +344,7 @@ to turn them on.
 | `--no-version-files` | Skip the `release.version_files` sync for this run. See [Syncing the version into project files](#syncing-the-version-into-project-files). |
 | `--publish` | After tagging, push the branch and tag to `origin` and create the GitHub Release. See [Publishing to GitHub](#publishing-to-github). |
 | `--rc` | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](#pre-releases). |
-| `--no-hooks` | Skip the `before` / `after` hooks from `.release.yaml` for this run. See [Release hooks](#release-hooks). |
+| `--no-hooks` | Skip the `validate` / `before` / `after` hooks from `.release.yaml` for this run. See [Release hooks](#release-hooks). |
 | `--edit` | Open the generated release notes in your editor before anything is written. Interactive terminals only. |
 
 `--edit` opens `$RELIO_EDITOR` / `$VISUAL` / `$EDITOR` (falling back to `vi`) on
@@ -920,12 +920,13 @@ run.
 ## Release hooks
 
 Run your own shell commands around a release by listing them under
-`release.hooks` — a smoke test before, a notification after, whatever the
-project needs.
+`release.hooks` — a lint pass before the preview, a smoke test before writing,
+a notification after, whatever the project needs.
 
 ```yaml
 release:
     hooks:
+        validate: make lint                     # runs before the plan preview is even shown
         before: make test                       # one command…
         after:                                   # …or a list, run in order
             - ./scripts/changelog-to-slack.sh
@@ -937,6 +938,7 @@ the first command that exits non-zero.
 
 | Hook | Runs | A non-zero exit… |
 | ---- | ---- | ---------------- |
+| **`validate`** | before the plan preview is shown / before you're asked to confirm | **aborts** the release — no changelog, no commit, no tag — and `relio` exits non-zero |
 | **`before`** | after you confirm the release, before *anything* is written | **aborts** the release — no changelog, no commit, no tag — and `relio` exits non-zero |
 | **`after`** | at the very end: after the tag, and after the `--publish` push + GitHub Release when that ran | prints a **warning** only; `relio` still exits 0, because the release already happened |
 
@@ -991,7 +993,7 @@ release:
         - VERSION
         - { path: src/app/__init__.py, pattern: '__version__ = "([^"]+)"' }
 
-    # Shell commands run around a release. `before` can abort it; `after` only warns.
+    # Shell commands run around a release. `validate` and `before` can abort it; `after` only warns.
     hooks:
         before: make test                   # a string, or a list run in order
         after:
@@ -1064,8 +1066,8 @@ relio post --format changelog        # plain text on stdout
 relio image --shape horizontal       # latest tag, default theme, saved to cwd
 ```
 
-`before` / `after` hooks **do** run under `--yes` and in CI — that is the point
-of them. `--publish` needs a `GITHUB_TOKEN` (or `GH_TOKEN`) in the environment;
+`validate` / `before` / `after` hooks **do** run under `--yes` and in CI — that
+is the point of them. `--publish` needs a `GITHUB_TOKEN` (or `GH_TOKEN`) in the environment;
 with `--yes` it pushes and publishes without asking.
 
 ### Publishing Relio itself
@@ -1119,7 +1121,7 @@ internal/
   semver/            version parsing + bump rules + pre-release counters
   changelog/         Keep a Changelog rendering, section extract/remove
   versionfile/       regex-based version sync for package.json / *.toml / VERSION / custom patterns
-  hook/              before/after shell hooks (sh -c / cmd /c), streamed, RELIO_* env
+  hook/              validate/before/after shell hooks (sh -c / cmd /c), streamed, RELIO_* env
   config/            .release.yaml load / save / in-place field edits (SetFields)
   gitrepo/           thin wrapper over the git binary
   release/           orchestration: build a plan, apply it
@@ -1147,7 +1149,7 @@ internal/
 
 - **Shipped** — commit parsing, SemVer inference, changelog, annotated tags,
   preview + wizard · `relio status` · `relio check` · `relio undo` · `relio guide`
-  · release candidates (`--rc`) · `version_files` sync · `before` / `after` hooks ·
+  · release candidates (`--rc`) · `version_files` sync · `validate` / `before` / `after` hooks ·
   `relio post` / `relio image` · token-based GitHub Release publishing
   (`--publish`) · hand-editing the notes before writing (`--edit`) · changelog
   footer — contributors line + compare link.

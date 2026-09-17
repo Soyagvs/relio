@@ -200,6 +200,7 @@ func TestHooksScalarAndList(t *testing.T) {
 	dir := t.TempDir()
 	yml := "project: x\nrelease:\n" +
 		"  hooks:\n" +
+		"    validate: make lint\n" +
 		"    before: make test\n" +
 		"    after:\n" +
 		"      - ./scripts/notify.sh\n" +
@@ -210,6 +211,9 @@ func TestHooksScalarAndList(t *testing.T) {
 	got, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Release.Hooks.Validate) != 1 || got.Release.Hooks.Validate[0] != "make lint" {
+		t.Errorf("Validate = %+v, want [make lint]", got.Release.Hooks.Validate)
 	}
 	if len(got.Release.Hooks.Before) != 1 || got.Release.Hooks.Before[0] != "make test" {
 		t.Errorf("Before = %+v, want [make test]", got.Release.Hooks.Before)
@@ -224,8 +228,9 @@ func TestHooksRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	want := Default("x")
 	want.Release.Hooks = HooksConfig{
-		Before: StringList{"make test"},
-		After:  StringList{"./scripts/notify.sh", "echo done"},
+		Validate: StringList{"make lint"},
+		Before:   StringList{"make test"},
+		After:    StringList{"./scripts/notify.sh", "echo done"},
 	}
 	if err := want.Save(dir); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -234,12 +239,18 @@ func TestHooksRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(string(data), "validate: make lint") {
+		t.Errorf("marshaled YAML should carry `validate: make lint` as a scalar:\n%s", data)
+	}
 	if !strings.Contains(string(data), "before: make test") {
 		t.Errorf("marshaled YAML should carry `before: make test` as a scalar:\n%s", data)
 	}
 	got, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Release.Hooks.Validate) != 1 || got.Release.Hooks.Validate[0] != "make lint" {
+		t.Errorf("Validate = %+v", got.Release.Hooks.Validate)
 	}
 	if len(got.Release.Hooks.Before) != 1 || got.Release.Hooks.Before[0] != "make test" {
 		t.Errorf("Before = %+v", got.Release.Hooks.Before)
@@ -259,7 +270,7 @@ func TestLoadWithoutHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Release.Hooks.Before != nil || got.Release.Hooks.After != nil {
+	if got.Release.Hooks.Validate != nil || got.Release.Hooks.Before != nil || got.Release.Hooks.After != nil {
 		t.Errorf("Hooks = %+v, want nil slices", got.Release.Hooks)
 	}
 }
