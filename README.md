@@ -183,6 +183,28 @@ go build -o relio .          # ./relio
 Building requires **Go 1.22+**. At runtime Relio needs the `git` binary on
 `PATH`.
 
+### Shell completion
+
+Tab-completion for subcommands and flags, courtesy of Cobra — nothing extra to
+install beyond the `relio` binary itself.
+
+```bash
+# bash (needs bash-completion installed)
+relio completion bash > /etc/bash_completion.d/relio        # or ~/.local/share/bash-completion/completions/relio
+
+# zsh — first run: echo "autoload -U compinit; compinit" >> ~/.zshrc
+relio completion zsh > "${fpath[1]}/_relio"
+
+# fish
+relio completion fish > ~/.config/fish/completions/relio.fish
+
+# PowerShell — add to your $PROFILE
+relio completion powershell >> $PROFILE
+```
+
+`relio completion <shell> --help` explains the exact setup for that shell in
+more detail (loading it in the current session vs. persisting it).
+
 <p align="center">
   <img src="assets/divider.svg" alt="" width="100%">
 </p>
