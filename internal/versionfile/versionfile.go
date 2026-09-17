@@ -123,7 +123,14 @@ func ruleFor(rel, pattern string) (re *regexp.Regexp, group int, err error) {
 	case base == "package.json":
 		return regexp.MustCompile(`("version"\s*:\s*")([^"]+)(")`), 2, nil
 	case base == "Cargo.toml", base == "pyproject.toml", strings.HasSuffix(base, ".toml"):
-		return regexp.MustCompile(`(?m)^(version\s*=\s*")([^"]+)(")`), 2, nil
+		// TOML allows both quote styles for a basic string; accept either.
+		return regexp.MustCompile(`(?m)^version\s*=\s*["']([^"'\n]+)["']`), 1, nil
+	case base == "setup.py":
+		return regexp.MustCompile(`version\s*=\s*["']([^"'\n]+)["']`), 1, nil
+	case base == "Chart.yaml", base == "Chart.yml":
+		// Anchored so it never matches Helm's separate "appVersion:" key.
+		// The value is usually bare (1.2.3) but may be quoted.
+		return regexp.MustCompile(`(?m)^version:\s*["']?([^"'\n]+?)["']?\s*$`), 1, nil
 	case base == "VERSION", base == "version.txt":
 		return regexp.MustCompile(`\s*(\S+)\s*`), 1, nil
 	default:

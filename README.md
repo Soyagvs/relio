@@ -896,7 +896,9 @@ release:
 | File | Rule |
 | ---- | ---- |
 | `package.json` | the `"version": "…"` value |
-| `Cargo.toml`, `pyproject.toml`, any `*.toml` | the first `^version = "…"` line |
+| `Cargo.toml`, `pyproject.toml`, any `*.toml` | the first `^version = "…"` line (single or double quotes) |
+| `setup.py` | the `version="…"` keyword argument |
+| `Chart.yaml`, `Chart.yml` | the `^version:` line (never Helm's separate `appVersion:`) |
 | `VERSION`, `version.txt` | the file's lone version token |
 
 **Anything else** takes a `{ path, pattern }` entry whose `pattern` is a Go
