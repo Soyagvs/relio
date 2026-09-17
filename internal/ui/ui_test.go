@@ -44,9 +44,9 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestBigBannerHasRepoURL(t *testing.T) {
-	out := BigBanner("v1.2.3", "")
-	for _, want := range []string{"github.com/Soyagvs/relio", "created by", Tagline, "█"} {
+func TestBigBannerHasWordmarkAndTagline(t *testing.T) {
+	out := BigBanner()
+	for _, want := range []string{Tagline, "█"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("BigBanner output missing %q:\n%s", want, out)
 		}
@@ -54,9 +54,25 @@ func TestBigBannerHasRepoURL(t *testing.T) {
 }
 
 func TestBigBannerStartsWithNewline(t *testing.T) {
-	out := BigBanner("v9.9.9", "")
+	out := BigBanner()
 	if out == "" || out[0] != '\n' {
 		t.Fatalf("BigBanner must start with a newline")
+	}
+}
+
+func TestFooterHasVersionAuthorRepo(t *testing.T) {
+	out := Footer("v1.2.3", "")
+	for _, want := range []string{"github.com/Soyagvs/relio", "created by", "v1.2.3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("Footer output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestFooterUpdateNotice(t *testing.T) {
+	out := Footer("v1.2.3", "v1.3.0")
+	if !strings.Contains(out, "▲ v1.3.0 available") {
+		t.Errorf("Footer missing update-available notice:\n%s", out)
 	}
 }
 
@@ -121,8 +137,8 @@ func TestEyeLinesStableSize(t *testing.T) {
 
 func TestBannerIntroStaticWhenNotAnimating(t *testing.T) {
 	var b bytes.Buffer
-	BannerIntro(&b, "v1.2.3", "", false)
-	if got, want := b.String(), BigBanner("v1.2.3", ""); got != want {
+	BannerIntro(&b, false)
+	if got, want := b.String(), BigBanner(); got != want {
 		t.Errorf("BannerIntro(animate=false) must equal BigBanner\n got: %q\nwant: %q", got, want)
 	}
 }
@@ -130,8 +146,8 @@ func TestBannerIntroStaticWhenNotAnimating(t *testing.T) {
 func TestBannerIntroRespectsNoAnimEnv(t *testing.T) {
 	t.Setenv("RELIO_NO_ANIM", "1")
 	var b bytes.Buffer
-	BannerIntro(&b, "v1.2.3", "", true)
-	if got, want := b.String(), BigBanner("v1.2.3", ""); got != want {
+	BannerIntro(&b, true)
+	if got, want := b.String(), BigBanner(); got != want {
 		t.Errorf("BannerIntro must be static when RELIO_NO_ANIM is set")
 	}
 }
@@ -144,9 +160,11 @@ func TestBannerIntroAnimatedEndsAtStaticBanner(t *testing.T) {
 	t.Setenv("RELIO_NO_ANIM", "")
 
 	var b bytes.Buffer
-	BannerIntro(&b, "v1.2.3", "v1.3.0", true)
+	BannerIntro(&b, true)
 	clean := stripANSI(b.String())
-	for _, want := range []string{Tagline, "created by", "github.com/Soyagvs/relio", "▲ v1.3.0 available", "█"} {
+	// Version/author/repo/update-notice moved to Footer — BannerIntro only
+	// carries the wordmark and tagline now.
+	for _, want := range []string{Tagline, "█"} {
 		if !strings.Contains(clean, want) {
 			t.Errorf("animated banner (cleaned) missing %q:\n%s", want, clean)
 		}
@@ -292,15 +310,17 @@ func TestRemainingChromeLiteralsAreLocalized(t *testing.T) {
 		t.Fatal("SetLanguage(en) rejected the reference language")
 	}
 
-	enBanner := BigBanner("v1.2.3", "")
-	for _, want := range []string{Tagline, "created by"} {
-		if !strings.Contains(enBanner, want) {
-			t.Errorf("en banner missing %q:\n%s", want, enBanner)
-		}
+	enBanner := BigBanner()
+	if !strings.Contains(enBanner, Tagline) {
+		t.Errorf("en banner missing %q:\n%s", Tagline, enBanner)
 	}
-	enBannerWithUpdate := BigBanner("v1.2.3", "v1.3.0")
-	if !strings.Contains(enBannerWithUpdate, "▲ v1.3.0 available") {
-		t.Errorf("en banner missing update-available notice:\n%s", enBannerWithUpdate)
+	enFooter := Footer("v1.2.3", "")
+	if !strings.Contains(enFooter, "created by") {
+		t.Errorf("en footer missing %q:\n%s", "created by", enFooter)
+	}
+	enFooterWithUpdate := Footer("v1.2.3", "v1.3.0")
+	if !strings.Contains(enFooterWithUpdate, "▲ v1.3.0 available") {
+		t.Errorf("en footer missing update-available notice:\n%s", enFooterWithUpdate)
 	}
 	if got := versionLabel(""); got != "dev build" {
 		t.Errorf(`versionLabel("") = %q, want "dev build"`, got)
@@ -335,23 +355,31 @@ func TestRemainingChromeLiteralsAreLocalized(t *testing.T) {
 		t.Fatal("SetLanguage(es) rejected a registered language")
 	}
 
-	esBanner := BigBanner("v1.2.3", "")
+	esBanner := BigBanner()
 	if esBanner == enBanner {
-		t.Error("banner did not change under es — tagline/created-by literal did not localize (or the cache ignored the active language)")
+		t.Error("banner did not change under es — tagline literal did not localize (or the cache ignored the active language)")
 	}
-	if strings.Contains(esBanner, Tagline) || strings.Contains(esBanner, "created by") {
-		t.Errorf("es banner still contains English chrome:\n%s", esBanner)
+	if strings.Contains(esBanner, Tagline) {
+		t.Errorf("es banner still contains the English tagline:\n%s", esBanner)
 	}
 	if got := versionLabel(""); got == "dev build" {
 		t.Errorf(`versionLabel("") did not localize under es, still got %q`, got)
 	}
 
-	esBannerWithUpdate := BigBanner("v1.2.3", "v1.3.0")
-	if esBannerWithUpdate == enBannerWithUpdate {
-		t.Error("banner update-available notice did not change under es")
+	esFooter := Footer("v1.2.3", "")
+	if esFooter == enFooter {
+		t.Error("footer did not change under es — created-by literal did not localize")
 	}
-	if strings.Contains(esBannerWithUpdate, "available") {
-		t.Errorf("es banner still contains the English \"available\" word:\n%s", esBannerWithUpdate)
+	if strings.Contains(esFooter, "created by") {
+		t.Errorf("es footer still contains English chrome:\n%s", esFooter)
+	}
+
+	esFooterWithUpdate := Footer("v1.2.3", "v1.3.0")
+	if esFooterWithUpdate == enFooterWithUpdate {
+		t.Error("footer update-available notice did not change under es")
+	}
+	if strings.Contains(esFooterWithUpdate, "available") {
+		t.Errorf("es footer still contains the English \"available\" word:\n%s", esFooterWithUpdate)
 	}
 
 	esHooked := PlanView(hookedPlan)

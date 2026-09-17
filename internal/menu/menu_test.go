@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/soyagvs/relio/internal/i18n"
-	"github.com/soyagvs/relio/internal/ui"
 )
 
 func send(m model, keys ...string) model {
@@ -168,17 +167,9 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		t.Errorf("i18n.T(MenuHint) under en = %q, want %q", got, wantHint)
 	}
 
-	wantHeadline := "RELIO menu"
-	if got := i18n.T(i18n.MenuHeadline, strings.ToUpper(ui.AppName)); got != wantHeadline {
-		t.Errorf("i18n.T(MenuHeadline, ...) under en = %q, want %q", got, wantHeadline)
-	}
-
 	v := model{width: 80}.View()
 	if !strings.Contains(v, wantHint) {
 		t.Errorf("View() missing hint line:\n%s", v)
-	}
-	if !strings.Contains(v, wantHeadline) {
-		t.Errorf("View() missing headline:\n%s", v)
 	}
 }
 
@@ -196,7 +187,9 @@ func TestBareViewOmitsBanner(t *testing.T) {
 	if strings.Contains(v, "█") {
 		t.Error("bare View() must not embed the big wordmark banner")
 	}
-	if got := strings.Count(v, "\n") + 1; got > 20 {
+	// The rounded card border adds 2 lines (top/bottom) over the old flat
+	// list, so the small-terminal budget grows from 20 to 22.
+	if got := strings.Count(v, "\n") + 1; got > 22 {
 		t.Errorf("View() is %d lines, too tall for a small terminal", got)
 	}
 }
@@ -206,7 +199,7 @@ func TestNewModelRendersBannerAndMenuImmediately(t *testing.T) {
 	t.Setenv("RELIO_NO_ANIM", "")
 	m := newModel("v1.2.3", "v1.3.0", true)
 	v := m.View()
-	for _, want := range []string{"█", "github.com/Soyagvs/relio", "▲ v1.3.0 available", "RELIO menu", "Release"} {
+	for _, want := range []string{"█", "github.com/Soyagvs/relio", "▲ v1.3.0 available", "Release"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("initial menu view missing %q:\n%s", want, v)
 		}
@@ -306,6 +299,9 @@ func TestViewHasGroupSeparators(t *testing.T) {
 	if boundaries == 0 {
 		t.Fatal("no group boundaries in items — the test is meaningless")
 	}
+	// The rounded card's own top and bottom border rows are also drawn with
+	// "─", so the expected count is the group boundaries plus those 2.
+	want := boundaries + 2
 	for _, cur := range []int{0, 5, len(items) - 1} {
 		v := model{width: 80, cursor: cur}.View()
 		if got := strings.Count(v, "─"); got == 0 {
@@ -317,8 +313,8 @@ func TestViewHasGroupSeparators(t *testing.T) {
 				lines++
 			}
 		}
-		if lines != boundaries {
-			t.Errorf("cursor %d: %d separator lines, want %d", cur, lines, boundaries)
+		if lines != want {
+			t.Errorf("cursor %d: %d separator lines, want %d", cur, lines, want)
 		}
 	}
 }

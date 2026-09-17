@@ -71,17 +71,18 @@ var items = []item{
 const digitRows = 9
 
 // Menu chrome: a fixed label column so the descriptions line up, a minimum row
-// width, and a faint full-width bar behind the selected row.
+// width, and a green bar behind the selected row inside the rounded card.
 const (
 	labelCol    = 17
 	minRowWidth = 40
 )
 
 var (
-	selBar   = lipgloss.NewStyle().Background(lipgloss.Color("236"))
-	numDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	sepDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	headline = lipgloss.NewStyle().Foreground(ui.Purple).Bold(true)
+	selBar     = lipgloss.NewStyle().Background(lipgloss.Color("22")) // deep green, echoes the wordmark's mint accent
+	selText    = lipgloss.NewStyle().Bold(true).Foreground(ui.Mint)
+	selDesc    = lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // lighter than ui.Dim, for contrast on the green bar
+	sepDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	menuBorder = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238")).Padding(0, 1)
 )
 
 type model struct {
@@ -183,16 +184,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// rowWidth is the visible column count every row (selected or not) is rendered
-// to. It is the widest natural row, shrunk to fit the terminal (with one spare
-// column so the terminal never soft-wraps) and never below minRowWidth unless
-// the terminal itself is narrower.
+// rowWidth is the total visible column count of the menu card — border and
+// padding included. It is the widest natural row plus that chrome, shrunk to
+// fit the terminal (with one spare column so the terminal never soft-wraps)
+// and never below minRowWidth unless the terminal itself is narrower.
 func (m model) rowWidth() int {
 	natural := 0
-	for i, it := range items {
-		// Plain body: "  " marker + num + "  " + padded label + "  " + desc.
-		body := fmt.Sprintf("  %d  %s  %s", i+1, padLabel(it.Label()), it.Desc())
-		if w := utf8.RuneCountInString(body); w > natural {
+	for _, it := range items {
+		// Plain body: "  " marker + padded label + "  " + desc.
+		body := fmt.Sprintf("  %s  %s", padLabel(it.Label()), it.Desc())
+		if w := utf8.RuneCountInString(body) + cardChrome; w > natural {
 			natural = w
 		}
 	}
@@ -207,6 +208,11 @@ func (m model) rowWidth() int {
 	return rowW
 }
 
+// cardChrome is the width the rounded border and its horizontal padding add
+// on top of the item rows' own content (1 column of border + 1 of padding on
+// each side).
+const cardChrome = 4
+
 func padLabel(label string) string {
 	return label + strings.Repeat(" ", max(0, labelCol-utf8.RuneCountInString(label)))
 }
@@ -216,58 +222,70 @@ func (m model) View() string {
 		// The chosen action prints its own output next; stay quiet on exit.
 		return ""
 	}
+
 	rowW := m.rowWidth()
+	cardW := max(10, rowW-cardChrome)
 
 	var b strings.Builder
 	if m.banner {
 		if len(m.frames) > 0 {
-			b.WriteString(ui.BannerFrame(m.version, m.available, m.frames[m.frame]))
+			b.WriteString(ui.BannerFrame(m.frames[m.frame]))
 		} else {
-			b.WriteString(ui.BigBanner(m.version, m.available))
+			b.WriteString(ui.BigBanner())
 		}
-		b.WriteString("\n")
 	}
-	b.WriteString("  " + headline.Render(ui.Truncate(i18n.T(i18n.MenuHeadline, strings.ToUpper(ui.AppName)), max(0, rowW-2))) + "\n\n")
+	b.WriteString("\n")
 
+	var rows strings.Builder
 	for i, it := range items {
 		// A faint rule wherever the group changes, so the menu reads in bands.
 		if i > 0 && it.group != items[i-1].group {
-			b.WriteString("  " + sepDim.Render(strings.Repeat("─", max(0, rowW-2))) + "\n")
+			rows.WriteString(sepDim.Render(strings.Repeat("─", cardW)) + "\n")
 		}
 
-		num := fmt.Sprintf("%d", i+1)
 		marker := "  "
 		if i == m.cursor {
-			marker = "▸ "
+			marker = "> "
 		}
 		label := padLabel(it.Label())
 
 		// Fixed-width prefix, then the description truncated so the whole body
-		// fits in exactly rowW visible columns and nothing ever wraps.
-		prefix := marker + num + "  " + label + "  "
-		desc := ui.Truncate(it.Desc(), max(0, rowW-utf8.RuneCountInString(prefix)))
+		// fits in exactly cardW visible columns and nothing ever wraps.
+		prefix := marker + label + "  "
+		desc := ui.Truncate(it.Desc(), max(0, cardW-utf8.RuneCountInString(prefix)))
 
 		// Colorize the already-fitted pieces; visible widths are unchanged.
-		numOut, labelOut := numDim.Render(num), label
+		labelOut, descOut := label, ui.Dim.Render(desc)
 		if i == m.cursor {
-			numOut, labelOut = ui.Key.Render(num), ui.Key.Render(label)
+			labelOut, descOut = selText.Render(label), selDesc.Render(desc)
 		}
-		body := marker + numOut + "  " + labelOut + "  " + ui.Dim.Render(desc)
+		body := marker + labelOut + "  " + descOut
 
 		if i == m.cursor {
-			// Width(rowW) now equals the body width, so it pads (fills the bar)
+			// Width(cardW) now equals the body width, so it pads (fills the bar)
 			// without ever wrapping to a second line.
-			b.WriteString(selBar.Width(rowW).Render(body) + "\n")
+			rows.WriteString(selBar.Width(cardW).Render(body) + "\n")
 			continue
 		}
 
-		// Pad non-selected rows to rowW too, so the trailing newline always
+		// Pad non-selected rows to cardW too, so the trailing newline always
 		// lands at the same column and the inline renderer's math stays stable.
 		visible := utf8.RuneCountInString(prefix) + utf8.RuneCountInString(desc)
-		if pad := rowW - visible; pad > 0 {
+		if pad := cardW - visible; pad > 0 {
 			body += strings.Repeat(" ", pad)
 		}
-		b.WriteString(body + "\n")
+		rows.WriteString(body + "\n")
+	}
+	card := strings.TrimSuffix(rows.String(), "\n")
+	// lipgloss's Width() includes the style's own horizontal padding, so the
+	// content (already sized to cardW) needs that padding added back here —
+	// menuBorder's Padding(0, 1) is 2 columns.
+	b.WriteString(menuBorder.Width(cardW+2).Render(card) + "\n\n")
+
+	// Version, author, and repo — shown as a footer strip below the card. The
+	// bare view (banner:false, used by focused menu tests) stays free of it.
+	if m.banner {
+		b.WriteString(ui.Footer(m.version, m.available))
 	}
 
 	hint := i18n.T(i18n.MenuHint)

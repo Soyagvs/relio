@@ -10,8 +10,7 @@ var es = map[MessageID]string{
 	PlanFinalize:       " (finalización)",
 	PlanCommitsSince:   "%d commits desde %s",
 
-	MenuHeadline: "%s menú",
-	MenuHint:     "↑/↓ mover · 1–9 saltar · ? ayuda · g guía · enter seleccionar · q salir",
+	MenuHint: "↑/↓ mover · 1–9 saltar · ? ayuda · g guía · enter seleccionar · q salir",
 
 	MenuReleaseLabel:      "Lanzamiento",
 	MenuReleaseDesc:       "Crea un lanzamiento — final o rc, con push y publicación opcionales",

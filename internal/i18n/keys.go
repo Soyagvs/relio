@@ -16,12 +16,10 @@ const (
 	PlanFinalize       MessageID = "plan.finalize"
 	PlanCommitsSince   MessageID = "plan.commits_since" // "%d commits since %s"
 
-	// Main menu (internal/menu) chrome: the headline, the digit-jump hint,
-	// and every item's label/desc. MenuSettingsLabel/Desc predate this block
-	// (added greenfield with the Settings screen itself); the rest were
-	// converted from hardcoded English literals in slice 4b.
-	MenuHeadline MessageID = "menu.headline" // "%s menu" — %s is the uppercased app name
-
+	// Main menu (internal/menu) chrome: the digit-jump hint and every item's
+	// label/desc. MenuSettingsLabel/Desc predate this block (added greenfield
+	// with the Settings screen itself); the rest were converted from
+	// hardcoded English literals in slice 4b.
 	MenuHint MessageID = "menu.hint"
 
 	MenuReleaseLabel      MessageID = "menu.release_label"

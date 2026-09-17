@@ -33,13 +33,16 @@ var (
 	Warn  = lipgloss.NewStyle().Foreground(redCol)
 	Ok    = lipgloss.NewStyle().Foreground(Purple).Bold(true)
 
-	irisDim  = lipgloss.Color("130") // darker orange for the iris rim / roundness
-	irisMid  = lipgloss.Color("166") // mid orange, iris body between rim and highlight
-	glintCol = lipgloss.Color("223") // pale catchlight
+	irisDim    = lipgloss.Color("130") // darker orange for the iris rim / roundness
+	irisMid    = lipgloss.Color("166") // mid orange, iris body between rim and highlight
+	glintCol   = lipgloss.Color("223") // pale catchlight
+	Mint       = lipgloss.Color("120") // wordmark/tagline green accent
+	irisShadow = Mint                  // green cast-shadow crescent along the eye's lower rim — same green as the wordmark
 
 	orangeMark = lipgloss.NewStyle().Bold(true).Foreground(Orange)
-	whiteMark  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("231"))
-	tagMark    = lipgloss.NewStyle().Foreground(dimCol).Italic(true) // banner tagline, muted grey
+	tagMark    = lipgloss.NewStyle().Foreground(dimCol).Italic(true).Bold(true) // banner tagline, muted grey
+	tagAccent  = lipgloss.NewStyle().Foreground(Mint).Italic(true).Bold(true)   // tagline's last word ("releases")
+	footerApp  = lipgloss.NewStyle().Bold(true).Foreground(Mint)                // Footer's lowercase "relio"
 	ruleDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	author     = lipgloss.NewStyle().Bold(true).Foreground(Orange)
 	group      = lipgloss.NewStyle().Bold(true).Foreground(Orange)
@@ -65,22 +68,73 @@ const (
 // the two must stay in sync so the default (English) banner is unchanged.
 const Tagline = "turn commits into releases"
 
-// "RELI" of the wordmark, ANSI Shadow block style, rendered in white. The "O" is
-// the orange reptile eye built separately (see eyeLines).
-var wordReli = []string{
+// wordmarkGradient shades the wordmark rows top-to-bottom white fading into
+// the wordmark's green accent, so the block letters read as one lit-from-above
+// pixel-art object rather than flat white text. One entry per wordReli row.
+var wordmarkGradient = []lipgloss.Color{
+	lipgloss.Color("231"), // row 0 — white
+	lipgloss.Color("194"), // row 1 — pale mint
+	lipgloss.Color("157"), // row 2 — light green
+	Mint,                  // row 3 — mint green
+	lipgloss.Color("71"),  // row 4 — medium green
+	lipgloss.Color("29"),  // row 5 — deep green
+}
+
+// "RELI" of the wordmark, ANSI Shadow block style, shaded with wordmarkGradient
+// and stippled by ditherWordmark. The "O" is the orange reptile eye built
+// separately (see eyeLines).
+var wordReli = ditherWordmark([]string{
 	`██████╗ ███████╗██╗     ██╗`,
 	`██╔══██╗██╔════╝██║     ██║`,
 	`██████╔╝█████╗  ██║     ██║`,
 	`██╔══██╗██╔══╝  ██║     ██║`,
 	`██║  ██║███████╗███████╗██║`,
 	`╚═╝  ╚═╝╚══════╝╚══════╝╚═╝`,
+})
+
+// ditherWordmark scatters a light halftone stipple across the wordmark's solid
+// fill strokes (only the '█' cells — box-drawing outline runes are left
+// untouched), echoing the dithered texture of chunky pixel-art display fonts.
+func ditherWordmark(lines []string) []string {
+	out := make([]string, len(lines))
+	for y, line := range lines {
+		runes := []rune(line)
+		for x, r := range runes {
+			if r != '█' {
+				continue
+			}
+			// Density grows with row: the top two rows (white) stay crisp,
+			// the middle gets a light scatter, and the bottom two (already
+			// the darkest green) carry the heaviest stipple — so the
+			// wordmark reads as solid at the top and melts into pixels
+			// toward its base, instead of an even stipple throughout.
+			switch {
+			case y < 2:
+				// crisp — no dithering
+			case y < 4:
+				if (x*7+y*5)%9 == 0 {
+					runes[x] = '▒'
+				}
+			default:
+				switch (x*7 + y*5) % 5 {
+				case 0:
+					runes[x] = '▓'
+				case 3:
+					runes[x] = '▒'
+				}
+			}
+		}
+		out[y] = string(runes)
+	}
+	return out
 }
 
 // The "O" is a reptile eye. It is drawn as a small pixel grid and rendered with
 // half-block characters (▀ ▄ █), so every text row carries two pixel rows —
 // twice the vertical detail of a plain block glyph in the same height. The grid
-// is generated from a few ellipses: a shaded orange iris (dim rim, mid body,
-// bright core), a hairline lens-shaped vertical slit, and a catchlight.
+// is generated from a few ellipses: a shaded orange iris — a green rim (echoing
+// the wordmark's green accent), an orange mid body and bright core — plus a
+// hairline lens-shaped vertical slit and a catchlight.
 const (
 	eyeW = 15 // odd, so the slit falls on a single centre column
 	eyeH = 12 // two pixel rows per text line -> 6 lines, matching wordReli
@@ -91,9 +145,10 @@ const (
 const restGlint = 0.30
 
 // eyePixels builds the eyeH×eyeW grid. Cell values: 0 background, 1 dim rim,
-// 2 mid iris, 3 bright core, 4 catchlight. glint is a normalized sweep position:
-// the catchlight rides left→right across the upper iris as it goes 0→1, and is
-// off-frame at the extremes.
+// 2 mid iris, 3 bright core, 4 catchlight, 5 green cast-shadow (the lower slice
+// of the dim rim). glint is a normalized sweep position: the catchlight rides
+// left→right across the upper iris as it goes 0→1, and is off-frame at the
+// extremes.
 func eyePixels(glint float64) [][]byte {
 	g := make([][]byte, eyeH)
 	cx, cy := float64(eyeW-1)/2, float64(eyeH-1)/2
@@ -114,6 +169,21 @@ func eyePixels(glint float64) [][]byte {
 				g[y][x] = 2
 			default:
 				g[y][x] = 3
+			}
+		}
+	}
+
+	// Cast-shadow crescent: recolor the bottom slice of the dim rim (below
+	// ~30% of the radius past centre) green, so the green reads as a shadow
+	// under the eye rather than a ring all the way around it.
+	for y := 0; y < eyeH; y++ {
+		dy := (float64(y) - cy) / ry
+		if dy <= 0.30 {
+			continue
+		}
+		for x := 0; x < eyeW; x++ {
+			if g[y][x] == 1 {
+				g[y][x] = 5
 			}
 		}
 	}
@@ -170,6 +240,8 @@ func eyeColor(v byte) lipgloss.Color {
 		return irisMid
 	case 4:
 		return glintCol
+	case 5:
+		return irisShadow
 	default:
 		return Orange
 	}
@@ -229,15 +301,16 @@ var wordmarkWidth = func() int {
 	return w
 }()
 
-// bannerWordmark builds the leading newline plus the six wordmark rows: the
-// white "RELI" blocks with the orange eye — its catchlight at sweep position
-// glint — beside them.
+// bannerWordmark builds the leading newline plus the wordmark rows: the
+// "RELI" blocks shaded top-to-bottom by wordmarkGradient, with the orange eye
+// — its catchlight at sweep position glint — beside them.
 func bannerWordmark(glint float64) string {
 	eye := eyeLines(glint)
 	var b strings.Builder
 	b.WriteString("\n")
 	for i := range wordReli {
-		row := bannerIndent + whiteMark.Render(padRight(wordReli[i], wordmarkWidth)) + strings.Repeat(" ", bannerGap)
+		style := lipgloss.NewStyle().Bold(true).Foreground(wordmarkGradient[i%len(wordmarkGradient)])
+		row := bannerIndent + style.Render(padRight(wordReli[i], wordmarkWidth)) + strings.Repeat(" ", bannerGap)
 		if i < len(eye) {
 			row += eye[i]
 		}
@@ -246,22 +319,45 @@ func bannerWordmark(glint float64) string {
 	return b.String()
 }
 
-// bannerLower builds the block under the wordmark: a blank line, a muted grey
-// tagline, a two-tone accent rule (a short orange lead fading into a thin grey
-// line), one meta line with the version and author, the repo URL, and — when
-// available is set — an orange update notice on its own line.
-func bannerLower(version, available string) string {
+// styledTagline renders the banner tagline with its last word (the "releases"
+// concept — "releases" in English, "lanzamientos" in Spanish; both current
+// translations end on it) in the mint accent, the rest in the muted tagMark
+// grey.
+func styledTagline() string {
+	t := i18n.T(i18n.BannerTagline)
+	idx := strings.LastIndex(t, " ")
+	if idx < 0 {
+		return tagMark.Render(t)
+	}
+	return tagMark.Render(t[:idx+1]) + tagAccent.Render(t[idx+1:])
+}
+
+// bannerLower builds the block under the wordmark: a blank line, the tagline
+// (its last word in the mint accent), and a two-tone accent rule (a short
+// orange lead fading into a thin grey line). Version, author, and the repo
+// URL live in Footer instead — see its doc comment.
+func bannerLower() string {
 	total := wordmarkWidth + bannerGap + eyeW
 	rule := orangeMark.Render(strings.Repeat("━", bannerAccent)) +
 		ruleDim.Render(strings.Repeat("─", max(0, total-bannerAccent)))
 
 	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(bannerIndent + tagMark.Render(i18n.T(i18n.BannerTagline)) + "\n")
+	b.WriteString(bannerIndent + styledTagline() + "\n")
 	b.WriteString(bannerIndent + rule + "\n")
-	b.WriteString(bannerIndent + Key.Render(versionLabel(version)) +
-		Dim.Render("   ·   "+i18n.T(i18n.BannerCreatedBy)+" ") + author.Render(Author) + "\n")
-	b.WriteString(bannerIndent + Dim.Render(RepoURL) + "\n")
+	return b.String()
+}
+
+// Footer renders the meta strip shown below the interactive menu's card:
+// "relio vX.Y.Z   ·   created by AUTHOR   ·   repo", the app name in the
+// wordmark's green accent — plus an orange update notice on its own line
+// when available is set. This used to be printed inside the wordmark banner
+// itself (see bannerLower); it moved out here so the wordmark stays just the
+// mark, tagline, and rule.
+func Footer(version, available string) string {
+	var b strings.Builder
+	b.WriteString(bannerIndent + footerApp.Render(strings.ToLower(AppName)) + " " + Key.Render(versionLabel(version)) +
+		Dim.Render("   ·   "+i18n.T(i18n.BannerCreatedBy)+" ") + author.Render(Author) +
+		Dim.Render("   ·   ") + Dim.Render(RepoURL) + "\n")
 	if available != "" {
 		b.WriteString(bannerIndent + Key.Render(i18n.T(i18n.BannerUpdateAvailable, strings.TrimPrefix(available, "v"))) + "\n")
 	}
@@ -269,20 +365,17 @@ func bannerLower(version, available string) string {
 }
 
 // BigBanner is the entry banner: the "RELIO" block wordmark (white "RELI",
-// orange "O" drawn as a snake eye) stands on its own as the title; the tagline,
-// a rule, the current version — with the newer version beside it when available
-// (a bare "1.2.3") — the repo URL, and the author credit all sit flush left
-// below it.
-func BigBanner(version, available string) string {
+// orange "O" drawn as a snake eye) stands on its own as the title, with the
+// tagline and a rule below it. Version, author, and repo now live in Footer.
+func BigBanner() string {
 	// The active language is part of the cache key: the banner's tagline
-	// and "created by" credit route through i18n.T, so the same
-	// version/available pair renders different text once the active
+	// routes through i18n.T, so it renders different text once the active
 	// language changes (e.g. after a Settings screen language switch).
-	key := i18n.Current() + "\x00" + version + "\x00" + available
+	key := i18n.Current()
 	if s, ok := bannerCache[key]; ok {
 		return s
 	}
-	out := BannerFrame(version, available, restGlint)
+	out := BannerFrame(restGlint)
 	bannerCache[key] = out
 	return out
 }
@@ -312,38 +405,46 @@ func BannerIntroFrames() []float64 {
 	return append(schedule, 0.55, restGlint)
 }
 
-// BannerFrame renders the full banner with the eye catchlight at glint.
-func BannerFrame(version, available string, glint float64) string {
-	return bannerWordmark(glint) + bannerLower(version, available)
+// BannerFrame renders the wordmark banner (mark, tagline, rule) with the eye
+// catchlight at sweep position glint. Leads with a blank line so the wordmark
+// never sits flush against whatever printed before it.
+func BannerFrame(glint float64) string {
+	return "\n" + bannerWordmark(glint) + bannerLower()
 }
 
 // BannerIntro prints the entry banner. When animate is true and the environment
 // allows it, the eye plays a one-shot light sweep before the rest of the banner
 // prints; otherwise it is identical to BigBanner. The sweep is skipped on
 // Windows and when NO_COLOR or RELIO_NO_ANIM is set.
-func BannerIntro(w io.Writer, version, available string, animate bool) {
+func BannerIntro(w io.Writer, animate bool) {
 	if !BannerAnimationAllowed(animate) {
-		fmt.Fprint(w, BigBanner(version, available))
+		fmt.Fprint(w, BigBanner())
 		return
 	}
 
-	// The eye with no catchlight; the cursor ends on the line below row 6.
+	// A leading blank line, matching BannerFrame — printed once, so it plays
+	// no part in the sweep's row math below.
+	fmt.Fprint(w, "\n")
+
+	// The eye with no catchlight; the cursor ends on the line below the last
+	// wordmark row.
 	frames := BannerIntroFrames()
 	fmt.Fprint(w, bannerWordmark(frames[0]))
 
+	wordRows := len(wordReli)
 	for _, g := range frames[1:] {
-		fmt.Fprint(w, "\x1b[6A") // back up over the six wordmark rows
-		// bannerWordmark starts with "\n", so field 0 is empty; rows 1..6 are the
-		// wordmark rows.
+		fmt.Fprint(w, fmt.Sprintf("\x1b[%dA", wordRows)) // back up over the wordmark rows
+		// bannerWordmark starts with "\n", so field 0 is empty; rows 1..wordRows
+		// are the wordmark rows.
 		rows := strings.Split(bannerWordmark(g), "\n")
-		for _, row := range rows[1:7] {
+		for _, row := range rows[1 : wordRows+1] {
 			fmt.Fprint(w, "\r\x1b[2K"+row+"\n")
 		}
 		time.Sleep(introFrameDelay)
 	}
 
-	// The eye is now at restGlint and the cursor is below the six rows.
-	fmt.Fprint(w, bannerLower(version, available))
+	// The eye is now at restGlint and the cursor is below the wordmark rows.
+	fmt.Fprint(w, bannerLower())
 }
 
 // versionLabel formats the build version for display: "v1.2.3", or "dev build"
