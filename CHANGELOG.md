@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.10.0] - 2026-09-17
+
+### Added
+
+- hooks: Add a validate stage that runs before the plan preview
+- releases: Add `relio releases edit <version>` command
+- ui: Redesign menu card and banner wordmark
+- versionfile: Support setup.py, Chart.yaml, and single-quoted TOML
+
+### Fixed
+
+- hook: Inherit stdin for before/after release hooks
+
 ## [1.9.1] - 2026-09-15
 
 ### Fixed
