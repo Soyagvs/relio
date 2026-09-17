@@ -154,6 +154,8 @@ func openRepoAndConfig(dir string) (*gitrepo.Repo, config.Config, error) {
 func stdinIsTTY() bool  { return isatty.IsTerminal(os.Stdin.Fd()) }
 func stdoutIsTTY() bool { return isatty.IsTerminal(os.Stdout.Fd()) }
 
+var runPicker = pick.Run
+
 // runRoot decides between the interactive menu and a direct release.
 func runRoot(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
@@ -194,6 +196,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 	out := cmd.OutOrStdout()
 
 	for {
+		waitForBack := false
 		action, err := menu.Run(version, available, stdoutIsTTY())
 		if err != nil {
 			return err
@@ -204,7 +207,8 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			return nil
 
 		case menu.Release:
-			if err := runMenuRelease(cmd, f); err != nil {
+			waitForBack, err = runMenuRelease(cmd, f)
+			if err != nil {
 				if isHardQuit(err) {
 					return nil
 				}
@@ -212,7 +216,8 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			}
 
 		case menu.Auth:
-			if err := runMenuAuth(cmd); err != nil {
+			waitForBack, err = runMenuAuth(cmd)
+			if err != nil {
 				if isHardQuit(err) {
 					return nil
 				}
@@ -220,11 +225,11 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			}
 
 		case menu.Status:
-			repo, cfg, oerr := openRepoAndConfig(f.dir)
-			if oerr != nil {
-				return oerr
-			}
-			if err := runStatus(cmd, repo, cfg); err != nil {
+			waitForBack, err = runMenuStatus(cmd, f)
+			if err != nil {
+				if isHardQuit(err) {
+					return nil
+				}
 				return err
 			}
 
@@ -240,6 +245,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			if err := runCheck(cmd, repo, cfg, plan, false); err != nil {
 				return err
 			}
+			waitForBack = true
 
 		case menu.ViewReleases:
 			repo, cfg, oerr := openRepoAndConfig(f.dir)
@@ -252,6 +258,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
+			waitForBack = true
 
 		case menu.ReleaseText:
 			repo, cfg, oerr := openRepoAndConfig(f.dir)
@@ -261,6 +268,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			if err := runReleaseText(cmd, repo, cfg); err != nil {
 				return err
 			}
+			waitForBack = true
 
 		case menu.ReleaseImage:
 			repo, cfg, oerr := openRepoAndConfig(f.dir)
@@ -270,11 +278,13 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			if err := runReleaseImage(cmd, repo, cfg, imageFlags{}); err != nil {
 				return err
 			}
+			waitForBack = true
 
 		case menu.Setup:
 			if err := runMenuSetup(cmd, f); err != nil {
 				return err
 			}
+			waitForBack = true
 
 		case menu.Settings:
 			root := ""
@@ -287,6 +297,7 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
+			waitForBack = true
 
 		case menu.Guide:
 			if err := runGuide(cmd, f); err != nil {
@@ -295,89 +306,132 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
+			waitForBack = true
 
 		case menu.Help:
 			fmt.Fprintln(out, helpReference())
+			waitForBack = true
+		}
+
+		if waitForBack {
+			if err := waitMenuBack(cmd); err != nil {
+				if isHardQuit(err) {
+					return nil
+				}
+				return err
+			}
 		}
 		// loop: redraw the menu
 	}
 }
 
-// runMenuRelease is the menu's Release entry: two quick picks (final vs rc, and
-// whether to publish) that stand in for the --rc / --publish flags, then the
-// normal interactive release. Backing out of a pick with q/esc returns nil so
-// the menu is redrawn; a ctrl+c hard-quit propagates pick.ErrQuit.
-func runMenuRelease(cmd *cobra.Command, f *releaseFlags) error {
+// waitMenuBack waits for an explicit back selection so the user can read an
+// action's result before the main menu is redrawn.
+func waitMenuBack(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out)
+	_, _, err := runPicker("", nil)
+	if err != nil {
+		return err
+	}
+	clearScreen(out)
+	return nil
+}
+
+func clearScreen(out io.Writer) {
+	fmt.Fprint(out, "\x1b[2J\x1b[H")
+}
+
+// runMenuStatus prints the status result. The menu loop handles the shared
+// bottom back selector after successful menu actions.
+func runMenuStatus(cmd *cobra.Command, f *releaseFlags) (bool, error) {
 	repo, cfg, err := openRepoAndConfig(f.dir)
 	if err != nil {
-		return err
+		return false, err
+	}
+	if err := runStatus(cmd, repo, cfg); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// runMenuRelease is the menu's Release entry: three quick picks (final vs rc,
+// whether to publish, and whether to edit notes) that stand in for the matching
+// flags, then the normal interactive release. Backing out moves one step back;
+// backing out of the first pick redraws the menu. A ctrl+c hard-quit propagates
+// pick.ErrQuit.
+func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (bool, error) {
+	repo, cfg, err := openRepoAndConfig(f.dir)
+	if err != nil {
+		return false, err
 	}
 
-	relType, chosen, err := pick.Run("Release type", []pick.Item{
-		{Label: "Final release", Desc: "the next stable version", Value: "final"},
-		{Label: "Release candidate (rc.N)", Desc: "a pre-release you can iterate on, then finalize", Value: "rc"},
-	})
-	if err != nil {
-		return err
-	}
-	if !chosen {
-		return nil
-	}
-
-	pub, chosen, err := pick.Run("Publish to GitHub?", []pick.Item{
-		{Label: "Just tag locally", Desc: "write the changelog, commit, and tag — nothing leaves your machine", Value: "local"},
-		{Label: "Push and create the GitHub Release", Desc: "needs a GitHub token (GITHUB_TOKEN / GH_TOKEN or `gh auth login`)", Value: "publish"},
-	})
-	if err != nil {
-		return err
-	}
-	if !chosen {
-		return nil
-	}
-
-	ed, chosen, err := pick.Run("Edit the notes first?", []pick.Item{
-		{Label: "Use the generated notes", Desc: "write the changelog straight from the commits", Value: "no"},
-		{Label: "Edit them in my editor", Desc: "open $EDITOR on the generated notes before writing", Value: "yes"},
-	})
-	if err != nil {
-		return err
-	}
-	if !chosen {
-		return nil
+	step := 0
+	var relType, pub, ed string
+	for step < 3 {
+		var chosen bool
+		switch step {
+		case 0:
+			relType, chosen, err = runPicker("Release type", []pick.Item{
+				{Label: "Final release", Desc: "the next stable version", Value: "final"},
+				{Label: "Release candidate (rc.N)", Desc: "a pre-release you can iterate on, then finalize", Value: "rc"},
+			})
+		case 1:
+			pub, chosen, err = runPicker("Publish to GitHub?", []pick.Item{
+				{Label: "Just tag locally", Desc: "write the changelog, commit, and tag — nothing leaves your machine", Value: "local"},
+				{Label: "Push and create the GitHub Release", Desc: "needs a GitHub token (GITHUB_TOKEN / GH_TOKEN or `gh auth login`)", Value: "publish"},
+			})
+		case 2:
+			ed, chosen, err = runPicker("Edit the notes first?", []pick.Item{
+				{Label: "Use the generated notes", Desc: "write the changelog straight from the commits", Value: "no"},
+				{Label: "Edit them in my editor", Desc: "open $EDITOR on the generated notes before writing", Value: "yes"},
+			})
+		}
+		if err != nil {
+			return false, err
+		}
+		if !chosen {
+			if step == 0 {
+				return false, nil
+			}
+			step--
+			continue
+		}
+		step++
 	}
 
 	f.rc = relType == "rc"
 	f.publish = pub == "publish"
 	f.edit = ed == "yes"
-	return doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
+	return true, doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
 }
 
 // runMenuAuth is the menu's Auth entry: show the resolved sign-in status, or
 // explain how to connect a token. Backing out of the pick with q/esc returns nil
 // so the menu is redrawn; a ctrl+c hard-quit propagates pick.ErrQuit.
-func runMenuAuth(cmd *cobra.Command) error {
+func runMenuAuth(cmd *cobra.Command) (bool, error) {
 	out := cmd.OutOrStdout()
 
-	choice, chosen, err := pick.Run("Auth", []pick.Item{
+	choice, chosen, err := runPicker("Auth", []pick.Item{
 		{Label: "Show sign-in status", Desc: "which token relio found and who it belongs to", Value: "status"},
 		{Label: "How to connect", Desc: "env vars or `gh auth login`", Value: "how"},
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !chosen {
-		return nil
+		return false, nil
 	}
 
 	if choice == "status" {
-		return authStatus(out)
+		return true, authStatus(out)
 	}
 
 	fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN"))
 	fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in."))
 	fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one."))
 	fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing."))
-	return nil
+	return true, nil
 }
 
 // runMenuSetup is the menu's Setup entry: point at an existing .release.yaml, or

@@ -52,12 +52,19 @@ func TestCursorSkipsDisabledRowsOutsideRepo(t *testing.T) {
 	if m.rows[m.cursor].kind != rowRadio {
 		t.Fatalf("initial cursor lands on kind %v, want rowRadio", m.rows[m.cursor].kind)
 	}
+	sawBack := false
 	for range m.rows {
 		m = send(m, "down")
 		r := m.rows[m.cursor]
-		if r.kind != rowRadio {
+		if r.kind != rowRadio && r.kind != rowBack {
 			t.Fatalf("cursor landed on a disabled row (kind %v) — outside a repo only the language radio rows are selectable", r.kind)
 		}
+		if r.kind == rowBack {
+			sawBack = true
+		}
+	}
+	if !sawBack {
+		t.Fatal("cursor never reached the back row outside a repo")
 	}
 }
 
@@ -66,6 +73,7 @@ func TestCursorSkipsDisabledRowsAndReachesCheckboxesInsideRepo(t *testing.T) {
 	m := newModel(dir)
 
 	sawCheck := 0
+	sawBack := false
 	for range m.rows {
 		m = send(m, "down")
 		r := m.rows[m.cursor]
@@ -75,9 +83,15 @@ func TestCursorSkipsDisabledRowsAndReachesCheckboxesInsideRepo(t *testing.T) {
 		if r.kind == rowCheck {
 			sawCheck++
 		}
+		if r.kind == rowBack {
+			sawBack = true
+		}
 	}
 	if sawCheck == 0 {
 		t.Fatal("cursor never reached a checkbox row inside a repo with .release.yaml")
+	}
+	if !sawBack {
+		t.Fatal("cursor never reached the back row inside a repo with .release.yaml")
 	}
 }
 
@@ -212,6 +226,20 @@ func TestOutsideRepoFooterDisabledView(t *testing.T) {
 	}
 }
 
+func TestViewShowsSeparatedBackRow(t *testing.T) {
+	m := newModel("")
+	view := m.View()
+	if !strings.Contains(view, "<- Back") {
+		t.Fatalf("View() missing back row:\n%s", view)
+	}
+	if !strings.Contains(view, i18n.T(i18n.SettingsFooterDisabledReason)+"\n\n") {
+		t.Fatalf("View() must visually separate the back row from settings rows:\n%s", view)
+	}
+	if strings.Contains(view, "q back") || strings.Contains(view, "q volver") {
+		t.Fatalf("View() should not advertise q back now that a visible back row exists:\n%s", view)
+	}
+}
+
 func TestInsideRepoFooterHasNoDisabledReason(t *testing.T) {
 	dir := withRepo(t)
 	m := newModel(dir)
@@ -228,6 +256,22 @@ func TestQAndEscQuitWithoutKilling(t *testing.T) {
 		}
 		if m.killed {
 			t.Errorf("%q: killed = true, want false — q/esc is a soft return, not a hard quit", key)
+		}
+	}
+}
+
+func TestBackRowQuitsWithoutKilling(t *testing.T) {
+	for _, key := range []string{"enter", " "} {
+		m := newModel("")
+		for m.rows[m.cursor].kind != rowBack {
+			m = send(m, "down")
+		}
+		m = send(m, key)
+		if !m.done {
+			t.Fatalf("%q on back row: done = false, want true", key)
+		}
+		if m.killed {
+			t.Fatalf("%q on back row: killed = true, want false", key)
 		}
 	}
 }

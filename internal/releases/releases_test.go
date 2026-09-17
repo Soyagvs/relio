@@ -175,6 +175,56 @@ func TestQBacksOutWithoutKilling(t *testing.T) {
 	}
 }
 
+func TestBackRowExitsWithoutPickingRelease(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+
+	view := m.View()
+	if !strings.Contains(view, backLabel) {
+		t.Fatalf("view missing back row %q:\n%s", backLabel, view)
+	}
+
+	m = send(m, "down", "down")
+	if m.cursor != len(m.tags) || !m.onBack() {
+		t.Fatalf("cursor should move to back row, got cursor=%d tags=%d", m.cursor, len(m.tags))
+	}
+
+	m = send(m, "enter")
+	if !m.quit || m.killed || m.picked != -1 {
+		t.Fatalf("back row should soft-exit without picking, got quit=%v killed=%v picked=%d", m.quit, m.killed, m.picked)
+	}
+}
+
+func TestBackRowNavigationReturnsToLastRelease(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+
+	m = send(m, "down", "down", "up")
+	if m.cursor != len(m.tags)-1 {
+		t.Fatalf("up from back row should return to last release, got cursor=%d", m.cursor)
+	}
+
+	m = send(m, "enter")
+	if !m.quit || m.picked != len(m.tags)-1 {
+		t.Fatalf("enter on release should still pick it, got quit=%v picked=%d", m.quit, m.picked)
+	}
+}
+
+func TestEmptyReleasesShowSelectableBack(t *testing.T) {
+	empty := &fakeRepo{}
+	m := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
+
+	view := m.View()
+	if !strings.Contains(view, backLabel) || !m.onBack() {
+		t.Fatalf("empty view should show selectable back row, onBack=%v:\n%s", m.onBack(), view)
+	}
+
+	m = send(m, "enter")
+	if !m.quit || m.killed || m.picked != -1 {
+		t.Fatalf("empty back row should soft-exit without picking, got quit=%v killed=%v picked=%d", m.quit, m.killed, m.picked)
+	}
+}
+
 func TestCtrlCKills(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
@@ -265,7 +315,7 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		t.Errorf("View() missing delete hint %q:\n%s", wantDeleteHint, v)
 	}
 	wantFooter := keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
-		keyHint("d", "delete") + keyHint("q", "back")
+		keyHint("d", "delete")
 	if !strings.HasSuffix(v, wantFooter) {
 		t.Errorf("View() does not end with the expected footer:\n%s", v)
 	}
@@ -300,7 +350,11 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	// strings.
 	empty := &fakeRepo{}
 	em := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
-	wantEmpty := wantTitle + ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n" + ui.Dim.Render("q back")
+	wantEmpty := wantTitle + ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n" +
+		"▸ " + ui.Key.Render(backLabel) + "\n\n" +
+		ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit") + "\n" +
+		ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release") + "\n\n" +
+		keyHint("↑/↓", "move") + keyHint("enter", "show & exit") + keyHint("d", "delete")
 	if ev := em.View(); ev != wantEmpty {
 		t.Errorf("empty View() = %q, want %q", ev, wantEmpty)
 	}
@@ -346,10 +400,13 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 	if strings.Contains(v, "print notes & exit") || strings.Contains(v, "delete release") {
 		t.Errorf("es View() still contains English footer hints:\n%s", v)
 	}
-	for _, spanish := range []string{"mostrar notas y salir", "eliminar lanzamiento", "mover", "mostrar y salir", "eliminar", "volver"} {
+	for _, spanish := range []string{"mostrar notas y salir", "eliminar lanzamiento", "mover", "mostrar y salir", "eliminar"} {
 		if !strings.Contains(v, spanish) {
 			t.Errorf("es View() missing localized hint %q, got:\n%s", spanish, v)
 		}
+	}
+	if !strings.Contains(v, backLabel) || strings.Contains(v, "q volver") {
+		t.Errorf("es View() should show the explicit back row instead of q-back hint, got:\n%s", v)
 	}
 
 	confirming := send(m, "d")
@@ -381,8 +438,8 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 	if !strings.Contains(ev, "Aún no hay lanzamientos. Crea uno desde el menú.") || strings.Contains(ev, "No releases yet") {
 		t.Errorf("es empty View() = %q, want localized empty state", ev)
 	}
-	if !strings.Contains(ev, "q volver") {
-		t.Errorf("es empty View() missing localized back hint, got:\n%s", ev)
+	if !strings.Contains(ev, backLabel) || strings.Contains(ev, "q volver") {
+		t.Errorf("es empty View() should show the explicit back row instead of q-back hint, got:\n%s", ev)
 	}
 
 	quitEmpty := send(em, "q")

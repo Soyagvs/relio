@@ -46,10 +46,10 @@ var es = map[MessageID]string{
 	SettingsCompareLinkLabel:     "Enlace de comparación",
 	SettingsCompareLinkDesc:      "Añade un enlace de comparación de GitHub al pie del historial de cambios",
 	SettingsFooterDisabledReason: "Abre un proyecto con .release.yaml para editar estas opciones",
-	SettingsHint:                 "↑/↓ mover · espacio alternar · q volver",
+	SettingsHint:                 "↑/↓ mover · espacio/enter seleccionar",
 
 	PickCancelled: "→ cancelado",
-	PickHint:      "↑/↓ mover · enter seleccionar · q cancelar",
+	PickHint:      "↑/↓ mover · enter seleccionar",
 
 	BannerTagline:         "convierte commits en lanzamientos",
 	BannerCreatedBy:       "creado por",

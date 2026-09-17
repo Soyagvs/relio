@@ -47,10 +47,10 @@ var en = map[MessageID]string{
 	SettingsCompareLinkLabel:     "Compare link",
 	SettingsCompareLinkDesc:      "Add a GitHub compare link to the changelog footer",
 	SettingsFooterDisabledReason: "Open a project with .release.yaml to edit these",
-	SettingsHint:                 "↑/↓ move · space toggle · q back",
+	SettingsHint:                 "↑/↓ move · space/enter select",
 
 	PickCancelled: "→ cancelled",
-	PickHint:      "↑/↓ move · enter select · q cancel",
+	PickHint:      "↑/↓ move · enter select",
 
 	BannerTagline:         "turn commits into releases",
 	BannerCreatedBy:       "created by",

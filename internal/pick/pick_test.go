@@ -51,6 +51,22 @@ func TestCancel(t *testing.T) {
 	}
 }
 
+func TestBackOptionCancels(t *testing.T) {
+	items := appendBackItem(sample)
+	m := model{title: "t", items: items, back: len(items) - 1, hasBack: true, cursor: len(items) - 1}
+	m = send(m, "enter")
+	if m.chosen || !m.quit || m.killed {
+		t.Errorf("back option should back out (not kill): chosen=%v quit=%v killed=%v", m.chosen, m.quit, m.killed)
+	}
+}
+
+func TestBackOptionLabel(t *testing.T) {
+	items := appendBackItem(sample)
+	if got := items[len(items)-1].Label; got != "<- Back" {
+		t.Errorf("back label = %q, want %q", got, "<- Back")
+	}
+}
+
 func TestCtrlCKills(t *testing.T) {
 	m := send(model{title: "t", items: sample}, "ctrl+c")
 	if !m.killed || m.chosen {
@@ -70,19 +86,27 @@ func TestCursorClamps(t *testing.T) {
 }
 
 func TestViewListsOptions(t *testing.T) {
-	v := model{title: "Pick one", items: sample}.View()
+	v := model{title: "Pick one", items: appendBackItem(sample)}.View()
 	for _, it := range sample {
 		if !strings.Contains(v, it.Label) {
 			t.Errorf("view missing %q:\n%s", it.Label, v)
 		}
 	}
+	if !strings.Contains(v, backLabel) {
+		t.Errorf("view missing %q:\n%s", backLabel, v)
+	}
+}
+
+func TestViewSeparatesBackOption(t *testing.T) {
+	v := model{title: "Pick one", items: appendBackItem(sample), back: len(sample), hasBack: true}.View()
+	if !strings.Contains(v, "\n\n  "+backLabel+"\n") {
+		t.Errorf("view should add a blank line before the back option:\n%s", v)
+	}
 }
 
 // TestGoldenEnglishDefaultUnchanged pins pick.go's own chrome (title
 // rendering aside, which is caller-supplied) against i18n.T() under the
-// default "en" language: converting pick.go's literals to i18n.T() calls
-// MUST NOT change a single byte of English output. This is the RED/refactor
-// safety net for the pick.go -> i18n.T() conversion (slice 4a).
+// default "en" language: pick.go's chrome should stay stable in English.
 func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	prev := i18n.Current()
 	if prev != "en" {
@@ -90,8 +114,7 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	}
 	t.Cleanup(func() { i18n.SetLanguage(prev) })
 
-	// Footer hint line, byte-identical to the historical hardcoded string.
-	wantHint := "↑/↓ move · enter select · q cancel"
+	wantHint := "↑/↓ move · enter select"
 	if got := i18n.T(i18n.PickHint); got != wantHint {
 		t.Errorf("i18n.T(PickHint) under en = %q, want %q", got, wantHint)
 	}

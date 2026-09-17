@@ -12,8 +12,11 @@ import (
 	"github.com/soyagvs/relio/internal/ui"
 )
 
+const backLabel = "<- Back"
+
 // ErrQuit is returned by Run when the user hard-quits with ctrl+c, as opposed to
-// backing out of the list with q/esc (which returns chosen=false, err=nil).
+// backing out of the list with the back option or q/esc (which returns
+// chosen=false, err=nil).
 var ErrQuit = errors.New("pick: quit")
 
 // Item is one selectable option. Value is what Run returns.
@@ -24,12 +27,14 @@ type Item struct {
 }
 
 type model struct {
-	title  string
-	items  []Item
-	cursor int
-	chosen bool
-	quit   bool // backed out with q/esc
-	killed bool // hard-quit with ctrl+c
+	title   string
+	items   []Item
+	cursor  int
+	back    int
+	hasBack bool
+	chosen  bool
+	quit    bool // backed out with the back option or q/esc
+	killed  bool // hard-quit with ctrl+c
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -56,6 +61,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case "enter", " ":
+		if m.hasBack && m.cursor == m.back {
+			m.quit = true
+			return m, tea.Quit
+		}
 		m.chosen = true
 		return m, tea.Quit
 	}
@@ -71,8 +80,13 @@ func (m model) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(ui.Title.Render(m.title) + "\n\n")
+	if m.title != "" {
+		b.WriteString(ui.Title.Render(m.title) + "\n\n")
+	}
 	for i, it := range m.items {
+		if m.hasBack && i == m.back && i > 0 {
+			b.WriteString("\n")
+		}
 		cur, label := "  ", it.Label
 		if i == m.cursor {
 			cur, label = ui.Key.Render("▸ "), ui.Key.Render(it.Label)
@@ -87,9 +101,11 @@ func (m model) View() string {
 }
 
 // Run shows the list and returns the chosen Value. chosen is false when the user
-// backed out with q/esc (err is nil then); a ctrl+c hard-quit returns ErrQuit.
+// backed out with the back option or q/esc (err is nil then); a ctrl+c hard-quit
+// returns ErrQuit.
 func Run(title string, items []Item) (value string, chosen bool, err error) {
-	final, e := tea.NewProgram(model{title: title, items: items}).Run()
+	items = appendBackItem(items)
+	final, e := tea.NewProgram(model{title: title, items: items, back: len(items) - 1, hasBack: true}).Run()
 	if e != nil {
 		return "", false, e
 	}
@@ -101,4 +117,11 @@ func Run(title string, items []Item) (value string, chosen bool, err error) {
 		return "", false, nil
 	}
 	return m.items[m.cursor].Value, true, nil
+}
+
+func appendBackItem(items []Item) []Item {
+	withBack := make([]Item, 0, len(items)+1)
+	withBack = append(withBack, items...)
+	withBack = append(withBack, Item{Label: backLabel})
+	return withBack
 }

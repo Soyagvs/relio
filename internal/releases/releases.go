@@ -56,6 +56,8 @@ type model struct {
 	picked int  // index chosen with Enter to print on exit; -1 = none
 }
 
+const backLabel = "<- Back"
+
 func newModel(repo repoPort, project, changelogPath string) model {
 	m := model{repo: repo, project: project, changelogPath: changelogPath, picked: -1}
 	m.reload()
@@ -69,7 +71,9 @@ func (m *model) reload() {
 		return
 	}
 	m.tags = tags
-	if m.cursor >= len(tags) {
+	if len(tags) == 0 {
+		m.cursor = 0
+	} else if m.cursor >= len(tags) {
 		m.cursor = max(0, len(tags)-1)
 	}
 	data, _ := os.ReadFile(m.changelogPath)
@@ -84,6 +88,8 @@ func (m model) selected() (gitrepo.TagInfo, bool) {
 	}
 	return m.tags[m.cursor], true
 }
+
+func (m model) onBack() bool { return m.cursor == len(m.tags) }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
@@ -120,11 +126,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = ""
 		}
 	case "down", "j":
-		if m.cursor < len(m.tags)-1 {
+		if m.cursor < len(m.tags) {
 			m.cursor++
 			m.status = ""
 		}
 	case "enter", " ":
+		if m.onBack() {
+			m.quit = true
+			return m, tea.Quit
+		}
 		if _, ok := m.selected(); ok {
 			m.picked = m.cursor // printed by staticView on the way out
 			m.quit = true
@@ -218,18 +228,16 @@ func (m model) View() string {
 		b.WriteString(ui.Warn.Render("✗ "+m.err) + "\n\n")
 	}
 	if len(m.tags) == 0 {
-		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmpty)) + "\n\n")
-		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmptyHint)))
-		return b.String()
-	}
-
-	for i, t := range m.tags {
-		line := fmt.Sprintf("%-12s  %s  %s", t.Name, t.Date, ui.Dim.Render(t.Subject))
-		if i == m.cursor {
-			b.WriteString(ui.Key.Render("▸ ") + rowSel.Render(fmt.Sprintf("%-12s", t.Name)) +
-				ui.Dim.Render("  "+t.Date+"  ") + t.Subject + "\n")
-		} else {
-			b.WriteString("  " + line + "\n")
+		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmpty)))
+	} else {
+		for i, t := range m.tags {
+			line := fmt.Sprintf("%-12s  %s  %s", t.Name, t.Date, ui.Dim.Render(t.Subject))
+			if i == m.cursor {
+				b.WriteString(ui.Key.Render("▸ ") + rowSel.Render(fmt.Sprintf("%-12s", t.Name)) +
+					ui.Dim.Render("  "+t.Date+"  ") + t.Subject + "\n")
+			} else {
+				b.WriteString("  " + line + "\n")
+			}
 		}
 	}
 
@@ -245,10 +253,21 @@ func (m model) View() string {
 		if m.status != "" {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
+		label := backLabel
+		marker := "  "
+		if m.onBack() {
+			marker = "▸ "
+			label = ui.Key.Render(label)
+		}
+		sep := "\n\n"
+		if strings.HasSuffix(b.String(), "\n") {
+			sep = "\n"
+		}
+		b.WriteString(sep + marker + label)
 		b.WriteString("\n\n" + ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintPrintNotesExit)))
 		b.WriteString("\n" + ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintDeleteRelease)))
 		b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("enter", i18n.T(i18n.ReleasesHintShowExit)) +
-			keyHint("d", i18n.T(i18n.ReleasesHintDelete)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
+			keyHint("d", i18n.T(i18n.ReleasesHintDelete)))
 	}
 	return b.String()
 }

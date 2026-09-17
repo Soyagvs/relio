@@ -30,6 +30,7 @@ const (
 	rowInfo kind = iota
 	rowRadio
 	rowCheck
+	rowBack
 )
 
 // row is one line of the Settings screen. label/desc are closures re-evaluated
@@ -118,6 +119,7 @@ func buildRows(footer bool) []row {
 	if !footer {
 		rows = append(rows, row{kind: rowInfo, label: func() string { return i18n.T(i18n.SettingsFooterDisabledReason) }, group: 2})
 	}
+	rows = append(rows, row{kind: rowBack, label: func() string { return "<- Back" }, group: 3, enabled: true})
 	return rows
 }
 
@@ -205,10 +207,10 @@ func (m model) moveCursor(delta int) model {
 	return m
 }
 
-// apply handles enter/space on the current row: select a language, or toggle
-// a footer checkbox. Both persist immediately; a checkbox reverts its
-// in-memory flip if the persistence call fails, so the screen never lies
-// about disk state.
+// apply handles enter/space on the current row: select a language, toggle a
+// footer checkbox, or leave via the back row. Settings persist immediately; a
+// checkbox reverts its in-memory flip if the persistence call fails, so the
+// screen never lies about disk state.
 func (m model) apply() model {
 	if m.cursor < 0 || m.cursor >= len(m.rows) {
 		return m
@@ -236,6 +238,8 @@ func (m model) apply() model {
 		} else {
 			m.err = ""
 		}
+	case rowBack:
+		m.done = true
 	}
 	return m
 }
@@ -290,6 +294,13 @@ func (m model) View() string {
 				box, label = ui.Key.Render(box), ui.Key.Render(label)
 			}
 			b.WriteString("  " + marker + box + " " + label + desc + "\n")
+
+		case rowBack:
+			label := r.label()
+			if i == m.cursor {
+				label = ui.Key.Render(label)
+			}
+			b.WriteString("  " + marker + label + "\n")
 		}
 	}
 
