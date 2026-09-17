@@ -27,13 +27,26 @@ import (
 // printedNext reports whether this step already told the user how to finish
 // (so doRelease should not also print its "next: git push" line).
 func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, plan release.Plan, applied release.ApplyResult, interactive, yes bool) (printedNext bool, err error) {
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(out, a...)
+		return err
+	}
+
 	token, _ := ghrelease.Token()
 	if token == "" {
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.PublishNoTokenSkip)))
-		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.PublishNoTokenHint)))
+		if err := writeLine(); err != nil {
+			return false, err
+		}
+		if err := writeLine(ui.Info(i18n.T(i18n.PublishNoTokenSkip))); err != nil {
+			return false, err
+		}
+		if err := writeLine(ui.Dim.Render(i18n.T(i18n.PublishNoTokenHint))); err != nil {
+			return false, err
+		}
 		// A literal command the user types verbatim, not prose — stays untranslated.
-		fmt.Fprintln(out, ui.Dim.Render("  git push && git push origin "+applied.TagName))
+		if err := writeLine(ui.Dim.Render("  git push && git push origin " + applied.TagName)); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
@@ -55,8 +68,12 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 	}
 
 	if interactive && !yes {
-		fmt.Fprintln(out)
-		fmt.Fprintf(out, i18n.T(i18n.PublishConfirmPrompt), branch, applied.TagName)
+		if err := writeLine(); err != nil {
+			return false, err
+		}
+		if _, err := fmt.Fprintf(out, i18n.T(i18n.PublishConfirmPrompt), branch, applied.TagName); err != nil {
+			return false, err
+		}
 		if !readYes(os.Stdin) {
 			return false, nil
 		}
@@ -68,8 +85,12 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 	if perr := repo.Push("origin", applied.TagName); perr != nil {
 		return false, fmt.Errorf(i18n.T(i18n.PublishPushTagFailed), applied.TagName, applied.TagName, perr)
 	}
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.PublishPushedToOrigin)}))
+	if err := writeLine(); err != nil {
+		return false, err
+	}
+	if err := writeLine(ui.Success([]string{i18n.T(i18n.PublishPushedToOrigin)})); err != nil {
+		return false, err
+	}
 
 	prerelease := strings.Contains(applied.TagName, "-")
 	url, cerr := ghrelease.Create(context.Background(), nil, token, ghrelease.Options{
@@ -80,15 +101,21 @@ func publishGitHubRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, 
 		Prerelease: prerelease,
 	})
 	if errors.Is(cerr, ghrelease.ErrReleaseExists) {
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.PublishReleaseExists, applied.TagName)))
+		if err := writeLine(ui.Info(i18n.T(i18n.PublishReleaseExists, applied.TagName))); err != nil {
+			return true, err
+		}
 		return true, nil
 	}
 	if cerr != nil {
 		return true, fmt.Errorf(i18n.T(i18n.PublishCreateFailed), applied.TagName, cerr)
 	}
 
-	fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.PublishReleasePublished, applied.TagName)}))
-	fmt.Fprintln(out, ui.Dim.Render("  "+url))
+	if err := writeLine(ui.Success([]string{i18n.T(i18n.PublishReleasePublished, applied.TagName)})); err != nil {
+		return true, err
+	}
+	if err := writeLine(ui.Dim.Render("  " + url)); err != nil {
+		return true, err
+	}
 	return true, nil
 }
 

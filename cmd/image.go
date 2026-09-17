@@ -91,8 +91,8 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		return err
 	}
 	if len(tags) == 0 {
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.ImageNoReleasesYet)))
-		return nil
+		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.ImageNoReleasesYet)))
+		return err
 	}
 
 	// Resolve the release: flag, else prompt (TTY), else latest.
@@ -197,8 +197,12 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			return err
 		}
 		abs, _ := filepath.Abs(localPath)
-		fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ImageSaved, localPath)}))
-		fmt.Fprintln(out, ui.Dim.Render("  "+abs))
+		if _, err := fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ImageSaved, localPath)})); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out, ui.Dim.Render("  "+abs)); err != nil {
+			return err
+		}
 		uploadSrc = localPath
 	}
 
@@ -209,8 +213,10 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			if terr != nil {
 				return terr
 			}
-			tmp.Close()
-			defer os.Remove(tmp.Name())
+			if err := tmp.Close(); err != nil {
+				return err
+			}
+			defer func() { _ = os.Remove(tmp.Name()) }()
 			if err := card.Save(img, tmp.Name()); err != nil {
 				return err
 			}
@@ -218,18 +224,28 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		}
 
 		if save {
-			fmt.Fprintln(out)
+			if _, err := fmt.Fprintln(out); err != nil {
+				return err
+			}
 		}
 		url, uerr := upload.Upload(uploadSrc)
 		if uerr != nil {
-			fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error())
+			if _, err := fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error()); err != nil {
+				return err
+			}
 			if save {
-				fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ImageStillSavedLocally)))
+				if _, err := fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ImageStillSavedLocally))); err != nil {
+					return err
+				}
 			}
 			return nil
 		}
-		fmt.Fprint(out, qrBlock(url))
-		fmt.Fprintln(out, "  "+ui.Key.Render(url))
+		if _, err := fmt.Fprint(out, qrBlock(url)); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out, "  "+ui.Key.Render(url)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

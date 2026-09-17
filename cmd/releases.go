@@ -76,8 +76,8 @@ func runReleasesEdit(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 
 	switch {
 	case strings.TrimSpace(edited) == strings.TrimSpace(section):
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.ReleasesEditUnchanged)))
-		return nil
+		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.ReleasesEditUnchanged)))
+		return err
 	case strings.TrimSpace(edited) == "":
 		return errors.New(i18n.T(i18n.ReleasesEditBlankRefused))
 	}
@@ -87,7 +87,9 @@ func runReleasesEdit(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		return err
 	}
 
-	fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ReleasesEditDone, cfg.Release.ChangelogFile)}))
-	fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ReleasesEditCommitHint, cfg.Release.ChangelogFile)))
-	return nil
+	if _, err := fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ReleasesEditDone, cfg.Release.ChangelogFile)})); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ReleasesEditCommitHint, cfg.Release.ChangelogFile)))
+	return err
 }

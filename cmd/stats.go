@@ -30,8 +30,8 @@ func newStatsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), renderStats(s, pre))
-			return nil
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), renderStats(s, pre))
+			return err
 		},
 	}
 

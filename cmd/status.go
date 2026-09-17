@@ -36,19 +36,28 @@ func runStatus(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error 
 		return err
 	}
 
-	row := func(label, val string) {
-		fmt.Fprintf(out, "%s %s\n", ui.Dim.Render(fmt.Sprintf("%-12s", label)), val)
+	row := func(label, val string) error {
+		_, err := fmt.Fprintf(out, "%s %s\n", ui.Dim.Render(fmt.Sprintf("%-12s", label)), val)
+		return err
 	}
 
-	fmt.Fprintln(out, ui.Key.Render(cfg.Project))
-	fmt.Fprintln(out)
+	if _, err := fmt.Fprintln(out, ui.Key.Render(cfg.Project)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(out); err != nil {
+		return err
+	}
 
 	cur := "none"
 	if plan.Current.Major != 0 || plan.Current.Minor != 0 || plan.Current.Patch != 0 {
 		cur = plan.Current.String()
 	}
-	row(i18n.T(i18n.StatusLabelCurrent), cur)
-	row(i18n.T(i18n.StatusLabelUnreleased), i18n.T(i18n.StatusCommitsCount, len(plan.Commits)))
+	if err := row(i18n.T(i18n.StatusLabelCurrent), cur); err != nil {
+		return err
+	}
+	if err := row(i18n.T(i18n.StatusLabelUnreleased), i18n.T(i18n.StatusCommitsCount, len(plan.Commits))); err != nil {
+		return err
+	}
 
 	if counts := typeCounts(plan); len(counts) > 0 {
 		w := 0
@@ -57,30 +66,48 @@ func runStatus(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error 
 				w = len(c.typ)
 			}
 		}
-		fmt.Fprintln(out)
+		if _, err := fmt.Fprintln(out); err != nil {
+			return err
+		}
 		for _, c := range counts {
-			fmt.Fprintf(out, "%s  %d\n", ui.Key.Render(fmt.Sprintf("%-*s", w, c.typ)), c.n)
+			if _, err := fmt.Fprintf(out, "%s  %d\n", ui.Key.Render(fmt.Sprintf("%-*s", w, c.typ)), c.n); err != nil {
+				return err
+			}
 		}
 	}
 
-	fmt.Fprintln(out)
+	if _, err := fmt.Fprintln(out); err != nil {
+		return err
+	}
 	if plan.NothingToRelease() {
-		row(i18n.T(i18n.StatusLabelSuggested), ui.Dim.Render(i18n.T(i18n.StatusNoSuggestion)))
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.StatusNothingToRelease)))
-		return nil
+		if err := row(i18n.T(i18n.StatusLabelSuggested), ui.Dim.Render(i18n.T(i18n.StatusNoSuggestion))); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out); err != nil {
+			return err
+		}
+		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.StatusNothingToRelease)))
+		return err
 	}
-	row(i18n.T(i18n.StatusLabelSuggested), ui.Ok.Render(plan.Next.String())+ui.Dim.Render("  ("+plan.Bump.String()+")"))
+	if err := row(i18n.T(i18n.StatusLabelSuggested), ui.Ok.Render(plan.Next.String())+ui.Dim.Render("  ("+plan.Bump.String()+")")); err != nil {
+		return err
+	}
 	if plan.Current.IsPrerelease() {
-		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.StatusPrereleaseHint, plan.Current.Core().String())))
+		if _, err := fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.StatusPrereleaseHint, plan.Current.Core().String()))); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintln(out)
+	if _, err := fmt.Fprintln(out); err != nil {
+		return err
+	}
 
 	if clean, cerr := repo.IsClean(); cerr == nil && !clean {
-		fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render(i18n.T(i18n.StatusUncommittedChange)))
+		if _, err := fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render(i18n.T(i18n.StatusUncommittedChange))); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintln(out, ui.Ok.Render(i18n.T(i18n.StatusReadyToRelease)))
-	return nil
+	_, err = fmt.Fprintln(out, ui.Ok.Render(i18n.T(i18n.StatusReadyToRelease)))
+	return err
 }
 
 type typeCount struct {

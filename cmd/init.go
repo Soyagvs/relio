@@ -55,12 +55,20 @@ func runInit(w io.Writer, repo *gitrepo.Repo, projectOverride string) error {
 		return err
 	}
 
-	fmt.Fprintln(w, ui.Banner(name, version))
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, ui.Success([]string{fmt.Sprintf(i18n.T(i18n.InitConfigCreated), filepath.Join(root, config.FileName))}))
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, ui.Dim.Render(i18n.T(i18n.InitNextStepsHint)))
-	return nil
+	if _, err := fmt.Fprintln(w, ui.Banner(name, version)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, ui.Success([]string{fmt.Sprintf(i18n.T(i18n.InitConfigCreated), filepath.Join(root, config.FileName))})); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(w, ui.Dim.Render(i18n.T(i18n.InitNextStepsHint)))
+	return err
 }
 
 func guessProjectName(repo *gitrepo.Repo, root string) string {

@@ -39,14 +39,17 @@ func newUndoCmd(f *releaseFlags) *cobra.Command {
 // has been pushed or is no longer the current commit.
 func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, force bool) error {
 	out := cmd.OutOrStdout()
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(out, a...)
+		return err
+	}
 
 	tag, ok, err := repo.LatestTag()
 	if err != nil {
 		return err
 	}
 	if !ok {
-		fmt.Fprintln(out, ui.Info(i18n.T(i18n.UndoNoTags)))
-		return nil
+		return writeLine(ui.Info(i18n.T(i18n.UndoNoTags)))
 	}
 
 	atHead, err := repo.TagPointsAtHead(tag)
@@ -81,19 +84,30 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		}
 	}
 
-	fmt.Fprintln(out, ui.Key.Render(i18n.T(i18n.UndoHeader, tag)))
-	fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepDeleteTag, tag)))
-	if isReleaseCommit {
-		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepRemoveCommit, tag)))
-		fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.UndoStepFilesRevert, cfg.Release.ChangelogFile)))
+	if err := writeLine(ui.Key.Render(i18n.T(i18n.UndoHeader, tag))); err != nil {
+		return err
 	}
-	fmt.Fprintln(out)
+	if err := writeLine(ui.Dim.Render(i18n.T(i18n.UndoStepDeleteTag, tag))); err != nil {
+		return err
+	}
+	if isReleaseCommit {
+		if err := writeLine(ui.Dim.Render(i18n.T(i18n.UndoStepRemoveCommit, tag))); err != nil {
+			return err
+		}
+		if err := writeLine(ui.Dim.Render(i18n.T(i18n.UndoStepFilesRevert, cfg.Release.ChangelogFile))); err != nil {
+			return err
+		}
+	}
+	if err := writeLine(); err != nil {
+		return err
+	}
 
 	if !yes {
-		fmt.Fprint(out, i18n.T(i18n.UndoProceedPrompt))
+		if _, err := fmt.Fprint(out, i18n.T(i18n.UndoProceedPrompt)); err != nil {
+			return err
+		}
 		if !readYes(cmd.InOrStdin()) {
-			fmt.Fprintln(out, ui.Info(i18n.T(i18n.UndoCancelled)))
-			return nil
+			return writeLine(ui.Info(i18n.T(i18n.UndoCancelled)))
 		}
 	}
 
@@ -109,6 +123,5 @@ func runUndo(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, yes, for
 		done = append(done, i18n.T(i18n.UndoDoneRemovedCommit))
 	}
 
-	fmt.Fprintln(out, ui.Success(done))
-	return nil
+	return writeLine(ui.Success(done))
 }

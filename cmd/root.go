@@ -309,7 +309,9 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			waitForBack = true
 
 		case menu.Help:
-			fmt.Fprintln(out, helpReference())
+			if _, err := fmt.Fprintln(out, helpReference()); err != nil {
+				return err
+			}
 			waitForBack = true
 		}
 
@@ -329,17 +331,19 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 // action's result before the main menu is redrawn.
 func waitMenuBack(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out)
+	if _, err := fmt.Fprintln(out); err != nil {
+		return err
+	}
 	_, _, err := runPicker("", nil)
 	if err != nil {
 		return err
 	}
-	clearScreen(out)
-	return nil
+	return clearScreen(out)
 }
 
-func clearScreen(out io.Writer) {
-	fmt.Fprint(out, "\x1b[2J\x1b[H")
+func clearScreen(out io.Writer) error {
+	_, err := fmt.Fprint(out, "\x1b[2J\x1b[H")
+	return err
 }
 
 // runMenuStatus prints the status result. The menu loop handles the shared
@@ -427,10 +431,18 @@ func runMenuAuth(cmd *cobra.Command) (bool, error) {
 		return true, authStatus(out)
 	}
 
-	fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN"))
-	fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in."))
-	fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one."))
-	fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing."))
+	if _, err := fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN")); err != nil {
+		return false, err
+	}
+	if _, err := fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in.")); err != nil {
+		return false, err
+	}
+	if _, err := fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one.")); err != nil {
+		return false, err
+	}
+	if _, err := fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing.")); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -441,15 +453,17 @@ func runMenuSetup(cmd *cobra.Command, f *releaseFlags) error {
 
 	repo, err := gitrepo.Open(f.dir)
 	if err != nil {
-		fmt.Fprintln(out, ui.Info("not a git repository — run this inside a repo, or pass -C <path>"))
-		return nil
+		_, err := fmt.Fprintln(out, ui.Info("not a git repository — run this inside a repo, or pass -C <path>"))
+		return err
 	}
 	root := repo.Root()
 
 	if config.Exists(root) {
-		fmt.Fprintln(out, ui.Info(config.Path(root)+" already exists"))
-		fmt.Fprintln(out, ui.Dim.Render("  Edit it by hand; see the README for every field."))
-		return nil
+		if _, err := fmt.Fprintln(out, ui.Info(config.Path(root)+" already exists")); err != nil {
+			return err
+		}
+		_, err := fmt.Fprintln(out, ui.Dim.Render("  Edit it by hand; see the README for every field."))
+		return err
 	}
 
 	name := promptLine(cmd.InOrStdin(), out, "Project name", guessProjectName(repo, root))
@@ -459,7 +473,7 @@ func runMenuSetup(cmd *cobra.Command, f *releaseFlags) error {
 // promptLine writes "<prompt> [<def>]: " and reads one line from r, returning def
 // when the line is blank or unreadable.
 func promptLine(r io.Reader, w io.Writer, prompt, def string) string {
-	fmt.Fprintf(w, "%s [%s]: ", prompt, def)
+	_, _ = fmt.Fprintf(w, "%s [%s]: ", prompt, def)
 	sc := bufio.NewScanner(r)
 	if sc.Scan() {
 		if v := strings.TrimSpace(sc.Text()); v != "" {
@@ -476,8 +490,8 @@ func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) e
 		return err
 	}
 	if plan.NothingToRelease() {
-		fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
-		return nil
+		_, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
+		return err
 	}
 
 	format, chosen, err := pick.Run("Release text — pick a format", postFormatItems())
@@ -492,15 +506,26 @@ func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) e
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:"))
-	fmt.Fprintln(cmd.OutOrStdout(), text)
-	return nil
+	if _, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:")); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), text)
+	return err
 }
 
 // doRelease builds a plan, confirms it (wizard when interactive), and applies it.
 func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseFlags, force semver.Bump, interactive bool) error {
-	fmt.Fprintln(out, ui.Banner(cfg.Project, version))
-	fmt.Fprintln(out)
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(out, a...)
+		return err
+	}
+
+	if err := writeLine(ui.Banner(cfg.Project, version)); err != nil {
+		return err
+	}
+	if err := writeLine(); err != nil {
+		return err
+	}
 
 	plan, err := release.BuildPlan(repo, cfg, release.Options{ForceBump: force, Prerelease: f.rc})
 	if err != nil {
@@ -517,12 +542,13 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		if plan.Current.String() != "v0.0.0" {
 			base = plan.Current.String()
 		}
-		fmt.Fprintln(out, ui.Info(fmt.Sprintf("No commits since %s. Nothing to release.", base)))
-		return nil
+		return writeLine(ui.Info(fmt.Sprintf("No commits since %s. Nothing to release.", base)))
 	}
 
 	if !f.noHooks && len(cfg.Release.Hooks.Validate) > 0 {
-		fmt.Fprintln(out)
+		if err := writeLine(); err != nil {
+			return err
+		}
 		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.Validate, plan, prev); err != nil {
 			return fmt.Errorf("validate hook failed — nothing was written: %w", err)
 		}
@@ -531,16 +557,19 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	if interactive {
 		// Print the preview to the scrollback first so it survives the wizard
 		// clearing its own frame — the user can copy it afterwards.
-		fmt.Fprintln(out, ui.PlanView(plan))
-		fmt.Fprintln(out)
+		if err := writeLine(ui.PlanView(plan)); err != nil {
+			return err
+		}
+		if err := writeLine(); err != nil {
+			return err
+		}
 
 		res, werr := wizard.Run(plan)
 		if werr != nil {
 			return werr
 		}
 		if !res.Confirmed {
-			fmt.Fprintln(out, ui.Info("Cancelled. Nothing was written."))
-			return nil
+			return writeLine(ui.Info("Cancelled. Nothing was written."))
 		}
 		if res.Bump != plan.Bump {
 			plan, err = release.BuildPlan(repo, cfg, release.Options{ForceBump: res.Bump, Prerelease: f.rc})
@@ -550,12 +579,18 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			applyFlagOverrides(&plan, f)
 		}
 	} else {
-		fmt.Fprintln(out, ui.PlanView(plan))
-		fmt.Fprintln(out)
+		if err := writeLine(ui.PlanView(plan)); err != nil {
+			return err
+		}
+		if err := writeLine(); err != nil {
+			return err
+		}
 		if !f.yes {
 			return errors.New("refusing to modify the repo without confirmation — re-run with --yes")
 		}
-		fmt.Fprintln(out, ui.Info("Proceeding (--yes)."))
+		if err := writeLine(ui.Info("Proceeding (--yes).")); err != nil {
+			return err
+		}
 	}
 
 	if f.edit {
@@ -568,17 +603,25 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		}
 		switch {
 		case strings.TrimSpace(edited) == "":
-			fmt.Fprintln(out, ui.Info("Edited notes were empty — keeping the generated notes."))
+			if err := writeLine(ui.Info("Edited notes were empty — keeping the generated notes.")); err != nil {
+				return err
+			}
 		case strings.TrimSpace(edited) == strings.TrimSpace(plan.EditableNotes()):
-			fmt.Fprintln(out, ui.Info("Notes unchanged."))
+			if err := writeLine(ui.Info("Notes unchanged.")); err != nil {
+				return err
+			}
 		default:
 			plan.NotesOverride = strings.TrimSpace(edited)
-			fmt.Fprintln(out, ui.Info("Using your edited release notes."))
+			if err := writeLine(ui.Info("Using your edited release notes.")); err != nil {
+				return err
+			}
 		}
 	}
 
 	if !f.noHooks && len(cfg.Release.Hooks.Before) > 0 {
-		fmt.Fprintln(out)
+		if err := writeLine(); err != nil {
+			return err
+		}
 		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.Before, plan, prev); err != nil {
 			return fmt.Errorf("before hook failed — nothing was written: %w", err)
 		}
@@ -604,21 +647,31 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	}
 	done = append(done, "release ready")
 
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, ui.Success(done))
+	if err := writeLine(); err != nil {
+		return err
+	}
+	if err := writeLine(ui.Success(done)); err != nil {
+		return err
+	}
 
 	if plan.Prerelease {
-		fmt.Fprintln(out, ui.Dim.Render(fmt.Sprintf(
+		if err := writeLine(ui.Dim.Render(fmt.Sprintf(
 			"  this is a pre-release — run `relio` (no --rc) when you're ready to finalize %s",
-			plan.Next.Core().String())))
+			plan.Next.Core().String()))); err != nil {
+			return err
+		}
 	}
 	if plan.Finalizing {
-		fmt.Fprintln(out, ui.Dim.Render("  finalized from "+plan.Current.String()))
+		if err := writeLine(ui.Dim.Render("  finalized from " + plan.Current.String())); err != nil {
+			return err
+		}
 	}
 
 	if interactive && applied.ChangelogPath != "" {
 		if tip := footerTip(cfg); tip != "" {
-			fmt.Fprintln(out, tip)
+			if err := writeLine(tip); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -631,14 +684,22 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 	}
 
 	if applied.TagName != "" && !printedNext {
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, ui.Dim.Render("  next:  git push && git push origin "+applied.TagName))
+		if err := writeLine(); err != nil {
+			return err
+		}
+		if err := writeLine(ui.Dim.Render("  next:  git push && git push origin " + applied.TagName)); err != nil {
+			return err
+		}
 	}
 
 	if !f.noHooks && applied.TagName != "" && len(cfg.Release.Hooks.After) > 0 {
-		fmt.Fprintln(out)
+		if err := writeLine(); err != nil {
+			return err
+		}
 		if err := runHooks(out, repo, cfg, cfg.Release.Hooks.After, plan, prev); err != nil {
-			fmt.Fprintln(out, ui.Warn.Render("! ")+ui.Dim.Render(fmt.Sprintf("after hook failed: %v (the release itself is done)", err)))
+			if err := writeLine(ui.Warn.Render("! ") + ui.Dim.Render(fmt.Sprintf("after hook failed: %v (the release itself is done)", err))); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

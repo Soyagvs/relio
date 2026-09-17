@@ -55,7 +55,7 @@ func resolveLanguage(dir string, w io.Writer) string {
 
 	resolved, ok := i18n.SetLanguage(id)
 	if !ok {
-		fmt.Fprintln(w, ui.Warn.Render("✗ ")+fmt.Sprintf("unknown language %q, falling back to English", id))
+		_, _ = fmt.Fprintln(w, ui.Warn.Render("✗ ")+fmt.Sprintf("unknown language %q, falling back to English", id))
 	}
 	return resolved
 }

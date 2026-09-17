@@ -70,37 +70,55 @@ func checkReport(w io.Writer, project, tag string, nCommits int, conv, nonConv [
 	}
 
 	if nCommits == 0 {
-		fmt.Fprintln(w, ui.Info(i18n.T(i18n.CheckNothingToCheck, base)))
-		return nil
+		_, err := fmt.Fprintln(w, ui.Info(i18n.T(i18n.CheckNothingToCheck, base)))
+		return err
 	}
 
-	fmt.Fprintln(w, ui.Key.Render(project))
-	fmt.Fprintln(w)
+	if _, err := fmt.Fprintln(w, ui.Key.Render(project)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 
 	if tag == "" {
-		fmt.Fprintln(w, i18n.T(i18n.CheckCommitsNoTagYet, nCommits))
+		if _, err := fmt.Fprintln(w, i18n.T(i18n.CheckCommitsNoTagYet, nCommits)); err != nil {
+			return err
+		}
 	} else {
-		fmt.Fprintln(w, i18n.T(i18n.CheckCommitsSinceTag, nCommits, tag))
-	}
-
-	fmt.Fprintf(w, "  %s %s\n",
-		ui.Ok.Render("✓"), ui.Dim.Render(i18n.T(i18n.CheckConventionalCount, len(conv))))
-
-	if len(nonConv) > 0 {
-		fmt.Fprintf(w, "  %s %s\n",
-			ui.Warn.Render("✗"), ui.Dim.Render(i18n.T(i18n.CheckNonConventionalHead, len(nonConv))))
-		for _, c := range nonConv {
-			if hideHashes || c.Hash == "" {
-				fmt.Fprintf(w, "      %s\n", c.Raw)
-				continue
-			}
-			fmt.Fprintf(w, "      %s  %s\n", ui.Dim.Render(shortHash(c.Hash)), c.Raw)
+		if _, err := fmt.Fprintln(w, i18n.T(i18n.CheckCommitsSinceTag, nCommits, tag)); err != nil {
+			return err
 		}
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, i18n.T(i18n.CheckDetectedBump, bump, next))
-	return nil
+	if _, err := fmt.Fprintf(w, "  %s %s\n",
+		ui.Ok.Render("✓"), ui.Dim.Render(i18n.T(i18n.CheckConventionalCount, len(conv)))); err != nil {
+		return err
+	}
+
+	if len(nonConv) > 0 {
+		if _, err := fmt.Fprintf(w, "  %s %s\n",
+			ui.Warn.Render("✗"), ui.Dim.Render(i18n.T(i18n.CheckNonConventionalHead, len(nonConv)))); err != nil {
+			return err
+		}
+		for _, c := range nonConv {
+			if hideHashes || c.Hash == "" {
+				if _, err := fmt.Fprintf(w, "      %s\n", c.Raw); err != nil {
+					return err
+				}
+				continue
+			}
+			if _, err := fmt.Fprintf(w, "      %s  %s\n", ui.Dim.Render(shortHash(c.Hash)), c.Raw); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(w, i18n.T(i18n.CheckDetectedBump, bump, next))
+	return err
 }
 
 // shortHash trims a commit hash to the conventional 7-character prefix.

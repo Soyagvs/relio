@@ -22,8 +22,8 @@ var lookupToken = ghrelease.Token
 func authStatus(w io.Writer) error {
 	token, source := lookupToken()
 	if token == "" {
-		fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthNotAuthenticated)))
-		return nil
+		_, err := fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthNotAuthenticated)))
+		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -31,8 +31,8 @@ func authStatus(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthLoggedInAs, login, source)))
-	return nil
+	_, err = fmt.Fprintln(w, ui.Info(i18n.T(i18n.AuthLoggedInAs, login, source)))
+	return err
 }
 
 // newAuthCmd groups the GitHub token helpers. Relio has no login of its own yet:
@@ -60,8 +60,8 @@ func newAuthCmd() *cobra.Command {
 			Short: short,
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				fmt.Fprintln(cmd.OutOrStdout(), ui.Info(body))
-				return nil
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), ui.Info(body))
+				return err
 			},
 		}
 	}

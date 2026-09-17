@@ -15,17 +15,22 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: i18n.T(i18n.VersionShort),
 		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			fmt.Fprintf(w, i18n.T(i18n.VersionInfoLine), ui.AppName, version, commit, date)
+			if _, err := fmt.Fprintf(w, i18n.T(i18n.VersionInfoLine), ui.AppName, version, commit, date); err != nil {
+				return err
+			}
 
 			// Only nudge on a real terminal, so scripts parsing `relio version`
 			// keep getting a single clean line.
 			if stdoutIsTTY() {
 				if v := update.Available(version); v != "" {
-					fmt.Fprintln(w, ui.Key.Render(i18n.T(i18n.VersionUpdateAvailable, v)))
+					if _, err := fmt.Fprintln(w, ui.Key.Render(i18n.T(i18n.VersionUpdateAvailable, v))); err != nil {
+						return err
+					}
 				}
 			}
+			return nil
 		},
 	}
 }

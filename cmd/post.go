@@ -32,8 +32,8 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return err
 			}
 			if plan.NothingToRelease() {
-				fmt.Fprintln(cmd.ErrOrStderr(), ui.Info(i18n.T(i18n.PostNoCommits)))
-				return nil
+				_, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Info(i18n.T(i18n.PostNoCommits)))
+				return err
 			}
 
 			text, err := renderPost(cfg.Project, plan, format)
@@ -41,9 +41,11 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 				return err
 			}
 			// Text only on stdout so it can be piped straight to the clipboard.
-			fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render(i18n.T(i18n.PostCopyHint)))
-			fmt.Fprintln(cmd.OutOrStdout(), text)
-			return nil
+			if _, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render(i18n.T(i18n.PostCopyHint))); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), text)
+			return err
 		},
 	}
 
