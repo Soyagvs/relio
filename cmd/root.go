@@ -97,7 +97,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.noHooks, "no-hooks", false, i18n.T(i18n.FlagNoHooksUsage))
 	lf.BoolVar(&f.edit, "edit", false, i18n.T(i18n.FlagEditUsage))
 
-	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newUndoCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd())
+	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newUndoCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd(), newReleasesCmd(f))
 	return root
 }
 

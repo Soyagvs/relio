@@ -225,6 +225,27 @@ func sectionBounds(lines []string, version string) (start, end int, ok bool) {
 	return start, end, true
 }
 
+// ReplaceSection swaps the "## [version]" block in content for newSection, in
+// place. It returns ok=false and content unchanged (aside from newline
+// normalisation) when that version has no section to replace.
+func ReplaceSection(content, version, newSection string) (result string, ok bool) {
+	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	start, end, found := sectionBounds(lines, version)
+	if !found {
+		return strings.TrimRight(content, "\n") + "\n", false
+	}
+	newLines := strings.Split(strings.TrimRight(newSection, "\n"), "\n")
+	kept := append([]string{}, lines[:start]...)
+	kept = append(kept, newLines...)
+	if end < len(lines) {
+		// A section follows — restore the blank-line separator that
+		// ExtractSection trimmed off before the editor ever saw it.
+		kept = append(kept, "")
+	}
+	kept = append(kept, lines[end:]...)
+	return strings.Join(kept, "\n") + "\n", true
+}
+
 // ExtractSection returns the "## [version]" block from content, trimmed, or ""
 // when that version has no section.
 func ExtractSection(content, version string) string {

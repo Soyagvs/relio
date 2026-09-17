@@ -110,7 +110,7 @@ Pushing and creating the GitHub Release is opt-in — `--publish`.
 - [Quick start](#quick-start)
 - [The interactive menu](#the-interactive-menu)
 - [Commands](#commands)
-  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio undo`](#relio-undo) · [`relio guide`](#relio-guide) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
+  - [`relio`](#relio--create-a-release) · [`relio status`](#relio-status) · [`relio check`](#relio-check) · [`relio undo`](#relio-undo) · [`relio releases edit`](#relio-releases-edit) · [`relio guide`](#relio-guide) · [`relio stats`](#relio-stats) · [`relio init`](#relio-init) · [`relio post`](#relio-post) · [`relio image`](#relio-image) · [`relio auth`](#relio-auth) · [`relio version`](#relio-version)
 - [Global flags](#global-flags)
 - [How the version is chosen](#how-the-version-is-chosen)
 - [How the changelog is built](#how-the-changelog-is-built)
@@ -466,6 +466,34 @@ delete the tag on the remote yourself and drop the GitHub Release by hand.
 
 `--no-tag` runs and GitHub Releases are out of scope: if you released without a
 tag, or want a published Release gone, do that step by hand.
+
+---
+
+### `relio releases edit`
+
+Fix a typo (or anything else) in a `CHANGELOG.md` section that has already
+been published — without reinventing the extraction/removal logic Relio
+already uses internally.
+
+```
+$ relio releases edit 1.4.0
+```
+
+This opens just that version's section in your editor (`$RELIO_EDITOR`,
+`$VISUAL`, `$EDITOR`, in that order, falling back to `vi`/`notepad`). Save and
+close to apply the edit, or leave the text unchanged to cancel:
+
+- If nothing changed, it prints `Unchanged.` and leaves the file alone.
+- If you clear the section entirely, it refuses to write an empty section.
+- Otherwise it rewrites `CHANGELOG.md` with your edited section swapped in,
+  in place — every other section is untouched.
+
+It **only rewrites the changelog file** — no commit, no tag, no git operation
+of any kind. Review the diff and commit it yourself when you're happy:
+
+```
+git add CHANGELOG.md && git commit
+```
 
 ---
 
@@ -1148,8 +1176,9 @@ internal/
 ## Roadmap
 
 - **Shipped** — commit parsing, SemVer inference, changelog, annotated tags,
-  preview + wizard · `relio status` · `relio check` · `relio undo` · `relio guide`
-  · release candidates (`--rc`) · `version_files` sync · `validate` / `before` / `after` hooks ·
+  preview + wizard · `relio status` · `relio check` · `relio undo` ·
+  `relio releases edit` · `relio guide` · release candidates (`--rc`) ·
+  `version_files` sync · `validate` / `before` / `after` hooks ·
   `relio post` / `relio image` · token-based GitHub Release publishing
   (`--publish`) · hand-editing the notes before writing (`--edit`) · changelog
   footer — contributors line + compare link.

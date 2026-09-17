@@ -314,6 +314,17 @@ var en = map[MessageID]string{
 	UndoDoneRemovedCommit: "removed the release commit",
 	UndoResetFailed:       "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w",
 
+	ReleasesShort:     "Work with existing releases",
+	ReleasesEditShort: "Fix a typo in an already-published changelog section",
+
+	ReleasesEditNoChangelog:   "no changelog file at %s",
+	ReleasesEditNoSuchVersion: "no changelog section for version %s",
+	ReleasesEditUnchanged:     "Unchanged.",
+	ReleasesEditBlankRefused:  "refusing to save an empty section — nothing was written",
+
+	ReleasesEditDone:       "%s updated",
+	ReleasesEditCommitHint: "review the diff and commit when ready (git add %[1]s && git commit)",
+
 	StatsShort: "Show Relio's public download and GitHub stats",
 	StatsLong: "Read-only public statistics from the GitHub REST API: release asset\n" +
 		"download counts, per-release and per-platform breakdowns, stars and forks.\n\n" +

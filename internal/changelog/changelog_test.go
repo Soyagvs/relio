@@ -184,6 +184,52 @@ func TestRemoveSection(t *testing.T) {
 	}
 }
 
+func TestReplaceSection(t *testing.T) {
+	content := Header + "\n" +
+		"## [1.4.0] - 2026-09-06\n\n### Added\n\n- New thing\n\n" +
+		"## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
+
+	newSection := "## [1.4.0] - 2026-09-06\n\n### Added\n\n- Fixed typo\n"
+	got, ok := ReplaceSection(content, "v1.4.0", newSection)
+	if !ok {
+		t.Fatalf("ReplaceSection(1.4.0) ok = false, want true")
+	}
+	if strings.Contains(got, "- New thing") {
+		t.Errorf("old body still present:\n%s", got)
+	}
+	if !strings.Contains(got, "- Fixed typo") {
+		t.Errorf("new body missing:\n%s", got)
+	}
+	if !strings.HasPrefix(got, "# Changelog") {
+		t.Errorf("header lost:\n%s", got)
+	}
+	if !strings.Contains(got, "## [1.3.2]") || !strings.Contains(got, "- Old bug") {
+		t.Errorf("1.3.2 lost:\n%s", got)
+	}
+	if !strings.HasSuffix(got, "\n") || strings.HasSuffix(got, "\n\n") {
+		t.Errorf("bad trailing newline")
+	}
+
+	// The blank line separating sections is preserved before the next
+	// "## [" heading, even though newSection itself carries none of its own
+	// (ExtractSection trims it off, so the editor never sees it either).
+	want := Header + "\n" +
+		"## [1.4.0] - 2026-09-06\n\n### Added\n\n- Fixed typo\n\n" +
+		"## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
+	if got != want {
+		t.Errorf("ReplaceSection(1.4.0) =\n%q\nwant\n%q", got, want)
+	}
+
+	// absent version: unchanged content, ok=false
+	got2, ok2 := ReplaceSection(content, "9.9.9", "## [9.9.9] - 2026-01-01\n\nignored\n")
+	if ok2 {
+		t.Errorf("ReplaceSection(9.9.9) ok = true, want false")
+	}
+	if got2 != content {
+		t.Errorf("ReplaceSection(9.9.9) changed content:\n%q\nwant\n%q", got2, content)
+	}
+}
+
 func TestUpdateInsertsBeforeExistingReleases(t *testing.T) {
 	existing := Header + "\n## [1.3.2] - 2026-08-01\n\n### Fixed\n\n- Old bug\n"
 	section := RenderSection("v1.4.0", fixedDate, Build(sampleCommits()))

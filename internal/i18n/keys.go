@@ -376,6 +376,21 @@ const (
 	UndoDoneRemovedCommit MessageID = "undo.done_removed_commit"
 	UndoResetFailed       MessageID = "undo.reset_failed" // "tag %s deleted, but removing the release commit failed (finish with `git reset --hard HEAD~1`): %w"
 
+	// Releases command (cmd/releases.go): the `releases` group's Short text,
+	// and `releases edit`'s Short text, its no-changelog-file and
+	// no-such-version errors, the unchanged/blank-refused notices, the
+	// done message, and the commit-hint line.
+	ReleasesShort     MessageID = "releases.short"
+	ReleasesEditShort MessageID = "releases.edit_short"
+
+	ReleasesEditNoChangelog   MessageID = "releases.edit_no_changelog"    // "no changelog file at %s"
+	ReleasesEditNoSuchVersion MessageID = "releases.edit_no_such_version" // "no changelog section for version %s"
+	ReleasesEditUnchanged     MessageID = "releases.edit_unchanged"
+	ReleasesEditBlankRefused  MessageID = "releases.edit_blank_refused"
+
+	ReleasesEditDone       MessageID = "releases.edit_done"        // "%s updated"
+	ReleasesEditCommitHint MessageID = "releases.edit_commit_hint" // "review the diff and commit when ready (git add %[1]s && git commit)"
+
 	// Stats command (cmd/stats.go): Short/Long text, the --repo/--prerelease
 	// flag usage strings, and every literal in renderStats — the header,
 	// section headers, row labels, the prerelease tag suffix, the "N older"

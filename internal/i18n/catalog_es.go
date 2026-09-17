@@ -316,6 +316,17 @@ var es = map[MessageID]string{
 	UndoDoneRemovedCommit: "commit de lanzamiento eliminado",
 	UndoResetFailed:       "la etiqueta %s se eliminó, pero quitar el commit de lanzamiento falló (termina con `git reset --hard HEAD~1`): %w",
 
+	ReleasesShort:     "Trabajar con lanzamientos existentes",
+	ReleasesEditShort: "Corrige un typo en una sección del changelog ya publicada",
+
+	ReleasesEditNoChangelog:   "no hay archivo de changelog en %s",
+	ReleasesEditNoSuchVersion: "no hay sección de changelog para la versión %s",
+	ReleasesEditUnchanged:     "Sin cambios.",
+	ReleasesEditBlankRefused:  "me niego a guardar una sección vacía — no se escribió nada",
+
+	ReleasesEditDone:       "%s actualizado",
+	ReleasesEditCommitHint: "revisá el diff y hacé commit cuando quieras (git add %[1]s && git commit)",
+
 	StatsShort: "Muestra las estadísticas públicas de descargas y de GitHub de Relio",
 	StatsLong: "Estadísticas públicas de solo lectura desde la API REST de GitHub: conteos de\n" +
 		"descargas de assets de lanzamiento, desgloses por lanzamiento y por plataforma,\n" +
