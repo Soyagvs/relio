@@ -157,4 +157,4 @@ Release.
 With a `GITHUB_TOKEN` in the environment (or `gh auth login`), `relio --publish`
 also pushes the branch and tag and creates the GitHub Release in the same run —
 it asks first in a terminal, and `relio --yes --publish` skips that prompt. See
-the README's [Publishing to GitHub](README.md#publishing-to-github) section.
+the [Publishing to GitHub](docs/publishing.md) doc.
