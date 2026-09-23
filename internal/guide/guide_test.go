@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/soyagvs/relio/internal/i18n"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 func TestBuildStepsAlwaysEight(t *testing.T) {
@@ -119,6 +120,99 @@ func TestStepperAdvancesAndRunsAction(t *testing.T) {
 	}
 	if m.i != 2 {
 		t.Errorf("y did not advance past the action step: i=%d", m.i)
+	}
+}
+
+func TestStepperBackAndNextControls(t *testing.T) {
+	m := teaModel{steps: buildSteps(Context{})}
+
+	n, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = n.(teaModel)
+	if m.i != 1 {
+		t.Fatalf("enter on the default Next control did not advance: i=%d", m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = n.(teaModel)
+	if !m.selectBack || m.i != 1 {
+		t.Fatalf("down should select Back without changing steps, got selectBack=%v i=%d", m.selectBack, m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = n.(teaModel)
+	if m.i != 0 {
+		t.Fatalf("enter on Back did not go back: i=%d", m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = n.(teaModel)
+	if m.selectBack || m.i != 0 {
+		t.Fatalf("up should move selection back to Next before advancing, got selectBack=%v i=%d", m.selectBack, m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = n.(teaModel)
+	if m.i != 1 {
+		t.Fatalf("enter on Next did not advance after reselection: i=%d", m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	m = n.(teaModel)
+	if m.i != 0 {
+		t.Fatalf("left shortcut did not go back: i=%d", m.i)
+	}
+
+	n, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m = n.(teaModel)
+	if m.i != 1 {
+		t.Fatalf("right shortcut did not advance: i=%d", m.i)
+	}
+}
+
+func TestStepperBackAtFirstStepExits(t *testing.T) {
+	t.Run("enter on Back", func(t *testing.T) {
+		m := teaModel{steps: buildSteps(Context{}), selectBack: true}
+
+		n, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m = n.(teaModel)
+		if !m.done {
+			t.Fatal("enter on Back at the first step should set done")
+		}
+		if m.killed {
+			t.Fatal("enter on Back at the first step should be a soft return, not a hard quit")
+		}
+		if cmd == nil {
+			t.Fatal("enter on Back at the first step should return a quit command")
+		}
+	})
+
+	t.Run("left shortcut", func(t *testing.T) {
+		m := teaModel{steps: buildSteps(Context{})}
+
+		n, cmd := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+		m = n.(teaModel)
+		if !m.done {
+			t.Fatal("left at the first step should set done")
+		}
+		if m.killed {
+			t.Fatal("left at the first step should be a soft return, not a hard quit")
+		}
+		if cmd == nil {
+			t.Fatal("left at the first step should return a quit command")
+		}
+	})
+}
+
+func TestStepperControlRowDimsUnselectedControl(t *testing.T) {
+	m := teaModel{steps: buildSteps(Context{})}
+
+	if got, want := m.controlRow(), ui.Key.Render("▸ "+nextLabel)+"\n"+ui.Dim.Render("  "+backLabel); got != want {
+		t.Fatalf("default control row = %q, want %q", got, want)
+	}
+
+	m.selectBack = true
+	if got, want := m.controlRow(), ui.Dim.Render("  "+nextLabel)+"\n"+ui.Key.Render("▸ "+backLabel); got != want {
+		t.Fatalf("back-selected control row = %q, want %q", got, want)
 	}
 }
 
@@ -276,6 +370,16 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	if !strings.Contains(v, "Step 2 of 8") {
 		t.Errorf("View() missing step counter %q:\n%s", "Step 2 of 8", v)
 	}
+	if !strings.Contains(v, "<- Back") || !strings.Contains(v, "Next ->") {
+		t.Errorf("View() missing the explicit back/next controls:\n%s", v)
+	}
+	if !strings.Contains(v, "▸ Next ->") {
+		t.Errorf("View() should select Next by default:\n%s", v)
+	}
+	m.selectBack = true
+	if vb := m.View(); !strings.Contains(vb, "▸ <- Back") {
+		t.Errorf("View() should mark Back when selected:\n%s", vb)
+	}
 	if !strings.Contains(v, "[y] run relio init now · enter skip · ← back · q quit") {
 		t.Errorf("View() missing the action footer:\n%s", v)
 	}
@@ -354,6 +458,12 @@ func TestStepsLocalizeUnderSpanish(t *testing.T) {
 	v := m.View()
 	if !strings.Contains(v, "Paso 2 de 8") {
 		t.Errorf("es View() missing localized step counter:\n%s", v)
+	}
+	if !strings.Contains(v, "<- Back") || !strings.Contains(v, "Next ->") {
+		t.Errorf("es View() missing the explicit back/next controls:\n%s", v)
+	}
+	if !strings.Contains(v, "▸ Next ->") {
+		t.Errorf("es View() should select Next by default:\n%s", v)
 	}
 	if !strings.Contains(v, "[y] ejecutar relio init ahora · enter saltar · ← atrás · q salir") {
 		t.Errorf("es View() missing the localized action footer:\n%s", v)

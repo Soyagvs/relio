@@ -37,6 +37,11 @@ type step struct {
 	action      func() error // nil-safe
 }
 
+const (
+	backLabel = "<- Back"
+	nextLabel = "Next ->"
+)
+
 // buildSteps returns the eight walkthrough steps, tailored by ctx. The count is
 // always eight; only the wording and the attached actions vary.
 func buildSteps(ctx Context) []step {
@@ -160,11 +165,12 @@ var ErrQuit = errors.New("guide: quit")
 
 // teaModel is the interactive stepper.
 type teaModel struct {
-	steps  []step
-	i      int
-	msg    string // transient line under the body (an action's error)
-	done   bool
-	killed bool // hard-quit with ctrl+c
+	steps      []step
+	i          int
+	selectBack bool
+	msg        string // transient line under the body (an action's error)
+	done       bool
+	killed     bool // hard-quit with ctrl+c
 }
 
 func (m teaModel) Init() tea.Cmd { return nil }
@@ -174,7 +180,6 @@ func (m teaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	cur := m.steps[m.i]
 	switch k.String() {
 	case "ctrl+c":
 		m.done = true
@@ -183,28 +188,62 @@ func (m teaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "q", "esc":
 		m.done = true
 		return m, tea.Quit
+	case "up", "k":
+		m.selectBack = false
 	case "left", "h":
-		if m.i > 0 {
-			m.i--
-			m.msg = ""
+		var cmd tea.Cmd
+		m, cmd = m.back()
+		if cmd != nil {
+			return m, cmd
 		}
+	case "down", "j":
+		m.selectBack = true
+	case "right", "l":
+		m = m.advance()
 	case "y", "Y":
+		cur := m.steps[m.i]
 		if cur.action != nil {
 			m.msg = ""
 			if err := cur.action(); err != nil {
 				m.msg = "error: " + err.Error()
 			}
-			m.i++
+			m = m.advance()
 		}
-	case "enter", "right", "l", " ", "n", "N":
-		m.msg = ""
-		m.i++
+	case "enter", " ":
+		if m.selectBack {
+			var cmd tea.Cmd
+			m, cmd = m.back()
+			if cmd != nil {
+				return m, cmd
+			}
+		} else {
+			m = m.advance()
+		}
+	case "n", "N":
+		m = m.advance()
 	}
 	if m.i >= len(m.steps) {
 		m.done = true
 		return m, tea.Quit
 	}
 	return m, nil
+}
+
+func (m teaModel) back() (teaModel, tea.Cmd) {
+	if m.i > 0 {
+		m.i--
+		m.msg = ""
+		return m, nil
+	}
+	m.done = true
+	return m, tea.Quit
+}
+
+func (m teaModel) advance() teaModel {
+	m.msg = ""
+	m.selectBack = false
+	m.i++
+	return m
 }
 
 func (m teaModel) View() string {
@@ -222,8 +261,22 @@ func (m teaModel) View() string {
 	if m.msg != "" {
 		b.WriteString("\n  " + ui.Warn.Render(m.msg) + "\n")
 	}
+	b.WriteString("\n")
+	for _, line := range strings.Split(m.controlRow(), "\n") {
+		b.WriteString("  " + line + "\n")
+	}
 	b.WriteString("\n" + ui.Dim.Render(m.footer()))
 	return b.String()
+}
+
+func (m teaModel) controlRow() string {
+	next, back := ui.Dim.Render("  "+nextLabel), ui.Dim.Render("  "+backLabel)
+	if m.selectBack {
+		back = ui.Key.Render("▸ " + backLabel)
+	} else {
+		next = ui.Key.Render("▸ " + nextLabel)
+	}
+	return next + "\n" + back
 }
 
 func (m teaModel) footer() string {
