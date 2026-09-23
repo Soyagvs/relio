@@ -183,7 +183,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		return m.moveCursor(1), nil
 	case "enter", " ":
-		return m.apply(), nil
+		m = m.apply()
+		if m.done {
+			return m, tea.Quit
+		}
+		return m, nil
 	}
 	return m, nil
 }

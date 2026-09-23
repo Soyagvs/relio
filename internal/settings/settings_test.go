@@ -266,12 +266,24 @@ func TestBackRowQuitsWithoutKilling(t *testing.T) {
 		for m.rows[m.cursor].kind != rowBack {
 			m = send(m, "down")
 		}
-		m = send(m, key)
+
+		var msg tea.Msg
+		switch key {
+		case "enter":
+			msg = tea.KeyMsg{Type: tea.KeyEnter}
+		case " ":
+			msg = tea.KeyMsg{Type: tea.KeySpace}
+		}
+		next, cmd := m.Update(msg)
+		m = next.(model)
 		if !m.done {
 			t.Fatalf("%q on back row: done = false, want true", key)
 		}
 		if m.killed {
 			t.Fatalf("%q on back row: killed = true, want false", key)
+		}
+		if cmd == nil {
+			t.Fatalf("%q on back row: cmd = nil, want tea.Quit so Settings does not freeze", key)
 		}
 	}
 }
