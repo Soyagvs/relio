@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/soyagvs/relio/internal/tokenstore"
 )
 
 // APIBase is the GitHub REST API root; overridable in tests.
@@ -25,6 +27,12 @@ var APIBase = "https://api.github.com"
 
 // userAgent identifies relio to the GitHub API.
 const userAgent = "relio"
+
+// RelioOAuthClientID is relio's registered GitHub OAuth App client ID, used
+// by `relio auth login`'s Device Flow (see deviceflow.go). It is public by
+// design -- the Device Flow never needs a client secret -- the same way the
+// `gh` and Docker CLIs hardcode theirs.
+const RelioOAuthClientID = "Ov23liuEAG3Q8f19pkUJ"
 
 // Options describes the GitHub Release to create.
 type Options struct {
@@ -166,14 +174,34 @@ func AuthenticatedUser(ctx context.Context, client *http.Client, token string) (
 	return out.Login, nil
 }
 
-// Token resolves a GitHub token. It checks RELIO_GITHUB_TOKEN, GITHUB_TOKEN and
-// GH_TOKEN in that order (source is the env var name), then falls back to
-// `gh auth token` (source is "gh"). Both values are "" when nothing is found.
+// loadStoredToken resolves the token saved by `relio auth login`'s OAuth
+// Device Flow (see internal/tokenstore). It is a package var aliasing
+// tokenstore.Load purely so Token()'s tests can stub it without touching a
+// real OS keychain or file.
+var loadStoredToken = tokenstore.Load
+
+// Token resolves a GitHub token, checking sources in this order:
+//
+//  1. RELIO_GITHUB_TOKEN, GITHUB_TOKEN, GH_TOKEN environment variables, in
+//     that order (source is the env var name). These stay top priority so
+//     CI/scripts can always force an explicit token, overriding anything
+//     `relio auth login` stored.
+//  2. The token stored by `relio auth login`'s OAuth Device Flow, via
+//     internal/tokenstore (source is "keychain" or "file", whichever backend
+//     held it). A read error here is treated the same as "nothing found"
+//     and falls through to the next source, rather than failing Token().
+//  3. `gh auth token`, as a last-resort fallback for anyone already signed
+//     into the GitHub CLI (source is "gh").
+//
+// Both values are "" when nothing is found in any source.
 func Token() (tok string, source string) {
 	for _, k := range []string{"RELIO_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"} {
 		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
 			return v, k
 		}
+	}
+	if v, src, err := loadStoredToken(); err == nil && v != "" {
+		return v, src
 	}
 	if v := strings.TrimSpace(ghAuthToken()); v != "" {
 		return v, "gh"

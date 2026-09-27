@@ -349,19 +349,25 @@ var en = map[MessageID]string{
 	StatsFooterNote:           "downloads = release-asset downloads, not unique users or installs",
 
 	AuthShort: "Inspect the GitHub token relio will use",
-	AuthLong: "Relio authenticates to GitHub with a personal access token, not its own login.\n" +
-		"It checks RELIO_GITHUB_TOKEN, GITHUB_TOKEN and GH_TOKEN in that order, then\n" +
-		"falls back to `gh auth token`. `status` shows which one was found and who it\n" +
-		"belongs to.",
+	AuthLong: "Relio needs a GitHub token to create Releases. Run `relio auth login` to\n" +
+		"sign in with GitHub's OAuth Device Flow. Relio also honors RELIO_GITHUB_TOKEN,\n" +
+		"GITHUB_TOKEN and GH_TOKEN, and falls back to `gh auth token`. `status` shows\n" +
+		"which one was found and who it belongs to.",
 
 	AuthStatusShort:      "Show which token relio found and who it belongs to",
 	AuthNotAuthenticated: "not authenticated (set GITHUB_TOKEN or run `gh auth login`)",
 	AuthLoggedInAs:       "logged in as %s (via %s)",
 
-	AuthLoginShort:  "How to give relio a GitHub token",
-	AuthLoginBody:   "No device-flow login yet. Set GITHUB_TOKEN to a PAT with `repo` scope, or run `gh auth login` and relio will reuse the `gh` token.",
-	AuthLogoutShort: "How to drop the GitHub token",
-	AuthLogoutBody:  "Relio stores nothing. Unset RELIO_GITHUB_TOKEN / GITHUB_TOKEN / GH_TOKEN, or run `gh auth logout`.",
+	AuthLoginShort:  "Sign in to GitHub",
+	AuthLogoutShort: "Sign out of GitHub",
+
+	AuthLoginInstruction:    "Go to %s and enter code: %s",
+	AuthLoginWaiting:        "Waiting for authorization...",
+	AuthLoginSuccess:        "Logged in as %s",
+	AuthLoginExpired:        "The code expired before authorization completed. Run `relio auth login` again.",
+	AuthLoginDenied:         "You declined the authorization request. Run `relio auth login` again if that was a mistake.",
+	AuthLogoutSuccess:       "Logged out. The stored GitHub token was removed.",
+	AuthLogoutNothingStored: "Nothing to log out of: no stored GitHub token was found.",
 
 	ImageShort: "Make a shareable image of a release",
 	ImageLong: "Render a dark, developer-styled release card. Everything on it comes\n" +

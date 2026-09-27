@@ -353,19 +353,26 @@ var es = map[MessageID]string{
 	StatsFooterNote:           "descargas = descargas de assets de lanzamiento, no usuarios únicos ni instalaciones",
 
 	AuthShort: "Inspecciona el token de GitHub que relio usará",
-	AuthLong: "Relio se autentica en GitHub con un token de acceso personal, no con un\n" +
-		"inicio de sesión propio. Revisa RELIO_GITHUB_TOKEN, GITHUB_TOKEN y GH_TOKEN\n" +
-		"en ese orden, y si no encuentra ninguno recurre a `gh auth token`. `status`\n" +
-		"muestra cuál encontró y a quién pertenece.",
+	AuthLong: "Relio necesita un token de GitHub para crear Releases. Ejecuta\n" +
+		"`relio auth login` para iniciar sesión con el Device Flow de OAuth de\n" +
+		"GitHub. Relio también respeta RELIO_GITHUB_TOKEN, GITHUB_TOKEN y GH_TOKEN,\n" +
+		"y recurre a `gh auth token` como último recurso. `status` muestra cuál\n" +
+		"encontró y a quién pertenece.",
 
 	AuthStatusShort:      "Muestra qué token encontró relio y a quién pertenece",
 	AuthNotAuthenticated: "no autenticado (define GITHUB_TOKEN o ejecuta `gh auth login`)",
 	AuthLoggedInAs:       "sesión iniciada como %s (vía %s)",
 
-	AuthLoginShort:  "Cómo darle a relio un token de GitHub",
-	AuthLoginBody:   "Aún no hay inicio de sesión por device-flow. Define GITHUB_TOKEN con un PAT con alcance `repo`, o ejecuta `gh auth login` y relio reutilizará el token de `gh`.",
-	AuthLogoutShort: "Cómo quitar el token de GitHub",
-	AuthLogoutBody:  "Relio no almacena nada. Anula RELIO_GITHUB_TOKEN / GITHUB_TOKEN / GH_TOKEN, o ejecuta `gh auth logout`.",
+	AuthLoginShort:  "Inicia sesión en GitHub",
+	AuthLogoutShort: "Cierra la sesión de GitHub",
+
+	AuthLoginInstruction:    "Ve a %s e ingresa el código: %s",
+	AuthLoginWaiting:        "Esperando la autorización...",
+	AuthLoginSuccess:        "Sesión iniciada como %s",
+	AuthLoginExpired:        "El código expiró antes de completar la autorización. Ejecuta `relio auth login` de nuevo.",
+	AuthLoginDenied:         "Rechazaste la solicitud de autorización. Ejecuta `relio auth login` de nuevo si fue un error.",
+	AuthLogoutSuccess:       "Sesión cerrada. Se eliminó el token de GitHub almacenado.",
+	AuthLogoutNothingStored: "No hay nada que cerrar: no se encontró ningún token de GitHub almacenado.",
 
 	ImageShort: "Crea una imagen para compartir de un lanzamiento",
 	ImageLong: "Renderiza una tarjeta de lanzamiento oscura con estilo de desarrollador. Todo\n" +

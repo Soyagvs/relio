@@ -37,13 +37,12 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
   - Route: delegated writer (general-purpose, strict TDD). RED observed (compile failure, undefined symbols), GREEN observed (6/6 tests pass). Orchestrator re-verified independently, found 4 errcheck issues golangci-lint flagged on unchecked `os.Remove`/`tmp.Close` in the temp-file cleanup paths (writer's own `go vet`/`gofmt` don't run golangci-lint) — fixed inline (mechanical, `_ =` discard, matches repo's existing errcheck convention), re-ran lint clean, full `go test ./...` green.
   - Commit: see below.
 
-- [ ] **T3 — Wire `cmd/auth.go` + `ghrelease.Token()` + i18n**
-  - `relio auth login`: `RequestDeviceCode` → print code + verification URL (i18n) → `PollForToken` → `tokenstore.Store` → confirm via `AuthenticatedUser`.
-  - `relio auth logout`: `tokenstore.Delete`, confirm.
-  - `relio auth status`: unchanged shape, but `ghrelease.Token()` priority becomes: env vars (unchanged) → `tokenstore.Load()` → `gh auth token` (unchanged last resort).
-  - New i18n keys in `keys.go` + `catalog_en.go` + `catalog_es.go` for: instructions, waiting/polling message, success, denied, expired, keychain-unavailable-using-file note.
-  - Update `cmd/auth_test.go` (golden string test + new behavior tests); update `internal/menu` Auth entry only if the picker needs a new "Login"/"Logout" choice (check during implementation — today menu's Auth entry just calls `authStatus`).
-  - Route: delegated writer (touches cmd/auth.go, i18n x3, auth_test.go, ghrelease.go priority chain — 5+ files, clearly over the threshold).
+- [x] **T3 — Wire `cmd/auth.go` + `ghrelease.Token()` + i18n** — done
+  - `authLogin`/`authLogout` in `cmd/auth.go` run the real device-flow login/logout via package-var seams (`requestDeviceCode`, `pollForToken`, `authenticatedUser`, `storeToken`, `loadToken`, `deleteToken`) mirroring the existing `lookupToken` idiom. `ghrelease.Token()` priority: env vars → `tokenstore.Load()` (var `loadStoredToken`) → `gh auth token`. `ghrelease.RelioOAuthClientID` const added (public Client ID `Ov23liuEAG3Q8f19pkUJ`).
+  - New i18n keys: `AuthLoginInstruction`, `AuthLoginWaiting`, `AuthLoginSuccess`, `AuthLoginExpired`, `AuthLoginDenied`, `AuthLogoutSuccess`, `AuthLogoutNothingStored` (en+es). Removed dead `AuthLoginBody`/`AuthLogoutBody` (only referenced by the old stub commands). Repurposed `AuthLoginShort`/`AuthLogoutShort`/`AuthLong` text to describe the real flow instead of "how to set a token yourself".
+  - `internal/menu` Auth entry untouched — it already just calls `authStatus`, no picker changes needed.
+  - Route: delegated writer (general-purpose, strict TDD, 7 files). RED observed at each step (missing seam symbols; old golden test made a real network call and hung, proving the old stub path was gone). GREEN: all new + existing tests pass. Orchestrator re-verified independently: `go build`, `go vet`, `gofmt -l .`, targeted `go test -race` all clean; `golangci-lint` on touched packages shows 8 issues, confirmed via `git stash` diff to be byte-identical to the pre-T3 state (all in T1's `deviceflow.go`/`deviceflow_test.go` and untouched `ghrelease.go`/`cmd/init.go`) — zero new issues from T3.
+  - Commit: see below.
 
 - [ ] **T4 — Docs**
   - `docs/publishing.md`: replace "there is no OAuth app" with the real flow description.

@@ -221,6 +221,13 @@ func TestTokenResolutionOrder(t *testing.T) {
 	// Neutralise the `gh` fallback: an empty PATH makes the lookup fail.
 	t.Setenv("PATH", "")
 
+	// Neutralise the tokenstore fallback by default: tests that care about it
+	// stub loadStoredToken explicitly. Without this, Token() would hit the
+	// real OS keychain/file on the machine running the tests.
+	origLoadStoredToken := loadStoredToken
+	loadStoredToken = func() (string, string, error) { return "", "", nil }
+	t.Cleanup(func() { loadStoredToken = origLoadStoredToken })
+
 	t.Run("RELIO_GITHUB_TOKEN wins", func(t *testing.T) {
 		t.Setenv("RELIO_GITHUB_TOKEN", "  relio-tok  ")
 		t.Setenv("GITHUB_TOKEN", "gh-tok")
@@ -241,13 +248,58 @@ func TestTokenResolutionOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("GH_TOKEN last", func(t *testing.T) {
+	t.Run("GH_TOKEN before stored token", func(t *testing.T) {
 		t.Setenv("RELIO_GITHUB_TOKEN", "")
 		t.Setenv("GITHUB_TOKEN", "")
 		t.Setenv("GH_TOKEN", "ght-tok")
+		orig := loadStoredToken
+		loadStoredToken = func() (string, string, error) { return "stored-tok", "keychain", nil }
+		t.Cleanup(func() { loadStoredToken = orig })
 		tok, src := Token()
 		if tok != "ght-tok" || src != "GH_TOKEN" {
 			t.Errorf("Token() = %q, %q", tok, src)
+		}
+	})
+
+	t.Run("stored token wins over gh fallback", func(t *testing.T) {
+		t.Setenv("RELIO_GITHUB_TOKEN", "")
+		t.Setenv("GITHUB_TOKEN", "")
+		t.Setenv("GH_TOKEN", "")
+		orig := loadStoredToken
+		loadStoredToken = func() (string, string, error) { return "stored-tok", "keychain", nil }
+		t.Cleanup(func() { loadStoredToken = orig })
+		tok, src := Token()
+		if tok != "stored-tok" || src != "keychain" {
+			t.Errorf("Token() = %q, %q", tok, src)
+		}
+	})
+
+	t.Run("stored token file source", func(t *testing.T) {
+		t.Setenv("RELIO_GITHUB_TOKEN", "")
+		t.Setenv("GITHUB_TOKEN", "")
+		t.Setenv("GH_TOKEN", "")
+		orig := loadStoredToken
+		loadStoredToken = func() (string, string, error) { return "stored-tok", "file", nil }
+		t.Cleanup(func() { loadStoredToken = orig })
+		tok, src := Token()
+		if tok != "stored-tok" || src != "file" {
+			t.Errorf("Token() = %q, %q", tok, src)
+		}
+	})
+
+	t.Run("stored token error falls through to gh", func(t *testing.T) {
+		t.Setenv("RELIO_GITHUB_TOKEN", "")
+		t.Setenv("GITHUB_TOKEN", "")
+		t.Setenv("GH_TOKEN", "")
+		orig := loadStoredToken
+		loadStoredToken = func() (string, string, error) { return "", "", errors.New("boom") }
+		t.Cleanup(func() { loadStoredToken = orig })
+		// PATH is empty (set at the top of this test), so the `gh` fallback
+		// also yields "" -- a stored-token read error must not surface as a
+		// hard failure, it just falls through like "nothing found".
+		tok, src := Token()
+		if tok != "" || src != "" {
+			t.Errorf("Token() = %q, %q, want empty", tok, src)
 		}
 	})
 

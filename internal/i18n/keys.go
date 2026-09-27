@@ -425,9 +425,15 @@ const (
 	AuthLoggedInAs       MessageID = "auth.logged_in_as" // "logged in as %s (via %s)"
 
 	AuthLoginShort  MessageID = "auth.login_short"
-	AuthLoginBody   MessageID = "auth.login_body"
 	AuthLogoutShort MessageID = "auth.logout_short"
-	AuthLogoutBody  MessageID = "auth.logout_body"
+
+	AuthLoginInstruction    MessageID = "auth.login_instruction" // "Go to %s and enter code: %s"
+	AuthLoginWaiting        MessageID = "auth.login_waiting"
+	AuthLoginSuccess        MessageID = "auth.login_success" // "Logged in as %s"
+	AuthLoginExpired        MessageID = "auth.login_expired"
+	AuthLoginDenied         MessageID = "auth.login_denied"
+	AuthLogoutSuccess       MessageID = "auth.logout_success"
+	AuthLogoutNothingStored MessageID = "auth.logout_nothing_stored"
 
 	// Image command (cmd/image.go): Short/Long text, the --version/--hash/
 	// --upload/--link-only flag usage strings (--shape/--theme list literal
