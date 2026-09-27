@@ -32,12 +32,10 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
   - Route: delegated writer (general-purpose, strict TDD). RED observed (compile failure on missing symbols), GREEN observed (`go test ./internal/ghrelease/... -race -v` — 9 new + 9 pre-existing tests pass, no -race warnings), independently re-verified by the parent orchestrator (`go vet`, `gofmt -l`, `go build`, spot-check re-run all clean).
   - Commit: see below.
 
-- [ ] **T2 — Hybrid token storage** (new `internal/tokenstore` package)
-  - `Store(token string) error`, `Load() (token, source string, err error)`, `Delete() error`.
-  - Tries OS keychain (`go-keyring`, service `relio`, user `github`) first; on any keyring error, falls back to a protected file (reuse `userconfig`-style atomic write, 0600, under `os.UserConfigDir()/relio/`).
-  - Add `github.com/zalando/go-keyring` to `go.mod`.
-  - Keyring access goes through an interface so tests never touch a real OS keychain — force the fallback path in tests and assert file permissions/content.
-  - Route: delegated writer (new package, 2 files — impl + test — nontrivial: two backends).
+- [x] **T2 — Hybrid token storage** (new `internal/tokenstore` package) — done
+  - `internal/tokenstore/tokenstore.go` + `tokenstore_test.go`: `Store`/`Load`/`Delete`, keychain-first via injectable `keyringBackend` (real impl wraps `go-keyring`), file fallback mirrors `userconfig`'s atomic 0600 write. Added `github.com/zalando/go-keyring` to `go.mod`.
+  - Route: delegated writer (general-purpose, strict TDD). RED observed (compile failure, undefined symbols), GREEN observed (6/6 tests pass). Orchestrator re-verified independently, found 4 errcheck issues golangci-lint flagged on unchecked `os.Remove`/`tmp.Close` in the temp-file cleanup paths (writer's own `go vet`/`gofmt` don't run golangci-lint) — fixed inline (mechanical, `_ =` discard, matches repo's existing errcheck convention), re-ran lint clean, full `go test ./...` green.
+  - Commit: see below.
 
 - [ ] **T3 — Wire `cmd/auth.go` + `ghrelease.Token()` + i18n**
   - `relio auth login`: `RequestDeviceCode` → print code + verification URL (i18n) → `PollForToken` → `tokenstore.Store` → confirm via `AuthenticatedUser`.
