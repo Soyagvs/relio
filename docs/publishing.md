@@ -19,11 +19,10 @@ The target repo comes from `github.repo` (`owner/name`) when you set it,
 otherwise it is read from the `origin` remote — which must be a `github.com`
 remote.
 
-**Auth is a token you already have.** Relio checks, in order:
-`RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, then `gh auth token` when the
-GitHub CLI is signed in. The token needs `repo` scope. There is **no OAuth app,
-no browser flow, and nothing stored by Relio** — the token only travels to
-`api.github.com` in the `Authorization` header.
+**Auth.** Relio checks, in order: `RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN`,
+`GH_TOKEN`, the token from `relio auth login` (see [Commands](commands.md#relio-auth)),
+then `gh auth token` when the GitHub CLI is signed in. The token needs `repo`
+scope. It is only ever sent to `api.github.com` in the `Authorization` header.
 
 In a terminal Relio asks before it pushes:
 
@@ -39,7 +38,7 @@ says so.
 ## Example
 
 ```bash
-export GITHUB_TOKEN=ghp_xxxxxxxx     # or: gh auth login
+relio auth login                     # or: export GITHUB_TOKEN=ghp_xxxxxxxx, or: gh auth login
 relio --yes --publish
 ```
 

@@ -44,11 +44,12 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
   - Route: delegated writer (general-purpose, strict TDD, 7 files). RED observed at each step (missing seam symbols; old golden test made a real network call and hung, proving the old stub path was gone). GREEN: all new + existing tests pass. Orchestrator re-verified independently: `go build`, `go vet`, `gofmt -l .`, targeted `go test -race` all clean; `golangci-lint` on touched packages shows 8 issues, confirmed via `git stash` diff to be byte-identical to the pre-T3 state (all in T1's `deviceflow.go`/`deviceflow_test.go` and untouched `ghrelease.go`/`cmd/init.go`) — zero new issues from T3.
   - Commit: see below.
 
-- [ ] **T4 — Docs**
-  - `docs/publishing.md`: replace "there is no OAuth app" with the real flow description.
-  - `docs/commands.md`: document `relio auth login`/`logout` real behavior.
-  - `README.md`: move the roadmap line from "Next" to "Shipped".
-  - Route: direct inline (docs-only, mechanical, no design decision left once T1-T3 land).
+- [x] **T4 — Docs** — done
+  - `docs/publishing.md`: auth line now lists the stored device-flow token in the priority chain instead of claiming "no OAuth app, no browser flow"; example now leads with `relio auth login`.
+  - `docs/commands.md`: `relio auth` section rewritten — real login/logout flow, expired/declined behavior, hybrid keychain/file storage note, updated status example.
+  - `README.md`: roadmap line moved from "Next" to "Shipped"; "Next" section removed (nothing left there), "Later" (plugins, richer `post` templates) unchanged.
+  - Route: direct inline (docs-only, mechanical, no design decision left once T1-T3 landed).
+  - Commit: see below.
 
 ## Acceptance criteria
 - `relio auth login` completes a real device-flow login against GitHub's real endpoints (manually verified once by the user, since no live GitHub server in CI) and stores a working token.

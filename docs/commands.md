@@ -382,30 +382,41 @@ q      back
 
 ## `relio auth`
 
-Relio talks to GitHub with a **personal access token you already have**, not a
-login of its own. It checks `RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN` and `GH_TOKEN`
-in that order, then falls back to `gh auth token` when the
-[GitHub CLI](https://cli.github.com/) is signed in. The token is only ever sent
-to `api.github.com` in the `Authorization` header — nothing is written to disk.
+`relio auth login` signs in with GitHub's **OAuth Device Flow** — no token to
+create or copy by hand:
+
+```
+$ relio auth login
+Go to https://github.com/login/device and enter code: ABCD-1234
+Waiting for authorization...
+✓ Logged in as octocat
+```
+
+You approve the code in your browser (where you're already signed in to
+GitHub); Relio polls in the background until you do, then stores the resulting
+token. Storage is **hybrid**: the OS keychain (macOS Keychain, Windows
+Credential Manager, Linux Secret Service) when one is available, falling back
+to a protected local file (`0600`, atomic write) otherwise — so it works even
+on setups with no keychain backend, like plain WSL2. If the code expires
+before you approve it, or you decline the authorization, `relio auth login`
+says so and exits cleanly — just run it again.
+
+`relio auth logout` clears the stored token from wherever it lives.
+
+Relio still also accepts a token you already have — checked in this order:
+`RELIO_GITHUB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, the token from `relio auth
+login`, then `gh auth token` when the [GitHub CLI](https://cli.github.com/) is
+signed in. The token needs `repo` scope and is only ever sent to
+`api.github.com` in the `Authorization` header.
 
 ```
 $ relio auth status
-· logged in as octocat (via GITHUB_TOKEN)
+· logged in as octocat (via keychain)
 ```
 
 `relio auth status` resolves the token, calls `GET /user`, and prints who it
 belongs to and which source it came from — or `not authenticated` when none is
 found. It is the same check as the **Auth** menu entry.
-
-There is no `login` or `logout` of Relio's own. `relio auth login` and
-`relio auth logout` just print the one-liners:
-
-- **connect** — set `GITHUB_TOKEN` (or `RELIO_GITHUB_TOKEN` / `GH_TOKEN`) to a
-  PAT with `repo` scope, or run `gh auth login`.
-- **disconnect** — unset those variables, or run `gh auth logout`.
-
-A per-user browser sign-in (OAuth Device Flow) with OS-keychain storage is on
-the [roadmap](../README.md#roadmap).
 
 ---
 
