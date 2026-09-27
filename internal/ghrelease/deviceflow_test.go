@@ -42,7 +42,7 @@ func TestRequestDeviceCodeSuccess(t *testing.T) {
 		gotBody = string(raw)
 
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"device_code":"dc123","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}`)
+		_, _ = fmt.Fprint(w, `{"device_code":"dc123","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}`)
 	})
 
 	dc, err := RequestDeviceCode(context.Background(), nil, "client-abc")
@@ -95,7 +95,7 @@ func TestRequestDeviceCodeSuccess(t *testing.T) {
 func TestRequestDeviceCodeGitHubError(t *testing.T) {
 	withDeviceFlowServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"error":"invalid_client","error_description":"The client_id is not valid."}`)
+		_, _ = fmt.Fprint(w, `{"error":"invalid_client","error_description":"The client_id is not valid."}`)
 	})
 
 	_, err := RequestDeviceCode(context.Background(), nil, "bad-client")
@@ -110,7 +110,7 @@ func TestRequestDeviceCodeGitHubError(t *testing.T) {
 func TestRequestDeviceCodeHTTPError(t *testing.T) {
 	withDeviceFlowServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "boom")
+		_, _ = fmt.Fprint(w, "boom")
 	})
 
 	_, err := RequestDeviceCode(context.Background(), nil, "client-abc")
@@ -143,7 +143,7 @@ func TestPollForTokenSuccessFirstTry(t *testing.T) {
 		if form.Get("grant_type") != "urn:ietf:params:oauth:grant-type:device_code" {
 			t.Errorf("grant_type = %q", form.Get("grant_type"))
 		}
-		fmt.Fprint(w, `{"access_token":"tok-xyz","token_type":"bearer","scope":"repo"}`)
+		_, _ = fmt.Fprint(w, `{"access_token":"tok-xyz","token_type":"bearer","scope":"repo"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -165,10 +165,10 @@ func TestPollForTokenAuthorizationPendingThenSuccess(t *testing.T) {
 	withDeviceFlowServer(t, func(w http.ResponseWriter, r *http.Request) {
 		n := atomic.AddInt32(&calls, 1)
 		if n <= 2 {
-			fmt.Fprint(w, `{"error":"authorization_pending"}`)
+			_, _ = fmt.Fprint(w, `{"error":"authorization_pending"}`)
 			return
 		}
-		fmt.Fprint(w, `{"access_token":"tok-final","token_type":"bearer","scope":"repo"}`)
+		_, _ = fmt.Fprint(w, `{"access_token":"tok-final","token_type":"bearer","scope":"repo"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -199,10 +199,10 @@ func TestPollForTokenSlowDownIncreasesInterval(t *testing.T) {
 		n := atomic.AddInt32(&calls, 1)
 		callTimes = append(callTimes, time.Now())
 		if n == 1 {
-			fmt.Fprint(w, `{"error":"slow_down","interval":1}`)
+			_, _ = fmt.Fprint(w, `{"error":"slow_down","interval":1}`)
 			return
 		}
-		fmt.Fprint(w, `{"access_token":"tok-slow","token_type":"bearer","scope":"repo"}`)
+		_, _ = fmt.Fprint(w, `{"access_token":"tok-slow","token_type":"bearer","scope":"repo"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -233,7 +233,7 @@ func TestPollForTokenSlowDownIncreasesInterval(t *testing.T) {
 
 func TestPollForTokenExpiredToken(t *testing.T) {
 	withDeviceFlowServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"error":"expired_token"}`)
+		_, _ = fmt.Fprint(w, `{"error":"expired_token"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -246,7 +246,7 @@ func TestPollForTokenExpiredToken(t *testing.T) {
 
 func TestPollForTokenAccessDenied(t *testing.T) {
 	withDeviceFlowServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"error":"access_denied"}`)
+		_, _ = fmt.Fprint(w, `{"error":"access_denied"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -262,7 +262,7 @@ func TestPollForTokenContextCancellationDuringSleep(t *testing.T) {
 		// Should never be reached: the ctx deadline is shorter than the poll
 		// interval, so PollForToken must return before ever making a request.
 		t.Error("server hit: PollForToken should have returned on ctx cancellation before polling")
-		fmt.Fprint(w, `{"error":"authorization_pending"}`)
+		_, _ = fmt.Fprint(w, `{"error":"authorization_pending"}`)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)

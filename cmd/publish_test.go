@@ -33,7 +33,8 @@ func TestPublishGitHubReleaseNoTokenLocalizesOutput(t *testing.T) {
 	t.Setenv("RELIO_GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
-	t.Setenv("PATH", t.TempDir()) // no `gh` binary reachable, so ghAuthToken() fails fast
+	t.Setenv("PATH", t.TempDir())            // no `gh` binary reachable, so ghAuthToken() fails fast
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // no stored device-flow token either, even on a machine that has logged in for real
 
 	applied := release.ApplyResult{TagName: "v1.2.0"}
 

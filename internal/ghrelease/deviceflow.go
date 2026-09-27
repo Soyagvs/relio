@@ -81,7 +81,7 @@ func RequestDeviceCode(ctx context.Context, client *http.Client, clientID string
 	if err != nil {
 		return DeviceCode{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
 
 	if resp.StatusCode/100 != 2 {
@@ -97,13 +97,7 @@ func RequestDeviceCode(ctx context.Context, client *http.Client, clientID string
 		return DeviceCode{}, fmt.Errorf("decoding GitHub response: %w", err)
 	}
 
-	return DeviceCode{
-		DeviceCode:      out.DeviceCode,
-		UserCode:        out.UserCode,
-		VerificationURI: out.VerificationURI,
-		ExpiresIn:       out.ExpiresIn,
-		Interval:        out.Interval,
-	}, nil
+	return DeviceCode(out), nil
 }
 
 // PollForToken polls GitHub's OAuth token endpoint on the given interval
@@ -167,7 +161,7 @@ func pollOnce(ctx context.Context, client *http.Client, clientID, deviceCode str
 	if err != nil {
 		return "", 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
 
 	if resp.StatusCode/100 != 2 {
