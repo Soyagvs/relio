@@ -67,9 +67,26 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
 ## Follow-up fix (post-T1-T4)
 Gentle AI's review of the T1+T2 candidate flagged (WARNING, non-blocking): `tokenstore.Delete()` discarded every keychain error unconditionally, so a genuine deletion failure (not just "unavailable"/"not found") would be silently treated as success, leaving `relio auth logout` falsely reporting success while the token stayed live in the keychain. Fixed: `Delete()` now verifies the outcome with a follow-up `Get` instead of trusting the keychain's own error — mirrors `Store`'s existing "don't trust keychain error codes, WSL2 errors on everything" reasoning. New test `TestDeleteReturnsErrorWhenKeychainDeletionActuallyFails` (plus a `deleteErr` knob on the test fake to simulate a real deletion failure distinct from "backend unavailable"). Direct inline fix (single file, mechanical once diagnosed), TDD: RED confirmed, GREEN confirmed, full `go test ./...` + lint clean.
 
+## Known limitations (from the final 4-lens high-risk review, all approved/non-blocking)
+None of these opened a correction; all are informational follow-ups, not defects in what was asked for. Grouped by how worth doing they are:
+
+**Quick, worth a future pass:**
+- `PollForToken`'s initial `interval` (from `DeviceCode.Interval`, GitHub-supplied) is used unclamped — a zero/negative value would busy-loop against GitHub's token endpoint (readability R2-1, reliability R3-expires-in-boundary).
+- `authLogin`'s `RequestDeviceCode` call runs under bare `context.Background()` with no deadline, unlike `authStatus`'s existing `10*time.Second` timeout two lines above it — inconsistent, and a stalled GitHub connection hangs `relio auth login` forever (resilience R4-authlogin-no-deadline).
+- `i18n.AuthNotAuthenticated` still only mentions `GITHUB_TOKEN`/`gh auth login`, not the new `relio auth login` — stale text now that this candidate rewrote every other auth string (readability R2-3).
+- `ErrAuthorizationPending`/`ErrSlowDown` are exported but documented as "never returned to the caller" — either unexport them or fix the comment (readability R2-2).
+
+**Bigger, real, but out of this feature's scope:**
+- `PollForToken` aborts the entire login on any transient network error/non-2xx instead of retrying — a single Wi-Fi blip during the up-to-15-minute polling window forces a full restart (resilience R4-pollfortoken-no-retry).
+- Neither `tokenstore`'s `keyringBackend` calls nor `ghrelease.Token()`'s call into it carry a context/timeout — a hung OS keychain prompt (e.g. an unanswerable Secret Service unlock in a headless session) blocks indefinitely (resilience R4-tokenstore-keychain-hang, reliability R3-keychain-no-timeout).
+- `Delete()`'s verification-read can itself transiently fail, in which case a genuine deletion failure still reads as success (risk R1-001) — a residual edge case on top of the fix already applied this session.
+- File-fallback token storage is inherently cleartext-on-disk (risk R1-002) — this is the accepted tradeoff from the hybrid-storage decision, not a bug, but worth knowing it's there.
+- A few defensive branches in `pollOnce` (malformed/non-2xx poll responses) and one timing-sensitive test (`TestPollForTokenSlowDownIncreasesInterval`) remain untested (reliability R3-polloncecoverage, R3-slowdown-timing-flake).
+
 ## Next step
-All four tasks (T1-T4) plus the post-review Delete() fix are implemented, tested, and committed on `feat/oauth-device-flow`. Remaining before this can be considered fully closed:
+All four tasks (T1-T4) plus the post-review Delete() fix are implemented, tested, and committed on `feat/oauth-device-flow`, with three review cycles (T1; T1+T2; T1-T4+fix) all approved. Remaining before this can be considered fully closed:
 - **Manual live verification**: run `relio auth login` for real against GitHub (no CI/test can do this — it needs a live browser approval). Confirm the token lands in the keychain (or file fallback, if testing on WSL2) and that `relio auth status` / `--publish` pick it up.
+- Decide whether to act on any "known limitations" above now or later.
 - Push the branch and open a PR when the user is ready (not done automatically — delivery stays the user's decision).
 
 ## Engram mirror status
