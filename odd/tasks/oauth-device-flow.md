@@ -64,8 +64,11 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
 - Codebase mapped (token priority chain, userconfig storage shape, no existing keychain dep, menu wiring pattern, i18n key pattern, TDD/CI commands) — see task notes above for the concrete findings.
 - Storage decision made by user: **hybrid** (keychain-first, file-fallback) — chosen over pure-keychain (would break on user's WSL2 box without gnome-keyring/kwallet) and over file-only (wouldn't honor the existing "OS keychain" doc promise).
 
+## Follow-up fix (post-T1-T4)
+Gentle AI's review of the T1+T2 candidate flagged (WARNING, non-blocking): `tokenstore.Delete()` discarded every keychain error unconditionally, so a genuine deletion failure (not just "unavailable"/"not found") would be silently treated as success, leaving `relio auth logout` falsely reporting success while the token stayed live in the keychain. Fixed: `Delete()` now verifies the outcome with a follow-up `Get` instead of trusting the keychain's own error — mirrors `Store`'s existing "don't trust keychain error codes, WSL2 errors on everything" reasoning. New test `TestDeleteReturnsErrorWhenKeychainDeletionActuallyFails` (plus a `deleteErr` knob on the test fake to simulate a real deletion failure distinct from "backend unavailable"). Direct inline fix (single file, mechanical once diagnosed), TDD: RED confirmed, GREEN confirmed, full `go test ./...` + lint clean.
+
 ## Next step
-All four tasks (T1-T4) are implemented, tested, and committed on `feat/oauth-device-flow`. Remaining before this can be considered fully closed:
+All four tasks (T1-T4) plus the post-review Delete() fix are implemented, tested, and committed on `feat/oauth-device-flow`. Remaining before this can be considered fully closed:
 - **Manual live verification**: run `relio auth login` for real against GitHub (no CI/test can do this — it needs a live browser approval). Confirm the token lands in the keychain (or file fallback, if testing on WSL2) and that `relio auth status` / `--publish` pick it up.
 - Push the branch and open a PR when the user is ready (not done automatically — delivery stays the user's decision).
 

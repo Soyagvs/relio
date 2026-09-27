@@ -12,6 +12,7 @@
 package tokenstore
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -126,14 +127,28 @@ func Load() (token, source string, err error) {
 	return data, "file", nil
 }
 
-// Delete clears the token from both backends. Keychain errors -- including
-// "not found" and a keychain backend that is unavailable entirely, as on
-// many WSL2/headless Linux setups -- are expected in a hybrid store and
-// never fail Delete; they simply mean that backend had nothing to clear.
-// Only a genuine failure removing the fallback file (something other than
-// the file not existing) is treated as a real, reportable error.
+// Delete clears the token from both backends.
+//
+// Delete does not trust the keychain's own error return to tell "nothing to
+// delete" apart from "the backend is unavailable" apart from "deletion
+// genuinely failed" -- on many WSL2/headless Linux setups every keychain
+// call errors the same way, and treating that as a hard failure would break
+// logout on those setups (mirroring Store's same fallback reasoning).
+// Instead, Delete verifies the outcome directly: after attempting the
+// keychain delete, it checks whether the token is still retrievable. If the
+// keychain is unavailable or genuinely has nothing stored, that follow-up
+// Get fails too and Delete treats the keychain side as clear. Only when the
+// token is still there after the delete attempt -- a real, observable
+// deletion failure -- does Delete report an error.
+//
+// The fallback file is simpler: removeFile's own error already distinguishes
+// "file not present" from a genuine removal failure, so only the latter is
+// treated as a real, reportable error.
 func Delete() error {
 	_ = backend.Delete(serviceName, accountName)
+	if v, err := backend.Get(serviceName, accountName); err == nil && v != "" {
+		return errors.New("tokenstore: failed to remove token from the OS keychain")
+	}
 
 	if err := removeFile(); err != nil && !os.IsNotExist(err) {
 		return err

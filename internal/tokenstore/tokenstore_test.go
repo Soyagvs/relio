@@ -16,6 +16,10 @@ import (
 type fakeKeyring struct {
 	stored map[string]string
 	err    error
+	// deleteErr, when set, makes Delete fail without removing the entry --
+	// simulating a genuine keychain deletion failure (as opposed to err,
+	// which simulates the backend being unavailable for every call).
+	deleteErr error
 }
 
 func (f *fakeKeyring) key(service, user string) string { return service + "\x00" + user }
@@ -42,6 +46,9 @@ func (f *fakeKeyring) Get(service, user string) (string, error) {
 func (f *fakeKeyring) Delete(service, user string) error {
 	if f.err != nil {
 		return f.err
+	}
+	if f.deleteErr != nil {
+		return f.deleteErr
 	}
 	k := f.key(service, user)
 	if _, ok := f.stored[k]; !ok {
@@ -197,6 +204,23 @@ func TestDeleteClearsBothBackends(t *testing.T) {
 	}
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
 		t.Errorf("expected fallback file to be deleted, stat err = %v", err)
+	}
+}
+
+func TestDeleteReturnsErrorWhenKeychainDeletionActuallyFails(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	fk := &fakeKeyring{stored: map[string]string{}, deleteErr: errors.New("transient D-Bus failure")}
+	withFakeBackend(t, fk)
+	if err := fk.Set(serviceName, accountName, "tok"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Delete(); err == nil {
+		t.Fatal("Delete() = nil, want an error: the token is still present in the keychain after the failed deletion")
+	}
+
+	if v, err := fk.Get(serviceName, accountName); err != nil || v != "tok" {
+		t.Fatalf("expected the keychain entry to remain untouched, got (%q, %v)", v, err)
 	}
 }
 
