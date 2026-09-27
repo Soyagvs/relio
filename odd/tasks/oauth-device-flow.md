@@ -65,7 +65,9 @@ README roadmap ("Next"): per-user GitHub sign-in via OAuth Device Flow with OS-k
 - Storage decision made by user: **hybrid** (keychain-first, file-fallback) — chosen over pure-keychain (would break on user's WSL2 box without gnome-keyring/kwallet) and over file-only (wouldn't honor the existing "OS keychain" doc promise).
 
 ## Next step
-Start T1 (device flow HTTP client) with a delegated writer under strict TDD.
+All four tasks (T1-T4) are implemented, tested, and committed on `feat/oauth-device-flow`. Remaining before this can be considered fully closed:
+- **Manual live verification**: run `relio auth login` for real against GitHub (no CI/test can do this — it needs a live browser approval). Confirm the token lands in the keychain (or file fallback, if testing on WSL2) and that `relio auth status` / `--publish` pick it up.
+- Push the branch and open a PR when the user is ready (not done automatically — delivery stays the user's decision).
 
 ## Engram mirror status
 **Pending** — `mem_save` to topic `odd/oauth-device-flow/tasks` failed both attempts with `multiple active runtime sessions match the current project and directory` (likely another Claude Code session open on this repo). This file remains the source of truth until the mirror succeeds; retry later, do not block implementation on it.
