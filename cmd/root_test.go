@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/gitrepo"
+	"github.com/soyagvs/relio/internal/release"
 	"github.com/soyagvs/relio/internal/semver"
 )
 
@@ -353,6 +355,37 @@ func TestDoReleaseDryRunSkipsBeforeAfterHooks(t *testing.T) {
 	}
 	if _, serr := os.Stat(afterMarker); serr == nil {
 		t.Error("the after hook ran under dry-run")
+	}
+}
+
+func TestDryRunPreviewReportsExistingTagCollision(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	plan, err := release.BuildPlan(r, config.Default("proj"), release.Options{})
+	if err != nil {
+		t.Fatalf("BuildPlan: %v", err)
+	}
+
+	// Simulate a race: something else (another `relio` run, CI, a manual
+	// push) creates the target tag between planning and applying — exactly
+	// what release.Plan.Apply's own collision check exists to catch.
+	tag := exec.Command("git", "tag", "-a", "v1.6.0", "-m", "v1.6.0")
+	tag.Dir = dir
+	if out, err := tag.CombinedOutput(); err != nil {
+		t.Fatalf("git tag: %v: %s", err, out)
+	}
+
+	var buf bytes.Buffer
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(&buf, a...)
+		return err
+	}
+	err = dryRunPreview(writeLine, r, plan)
+	if err == nil {
+		t.Fatalf("dryRunPreview returned nil, want an error (the tag already exists)\noutput:\n%s", buf.String())
+	}
+	if !strings.Contains(err.Error(), "tag v1.6.0 already exists") {
+		t.Errorf("error = %q, want it to mention the tag collision", err)
 	}
 }
 
