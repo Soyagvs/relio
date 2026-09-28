@@ -30,6 +30,22 @@ func TestRunMenuSetupOnExistingConfig(t *testing.T) {
 	}
 }
 
+func TestRunMenuSetupNotAGitRepo(t *testing.T) {
+	dir := t.TempDir() // no `git init` — not a repo
+
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+	cmd.SetIn(strings.NewReader(""))
+
+	if err := runMenuSetup(cmd, &releaseFlags{dir: dir}); err != nil {
+		t.Fatalf("runMenuSetup: %v", err)
+	}
+	if !strings.Contains(buf.String(), "not a git repository") {
+		t.Errorf("Setup outside a repo = %q, want it to mention 'not a git repository'", buf.String())
+	}
+}
+
 func TestWaitMenuBackPrintsSeparatorClearsAndRunsBackPicker(t *testing.T) {
 	oldRunPicker := runPicker
 	t.Cleanup(func() { runPicker = oldRunPicker })

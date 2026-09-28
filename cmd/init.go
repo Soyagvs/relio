@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -25,7 +26,7 @@ func newInitCmd(f *releaseFlags) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, err := gitrepo.Open(f.dir)
 			if err != nil {
-				return fmt.Errorf(i18n.T(i18n.InitNotAGitRepo))
+				return errors.New(i18n.T(i18n.InitNotAGitRepo))
 			}
 			return runInit(cmd.OutOrStdout(), repo, project)
 		},

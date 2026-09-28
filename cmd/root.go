@@ -460,7 +460,7 @@ func runMenuSetup(cmd *cobra.Command, f *releaseFlags) error {
 
 	repo, err := gitrepo.Open(f.dir)
 	if err != nil {
-		_, err := fmt.Fprintln(out, ui.Info("not a git repository — run this inside a repo, or pass -C <path>"))
+		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.MenuSetupNotAGitRepo)))
 		return err
 	}
 	root := repo.Root()
@@ -732,7 +732,21 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 // already printed the version summary and version-file diffs earlier in
 // doRelease, so this only adds what an actual Apply would additionally
 // reveal.
+//
+// The tag-collision check runs first, via the same plan.CheckTagCollision
+// Apply itself calls (internal/release/release.go) — a real run would fail
+// here too, so a dry-run claiming the tag "would be created" while it
+// already exists would be misleading. Checking before printing anything
+// (rather than after the changelog text) means a colliding dry-run fails
+// fast instead of printing the full changelog body first.
 func dryRunPreview(writeLine func(a ...any) error, repo *gitrepo.Repo, plan release.Plan) error {
+	if err := plan.CheckTagCollision(repo); err != nil {
+		if errors.Is(err, release.ErrTagExists) {
+			return fmt.Errorf(i18n.T(i18n.DryRunTagAlreadyExists), plan.TagName())
+		}
+		return fmt.Errorf(i18n.T(i18n.DryRunTagCheckFailed), plan.TagName(), err)
+	}
+
 	if err := writeLine(ui.Info(i18n.T(i18n.DryRunHeader))); err != nil {
 		return err
 	}
@@ -757,18 +771,7 @@ func dryRunPreview(writeLine func(a ...any) error, repo *gitrepo.Repo, plan rele
 	}
 
 	if plan.TagUpdate {
-		// Mirrors Apply's own collision check (internal/release/release.go) —
-		// a real run would fail here too, so a dry-run claiming the tag
-		// "would be created" while it already exists would be misleading.
-		name := plan.TagName()
-		exists, err := repo.HasTag(name)
-		if err != nil {
-			return err
-		}
-		if exists {
-			return fmt.Errorf("tag %s already exists", name)
-		}
-		if err := writeLine(ui.Info(i18n.T(i18n.DryRunTagWouldBeCreated, name))); err != nil {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunTagWouldBeCreated, plan.TagName()))); err != nil {
 			return err
 		}
 	} else {

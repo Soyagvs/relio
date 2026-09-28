@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -761,6 +762,63 @@ func TestApplyRefusesDuplicateTag(t *testing.T) {
 
 	if _, err := p.Apply(r); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("err = %v, want 'already exists'", err)
+	}
+}
+
+func TestCheckTagCollisionDetectsExistingTag(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.3.2")
+	commit(t, dir, "feat: thing")
+
+	cfg := config.Default("x")
+	disabled := false
+	cfg.Release.Changelog = &disabled // isolate the tag path
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag(t, dir, "v1.4.0") // pre-create the target
+
+	err = p.CheckTagCollision(r)
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("err = %v, want 'already exists'", err)
+	}
+	if !errors.Is(err, ErrTagExists) {
+		t.Errorf("errors.Is(err, ErrTagExists) = false, want true")
+	}
+}
+
+func TestCheckTagCollisionNoCollisionReturnsNil(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.3.2")
+	commit(t, dir, "feat: thing")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.CheckTagCollision(r); err != nil {
+		t.Errorf("CheckTagCollision(r) = %v, want nil", err)
+	}
+}
+
+func TestCheckTagCollisionSkipsWhenTagUpdateDisabled(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.3.2")
+	commit(t, dir, "feat: thing")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.TagUpdate = false
+	tag(t, dir, p.TagName()) // pre-create the target — must not matter
+
+	if err := p.CheckTagCollision(r); err != nil {
+		t.Errorf("CheckTagCollision(r) = %v, want nil (TagUpdate is false)", err)
 	}
 }
 

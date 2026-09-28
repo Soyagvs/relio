@@ -29,6 +29,7 @@ var en = map[MessageID]string{
 	MenuAuthDesc:          "GitHub connection — status and how to link",
 	MenuSetupLabel:        "Setup",
 	MenuSetupDesc:         "Create or inspect .release.yaml",
+	MenuSetupNotAGitRepo:  "not a git repository — run this inside a repo, or pass -C <path>",
 	MenuGuideLabel:        "Guide",
 	MenuGuideDesc:         "Step-by-step walkthrough of the whole flow",
 	MenuHelpLabel:         "Help",
@@ -179,6 +180,8 @@ var en = map[MessageID]string{
 	DryRunNoTag:             "no tag would be created (--no-tag)",
 	DryRunWouldPublish:      "would push and publish the GitHub Release",
 	DryRunWouldNotPublish:   "would not publish to GitHub (pass --publish to enable)",
+	DryRunTagAlreadyExists:  "tag %s already exists",
+	DryRunTagCheckFailed:    "checking whether tag %s exists: %w",
 
 	VersionInfoLine:        "%s %s (commit %s, built %s)\n",
 	VersionShort:           "Print the Relio version",

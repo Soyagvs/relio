@@ -28,6 +28,7 @@ var es = map[MessageID]string{
 	MenuAuthDesc:          "Conexión con GitHub — estado y cómo vincularla",
 	MenuSetupLabel:        "Configuración inicial",
 	MenuSetupDesc:         "Crea o inspecciona .release.yaml",
+	MenuSetupNotAGitRepo:  "no es un repositorio git — ejecútalo dentro de un repo, o pasa -C <ruta>",
 	MenuGuideLabel:        "Guía",
 	MenuGuideDesc:         "Recorrido paso a paso de todo el flujo",
 	MenuHelpLabel:         "Ayuda",
@@ -181,6 +182,8 @@ var es = map[MessageID]string{
 	DryRunNoTag:             "no se crearía ninguna etiqueta (--no-tag)",
 	DryRunWouldPublish:      "se haría push y se publicaría el GitHub Release",
 	DryRunWouldNotPublish:   "no se publicaría en GitHub (usa --publish para habilitarlo)",
+	DryRunTagAlreadyExists:  "la etiqueta %s ya existe",
+	DryRunTagCheckFailed:    "comprobando si la etiqueta %s existe: %w",
 
 	VersionInfoLine:        "%s %s (commit %s, compilado %s)\n",
 	VersionShort:           "Imprime la versión de Relio",

@@ -38,12 +38,17 @@ const (
 	MenuAuthDesc          MessageID = "menu.auth_desc"
 	MenuSetupLabel        MessageID = "menu.setup_label"
 	MenuSetupDesc         MessageID = "menu.setup_desc"
-	MenuGuideLabel        MessageID = "menu.guide_label"
-	MenuGuideDesc         MessageID = "menu.guide_desc"
-	MenuHelpLabel         MessageID = "menu.help_label"
-	MenuHelpDesc          MessageID = "menu.help_desc"
-	MenuExitLabel         MessageID = "menu.exit_label"
-	MenuExitDesc          MessageID = "menu.exit_desc"
+	// MenuSetupNotAGitRepo is runMenuSetup's own not-a-git-repo line — worded
+	// around -C <path> since it's reached from the menu, not the CLI's
+	// `relio init` entry point. Distinct from InitNotAGitRepo (cmd/init.go),
+	// which tells the user to run `relio init` directly.
+	MenuSetupNotAGitRepo MessageID = "menu.setup_not_a_git_repo"
+	MenuGuideLabel       MessageID = "menu.guide_label"
+	MenuGuideDesc        MessageID = "menu.guide_desc"
+	MenuHelpLabel        MessageID = "menu.help_label"
+	MenuHelpDesc         MessageID = "menu.help_desc"
+	MenuExitLabel        MessageID = "menu.exit_label"
+	MenuExitDesc         MessageID = "menu.exit_desc"
 
 	// Settings screen (internal/settings) and its one menu entry. This is a
 	// greenfield surface authored i18n-native from birth — not converted from
@@ -203,6 +208,14 @@ const (
 	DryRunNoTag             MessageID = "dryrun.no_tag"
 	DryRunWouldPublish      MessageID = "dryrun.would_publish"
 	DryRunWouldNotPublish   MessageID = "dryrun.would_not_publish"
+	// DryRunTagAlreadyExists mirrors release.Apply's own collision error
+	// (release.ErrTagExists, matched via errors.Is) so a colliding dry-run
+	// fails with the same message shape, just localized.
+	DryRunTagAlreadyExists MessageID = "dryrun.tag_already_exists" // "tag %s already exists"
+	// DryRunTagCheckFailed wraps a real (non-collision) error from
+	// CheckTagCollision — e.g. a corrupted repo — with context about what
+	// was being checked.
+	DryRunTagCheckFailed MessageID = "dryrun.tag_check_failed" // "checking whether tag %s exists: %w"
 
 	// Version output shared by cmd/root.go's --version template and
 	// cmd/version.go's `relio version` command, plus that command's own

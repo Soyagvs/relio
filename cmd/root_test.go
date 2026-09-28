@@ -389,6 +389,40 @@ func TestDryRunPreviewReportsExistingTagCollision(t *testing.T) {
 	}
 }
 
+func TestDryRunPreviewWrapsTagCheckFailure(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	plan, err := release.BuildPlan(r, config.Default("proj"), release.Options{})
+	if err != nil {
+		t.Fatalf("BuildPlan: %v", err)
+	}
+
+	// Break the repo so the shared CheckTagCollision's `git tag --list` call
+	// fails for a reason that is NOT a tag collision (a real I/O/git failure,
+	// e.g. a corrupted repo) — proves the non-sentinel error path wraps with
+	// context instead of being reported as "would be created"/silently
+	// returned bare.
+	if err := os.RemoveAll(filepath.Join(dir, ".git")); err != nil {
+		t.Fatalf("removing .git: %v", err)
+	}
+
+	var buf bytes.Buffer
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(&buf, a...)
+		return err
+	}
+	err = dryRunPreview(writeLine, r, plan)
+	if err == nil {
+		t.Fatalf("dryRunPreview returned nil, want an error (the repo is broken)\noutput:\n%s", buf.String())
+	}
+	if strings.Contains(err.Error(), "already exists") {
+		t.Errorf("error = %q, a broken repo must not be reported as a tag collision", err)
+	}
+	if !strings.Contains(err.Error(), "checking whether tag") || !strings.Contains(err.Error(), "v1.6.0") {
+		t.Errorf("error = %q, want context about checking tag v1.6.0", err)
+	}
+}
+
 func TestDoReleaseDryRunSkipsConfirmation(t *testing.T) {
 	r, dir := repoWithPendingRelease(t)
 
@@ -404,6 +438,51 @@ func TestDoReleaseDryRunSkipsConfirmation(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "v1.6.0") {
 		t.Errorf("dry-run output missing the tag preview:\n%s", buf.String())
+	}
+}
+
+func TestDoReleaseDryRunNoChangelogReportsSkipped(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true, noChangelog: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil\noutput:\n%s", err, buf.String())
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "changelog would not be updated (--no-changelog)") {
+		t.Errorf("dry-run output missing the changelog-skipped line:\n%s", got)
+	}
+}
+
+func TestDoReleaseDryRunNoTagReportsNoTag(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true, noTag: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil\noutput:\n%s", err, buf.String())
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "no tag would be created (--no-tag)") {
+		t.Errorf("dry-run output missing the no-tag line:\n%s", got)
+	}
+}
+
+func TestDoReleaseDryRunPublishReportsWouldPublish(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true, publish: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil\noutput:\n%s", err, buf.String())
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "would push and publish the GitHub Release") {
+		t.Errorf("dry-run output missing the would-publish line:\n%s", got)
 	}
 }
 

@@ -3,6 +3,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -321,6 +322,32 @@ type ApplyResult struct {
 	VersionFiles  []string // Rel paths of the version files written
 }
 
+// ErrTagExists is wrapped into the error CheckTagCollision returns when the
+// plan's target tag is already taken, so callers can match it with
+// errors.Is without depending on the message text.
+var ErrTagExists = errors.New("release: tag already exists")
+
+// CheckTagCollision reports whether the plan's target tag already exists in
+// repo. It is a no-op (returns nil) when the plan won't create a tag
+// (TagUpdate is false). Apply calls this as its own first step, failing
+// before touching anything if the target tag is already taken; cmd/root.go's
+// dry-run preview calls it directly so both paths share one collision check
+// instead of drifting apart.
+func (p Plan) CheckTagCollision(repo *gitrepo.Repo) error {
+	if !p.TagUpdate {
+		return nil
+	}
+	name := p.TagName()
+	exists, err := repo.HasTag(name)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("tag %s already exists: %w", name, ErrTagExists)
+	}
+	return nil
+}
+
 // Apply writes the changelog file, syncs any declared version files, commits
 // them together, and creates the git tag, per the plan's flags. The changelog
 // and version files are written before the single "chore(release): vX.Y.Z"
@@ -329,16 +356,10 @@ func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 	var res ApplyResult
 
 	// Fail before touching anything if the target tag is already taken.
-	name := p.TagName()
-	if p.TagUpdate {
-		exists, err := repo.HasTag(name)
-		if err != nil {
-			return res, err
-		}
-		if exists {
-			return res, fmt.Errorf("tag %s already exists", name)
-		}
+	if err := p.CheckTagCollision(repo); err != nil {
+		return res, err
 	}
+	name := p.TagName()
 
 	// commitPaths accumulates every file that must ride in the release commit —
 	// the changelog first, then any version files — so the tag points at a
