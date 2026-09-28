@@ -252,6 +252,144 @@ func TestDoReleaseEditNeedsInteractiveTerminal(t *testing.T) {
 	}
 }
 
+func TestRootHasDryRunFlag(t *testing.T) {
+	c := NewRootCmd()
+	f := c.Flags().Lookup("dry-run")
+	if f == nil {
+		t.Fatal("missing --dry-run flag on the root command")
+	}
+	if !strings.Contains(f.Usage, "preview") {
+		t.Errorf("--dry-run usage = %q", f.Usage)
+	}
+}
+
+func TestRootDryRunFlagWiresToStruct(t *testing.T) {
+	c := NewRootCmd()
+	if err := c.Flags().Parse([]string{"--dry-run"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := c.Flags().GetBool("dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Error("--dry-run did not set the bound flag value")
+	}
+}
+
+func TestDoReleaseDryRunLeavesRepoUntouched(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (dry-run should still succeed)\noutput:\n%s", err, buf.String())
+	}
+
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("dry-run created tag v1.6.0")
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "CHANGELOG.md")); serr == nil {
+		t.Error("dry-run wrote CHANGELOG.md")
+	}
+	log := exec.Command("git", "log", "--oneline")
+	log.Dir = dir
+	out, _ := log.CombinedOutput()
+	if strings.Contains(string(out), "chore(release)") {
+		t.Errorf("dry-run created a release commit:\n%s", out)
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "v1.6.0") {
+		t.Errorf("dry-run output missing the tag preview:\n%s", got)
+	}
+	if !strings.Contains(got, "Something big") {
+		t.Errorf("dry-run output missing the generated changelog text:\n%s", got)
+	}
+}
+
+func TestDoReleaseDryRunValidateHookStillAborts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	cfg.Release.Hooks.Validate = config.StringList{"exit 1"}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true}
+	err := doRelease(&buf, r, cfg, f, semver.None, false)
+	if err == nil {
+		t.Fatalf("expected an error, got nil\noutput:\n%s", buf.String())
+	}
+	if !strings.Contains(err.Error(), "validate hook failed") {
+		t.Errorf("error = %q, want it to mention 'validate hook failed'", err)
+	}
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("tag v1.6.0 created despite the validate hook aborting under dry-run")
+	}
+}
+
+func TestDoReleaseDryRunSkipsBeforeAfterHooks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hook assertions use the `sh` shell")
+	}
+	r, dir := repoWithPendingRelease(t)
+
+	cfg := config.Default("proj")
+	beforeMarker := filepath.Join(dir, "before.marker")
+	afterMarker := filepath.Join(dir, "after.marker")
+	cfg.Release.Hooks.Before = config.StringList{"touch " + beforeMarker}
+	cfg.Release.Hooks.After = config.StringList{"touch " + afterMarker}
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true}
+	if err := doRelease(&buf, r, cfg, f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil\noutput:\n%s", err, buf.String())
+	}
+	if _, serr := os.Stat(beforeMarker); serr == nil {
+		t.Error("the before hook ran under dry-run")
+	}
+	if _, serr := os.Stat(afterMarker); serr == nil {
+		t.Error("the after hook ran under dry-run")
+	}
+}
+
+func TestDoReleaseDryRunSkipsConfirmation(t *testing.T) {
+	r, dir := repoWithPendingRelease(t)
+
+	var buf bytes.Buffer
+	// yes is deliberately false: dry-run must not require --yes (or the
+	// interactive wizard's confirm) since it never touches the repo.
+	f := &releaseFlags{dir: dir, yes: false, dryRun: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil (dry-run should not require --yes)\noutput:\n%s", err, buf.String())
+	}
+	if has, _ := r.HasTag("v1.6.0"); has {
+		t.Error("dry-run created tag v1.6.0")
+	}
+	if !strings.Contains(buf.String(), "v1.6.0") {
+		t.Errorf("dry-run output missing the tag preview:\n%s", buf.String())
+	}
+}
+
+func TestDoReleaseDryRunSkipsEditor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("relies on the POSIX `false` binary")
+	}
+	r, dir := repoWithPendingRelease(t)
+	// If --edit were honoured under dry-run, this would make doRelease fail
+	// (the editor exits non-zero) — its absence is the assertion.
+	t.Setenv("RELIO_EDITOR", "false")
+
+	var buf bytes.Buffer
+	f := &releaseFlags{dir: dir, yes: true, dryRun: true, edit: true}
+	if err := doRelease(&buf, r, config.Default("proj"), f, semver.None, false); err != nil {
+		t.Fatalf("doRelease returned %v, want nil ($EDITOR must not run under dry-run)\noutput:\n%s", err, buf.String())
+	}
+}
+
 func TestFooterTipShownWhileTogglesOff(t *testing.T) {
 	tip := footerTip(config.Default("proj"))
 	if tip == "" {

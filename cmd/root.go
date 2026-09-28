@@ -50,6 +50,7 @@ type releaseFlags struct {
 	rc             bool
 	noHooks        bool
 	edit           bool
+	dryRun         bool
 }
 
 // NewRootCmd builds the root command. Running it with no subcommand opens the
@@ -96,6 +97,7 @@ func NewRootCmd() *cobra.Command {
 	lf.BoolVar(&f.rc, "rc", false, i18n.T(i18n.FlagRCUsage))
 	lf.BoolVar(&f.noHooks, "no-hooks", false, i18n.T(i18n.FlagNoHooksUsage))
 	lf.BoolVar(&f.edit, "edit", false, i18n.T(i18n.FlagEditUsage))
+	lf.BoolVar(&f.dryRun, "dry-run", false, i18n.T(i18n.FlagDryRunUsage))
 
 	root.AddCommand(newStatusCmd(f), newCheckCmd(f), newUndoCmd(f), newGuideCmd(f), newStatsCmd(), newInitCmd(f), newPostCmd(f), newImageCmd(f), newAuthCmd(), newVersionCmd(), newReleasesCmd(f))
 	return root
@@ -559,6 +561,16 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 		}
 	}
 
+	if f.dryRun {
+		if err := writeLine(ui.PlanView(plan)); err != nil {
+			return err
+		}
+		if err := writeLine(); err != nil {
+			return err
+		}
+		return dryRunPreview(writeLine, plan)
+	}
+
 	if interactive {
 		// Print the preview to the scrollback first so it survives the wizard
 		// clearing its own frame — the user can copy it afterwards.
@@ -705,6 +717,62 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			if err := writeLine(ui.Warn.Render("! ") + ui.Dim.Render(fmt.Sprintf("after hook failed: %v (the release itself is done)", err))); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// dryRunPreview prints what doRelease would do under --dry-run instead of
+// calling plan.Apply: the full changelog text (the same generator Apply
+// feeds into changelog.Update, without writing it), the tag Apply would
+// create, and whether the release would publish to GitHub. It never touches
+// the repo, never opens $EDITOR, and is reached before the Before/After
+// hooks and plan.Apply — none of those run under dry-run. Validate hooks
+// already ran before this point (unchanged by dry-run), and ui.PlanView
+// already printed the version summary and version-file diffs earlier in
+// doRelease, so this only adds what an actual Apply would additionally
+// reveal.
+func dryRunPreview(writeLine func(a ...any) error, plan release.Plan) error {
+	if err := writeLine(ui.Info(i18n.T(i18n.DryRunHeader))); err != nil {
+		return err
+	}
+	if err := writeLine(); err != nil {
+		return err
+	}
+
+	if plan.ChangelogUpdate {
+		if err := writeLine(ui.Dim.Render(i18n.T(i18n.DryRunChangelogLabel))); err != nil {
+			return err
+		}
+		if err := writeLine(plan.Section()); err != nil {
+			return err
+		}
+	} else {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunChangelogSkipped))); err != nil {
+			return err
+		}
+	}
+	if err := writeLine(); err != nil {
+		return err
+	}
+
+	if plan.TagUpdate {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunTagWouldBeCreated, plan.TagName()))); err != nil {
+			return err
+		}
+	} else {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunNoTag))); err != nil {
+			return err
+		}
+	}
+
+	if plan.PublishGitHub {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunWouldPublish))); err != nil {
+			return err
+		}
+	} else {
+		if err := writeLine(ui.Info(i18n.T(i18n.DryRunWouldNotPublish))); err != nil {
+			return err
 		}
 	}
 	return nil

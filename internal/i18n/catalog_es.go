@@ -172,6 +172,15 @@ var es = map[MessageID]string{
 	FlagRCUsage:             "genera un release candidate (vX.Y.Z-rc.N) en vez de la versión final",
 	FlagNoHooksUsage:        "omite los hooks before/after de .release.yaml en esta ejecución",
 	FlagEditUsage:           "abre las notas de lanzamiento generadas en tu editor antes de escribir",
+	FlagDryRunUsage:         "previsualiza el lanzamiento sin escribir nada (sin commit, etiqueta, push ni GitHub Release)",
+
+	DryRunHeader:            "Simulación — no se escribirá nada.",
+	DryRunChangelogLabel:    "Historial de cambios:",
+	DryRunChangelogSkipped:  "el historial de cambios no se actualizaría (--no-changelog)",
+	DryRunTagWouldBeCreated: "se crearía la etiqueta %s",
+	DryRunNoTag:             "no se crearía ninguna etiqueta (--no-tag)",
+	DryRunWouldPublish:      "se haría push y se publicaría el GitHub Release",
+	DryRunWouldNotPublish:   "no se publicaría en GitHub (usa --publish para habilitarlo)",
 
 	VersionInfoLine:        "%s %s (commit %s, compilado %s)\n",
 	VersionShort:           "Imprime la versión de Relio",

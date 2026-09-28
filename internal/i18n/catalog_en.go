@@ -170,6 +170,15 @@ var en = map[MessageID]string{
 	FlagRCUsage:             "cut a release candidate (vX.Y.Z-rc.N) instead of the final version",
 	FlagNoHooksUsage:        "skip the before/after hooks in .release.yaml for this run",
 	FlagEditUsage:           "open the generated release notes in your editor before writing",
+	FlagDryRunUsage:         "preview the release without writing anything (no commit, tag, push, or GitHub Release)",
+
+	DryRunHeader:            "Dry run — nothing will be written.",
+	DryRunChangelogLabel:    "Changelog:",
+	DryRunChangelogSkipped:  "changelog would not be updated (--no-changelog)",
+	DryRunTagWouldBeCreated: "tag %s would be created",
+	DryRunNoTag:             "no tag would be created (--no-tag)",
+	DryRunWouldPublish:      "would push and publish the GitHub Release",
+	DryRunWouldNotPublish:   "would not publish to GitHub (pass --publish to enable)",
 
 	VersionInfoLine:        "%s %s (commit %s, built %s)\n",
 	VersionShort:           "Print the Relio version",

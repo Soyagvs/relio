@@ -188,6 +188,21 @@ const (
 	FlagRCUsage             MessageID = "flag.rc_usage"
 	FlagNoHooksUsage        MessageID = "flag.no_hooks_usage"
 	FlagEditUsage           MessageID = "flag.edit_usage"
+	FlagDryRunUsage         MessageID = "flag.dry_run_usage"
+
+	// --dry-run preview (cmd/root.go doRelease's dryRunPreview): printed in
+	// place of plan.Apply/publishGitHubRelease/Before-After hooks when
+	// f.dryRun is set. ui.PlanView already covers the version summary and
+	// version-file diffs before this point, so these only cover what an
+	// actual Apply would additionally reveal — the full changelog text, the
+	// tag, and the publish intent.
+	DryRunHeader            MessageID = "dryrun.header"
+	DryRunChangelogLabel    MessageID = "dryrun.changelog_label"
+	DryRunChangelogSkipped  MessageID = "dryrun.changelog_skipped"
+	DryRunTagWouldBeCreated MessageID = "dryrun.tag_would_be_created" // "tag %s would be created"
+	DryRunNoTag             MessageID = "dryrun.no_tag"
+	DryRunWouldPublish      MessageID = "dryrun.would_publish"
+	DryRunWouldNotPublish   MessageID = "dryrun.would_not_publish"
 
 	// Version output shared by cmd/root.go's --version template and
 	// cmd/version.go's `relio version` command, plus that command's own
