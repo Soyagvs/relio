@@ -53,11 +53,11 @@ While reviewing the T1 diff via `codegraph_explore` before committing, found the
 
 Fixed directly (orchestrator, TDD): added `TestDoReleaseDryRunSkipsConfirmation` (`yes: false, dryRun: true`, asserts `doRelease` returns nil and the tag preview is printed) — RED confirmed (`"refusing to modify the repo without confirmation"`). Moved the `f.dryRun` check to immediately after the Validate-hook block and before the interactive/non-interactive branching, printing `ui.PlanView(plan)` itself there and returning before either confirmation path is reached; removed the old post-gate check. GREEN confirmed: new test passes, all pre-existing `cmd`/`internal/release`/`internal/i18n` tests still pass (`go test ./cmd/... ./internal/release/... ./internal/i18n/... -race -v`), full suite green (`go test ./... -race`), `go build`/`go vet`/`gofmt -l .` clean, `golangci-lint` shows only the same pre-existing `cmd/init.go` finding (confirmed unrelated). Files touched: `cmd/root.go`, `cmd/root_test.go`.
 
-- [ ] **T2 — Docs**
-  - `docs/commands.md`: document `--dry-run` alongside the other release flags.
-  - `docs/publishing.md`: mention `--dry-run` as the way to preview a publish before it happens.
-  - `README.md`: add to the flag list / feature summary if one exists.
-  - Route: direct inline once T1 lands (mechanical, no design decision left).
+- [x] **T2 — Docs** — done
+  - `docs/commands.md`: added `--dry-run` to the release-flags table (with the validate-runs/before-after-skip/no-yes-needed behavior spelled out) and two example invocations.
+  - `docs/publishing.md`: new "Previewing before you publish" section pointing at `relio --dry-run --publish`.
+  - `README.md`: added to the roadmap's "Shipped" line.
+  - Route: direct inline (docs-only, mechanical, no design decision left once T1 landed).
 
 ## Acceptance criteria
 - `relio --dry-run` (and `relio --dry-run --publish`) prints the full plan (version, tag, full changelog text, version-file diffs, publish intent) and exits 0 with the repo byte-for-byte unchanged (no new commit, no new tag, no changelog/version-file writes).

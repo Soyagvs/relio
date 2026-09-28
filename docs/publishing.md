@@ -58,3 +58,15 @@ relio --yes --publish
 > tag push — cross-platform binaries, `checksums.txt`, the Homebrew tap bump (see
 > [Non-interactive / CI usage](ci-usage.md)). `--publish` is the
 > lightweight path for projects that have no such pipeline.
+
+## Previewing before you publish
+
+Not sure a run would do what you expect? `relio --dry-run --publish` prints
+the full plan — version, tag, complete changelog text, version-file diffs,
+whether it would publish — without pushing anything or touching the repo:
+
+```bash
+relio --dry-run --publish
+```
+
+See [`--dry-run`](commands.md) in the command reference.

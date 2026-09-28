@@ -185,7 +185,8 @@ Pick **Release**, read the preview, confirm. Relio then:
   `relio post` / `relio image` · token-based GitHub Release publishing
   (`--publish`) · hand-editing the notes before writing (`--edit`) · changelog
   footer — contributors line + compare link · per-user GitHub sign-in via
-  `relio auth login` (OAuth Device Flow) with hybrid OS-keychain/file storage.
+  `relio auth login` (OAuth Device Flow) with hybrid OS-keychain/file storage ·
+  previewing a release with no side effects (`--dry-run`).
 - **Later** — release plugins (`BeforeRelease` / `AfterRelease` in Go), richer
   `relio post` templates.
 

@@ -65,6 +65,7 @@ to turn them on.
 | `--rc` | Cut a release candidate (`vX.Y.Z-rc.N`) instead of the final version. See [Pre-releases](versioning.md#pre-releases). |
 | `--no-hooks` | Skip the `validate` / `before` / `after` hooks from `.release.yaml` for this run. See [Release hooks](release-hooks.md). |
 | `--edit` | Open the generated release notes in your editor before anything is written. Interactive terminals only. |
+| `--dry-run` | Print the full plan — version, tag, complete changelog text, version-file diffs, whether it would publish — and stop. Nothing is written: no changelog/version-file edit, no commit, no tag, no push, no GitHub Release. `validate` hooks still run (real go/no-go signal); `before`/`after` hooks and `--edit` do not. Needs no `--yes` or confirmation, since nothing is at stake. |
 
 `--edit` opens `$RELIO_EDITOR` / `$VISUAL` / `$EDITOR` (falling back to `vi`) on
 the generated notes body once you have confirmed the plan. Save your version to
@@ -81,6 +82,8 @@ relio --yes --publish     # also push and create the GitHub Release
 relio --rc --yes          # cut the next release candidate
 relio --yes --no-hooks    # skip the .release.yaml hooks for this run
 relio --edit --yes        # confirm nothing, but hand-edit the notes
+relio --dry-run           # preview the release, nothing is written
+relio --dry-run --publish # preview including whether it would publish
 ```
 
 ---
