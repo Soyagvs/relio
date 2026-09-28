@@ -360,7 +360,7 @@ var es = map[MessageID]string{
 		"encontró y a quién pertenece.",
 
 	AuthStatusShort:      "Muestra qué token encontró relio y a quién pertenece",
-	AuthNotAuthenticated: "no autenticado (define GITHUB_TOKEN o ejecuta `gh auth login`)",
+	AuthNotAuthenticated: "no autenticado (ejecuta `relio auth login`, o define GITHUB_TOKEN)",
 	AuthLoggedInAs:       "sesión iniciada como %s (vía %s)",
 
 	AuthLoginShort:  "Inicia sesión en GitHub",
@@ -373,6 +373,11 @@ var es = map[MessageID]string{
 	AuthLoginDenied:         "Rechazaste la solicitud de autorización. Ejecuta `relio auth login` de nuevo si fue un error.",
 	AuthLogoutSuccess:       "Sesión cerrada. Se eliminó el token de GitHub almacenado.",
 	AuthLogoutNothingStored: "No hay nada que cerrar: no se encontró ningún token de GitHub almacenado.",
+
+	AuthMenuHowLogin:     "Ejecuta `relio auth login` para iniciar sesión con el Device Flow de OAuth de GitHub — sin necesidad de un token manual.",
+	AuthMenuHowStorage:   "El token resultante se guarda en el llavero (keychain) del sistema operativo, con un archivo local protegido como respaldo.",
+	AuthMenuHowOverride:  "RELIO_GITHUB_TOKEN, GITHUB_TOKEN, GH_TOKEN y `gh auth token` siguen funcionando, y tienen prioridad cuando están definidos.",
+	AuthMenuHowTransport: "Sea cual sea el token usado, solo se envía a GitHub en el encabezado Authorization.",
 
 	ImageShort: "Crea una imagen para compartir de un lanzamiento",
 	ImageLong: "Renderiza una tarjeta de lanzamiento oscura con estilo de desarrollador. Todo\n" +

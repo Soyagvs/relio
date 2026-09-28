@@ -435,6 +435,15 @@ const (
 	AuthLogoutSuccess       MessageID = "auth.logout_success"
 	AuthLogoutNothingStored MessageID = "auth.logout_nothing_stored"
 
+	// The menu's Auth → "How to connect" entry (runMenuAuth in cmd/root.go):
+	// points at `relio auth login` as the primary path, says where the
+	// resulting token is stored, and notes the env vars / `gh auth token`
+	// still work as overrides.
+	AuthMenuHowLogin     MessageID = "auth.menu_how_login"
+	AuthMenuHowStorage   MessageID = "auth.menu_how_storage"
+	AuthMenuHowOverride  MessageID = "auth.menu_how_override"
+	AuthMenuHowTransport MessageID = "auth.menu_how_transport"
+
 	// Image command (cmd/image.go): Short/Long text, the --version/--hash/
 	// --upload/--link-only flag usage strings (--shape/--theme list literal
 	// values the user types and stay untranslated, matching cmd/post.go's

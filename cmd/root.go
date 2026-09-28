@@ -410,15 +410,17 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (bool, error) {
 	return true, doRelease(cmd.OutOrStdout(), repo, cfg, f, semver.None, true)
 }
 
-// runMenuAuth is the menu's Auth entry: show the resolved sign-in status, or
-// explain how to connect a token. Backing out of the pick with q/esc returns nil
-// so the menu is redrawn; a ctrl+c hard-quit propagates pick.ErrQuit.
+// runMenuAuth is the menu's Auth entry: show the resolved sign-in status, sign
+// in via the OAuth Device Flow, or explain how a token gets connected.
+// Backing out of the pick with q/esc returns nil so the menu is redrawn; a
+// ctrl+c hard-quit propagates pick.ErrQuit.
 func runMenuAuth(cmd *cobra.Command) (bool, error) {
 	out := cmd.OutOrStdout()
 
 	choice, chosen, err := runPicker("Auth", []pick.Item{
 		{Label: "Show sign-in status", Desc: "which token relio found and who it belongs to", Value: "status"},
-		{Label: "How to connect", Desc: "env vars or `gh auth login`", Value: "how"},
+		{Label: "Sign in", Desc: "start the GitHub OAuth Device Flow", Value: "login"},
+		{Label: "How to connect", Desc: "`relio auth login`, env vars, or `gh auth login`", Value: "how"},
 	})
 	if err != nil {
 		return false, err
@@ -430,17 +432,20 @@ func runMenuAuth(cmd *cobra.Command) (bool, error) {
 	if choice == "status" {
 		return true, authStatus(out)
 	}
+	if choice == "login" {
+		return true, authLogin(out)
+	}
 
-	if _, err := fmt.Fprintln(out, ui.Info("Relio reads a GitHub personal access token from RELIO_GITHUB_TOKEN, GITHUB_TOKEN")); err != nil {
+	if _, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.AuthMenuHowLogin))); err != nil {
 		return false, err
 	}
-	if _, err := fmt.Fprintln(out, ui.Info("or GH_TOKEN, and falls back to `gh auth token` when the GitHub CLI is signed in.")); err != nil {
+	if _, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.AuthMenuHowStorage))); err != nil {
 		return false, err
 	}
-	if _, err := fmt.Fprintln(out, ui.Info("Run `gh auth login` (or set one of those vars) to connect one.")); err != nil {
+	if _, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.AuthMenuHowOverride))); err != nil {
 		return false, err
 	}
-	if _, err := fmt.Fprintln(out, ui.Info("The token is only ever sent to GitHub in the Authorization header — Relio stores nothing.")); err != nil {
+	if _, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.AuthMenuHowTransport))); err != nil {
 		return false, err
 	}
 	return true, nil

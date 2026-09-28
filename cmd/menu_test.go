@@ -94,6 +94,89 @@ func TestRunMenuAuthBackChoiceSkipsMenuBackWait(t *testing.T) {
 	}
 }
 
+// TestRunMenuAuthOffersLoginChoice proves the Auth menu offers a way to
+// actually sign in, not just "status" and "how" — regression for the menu
+// screen having no login path at all.
+func TestRunMenuAuthOffersLoginChoice(t *testing.T) {
+	oldRunPicker := runPicker
+	t.Cleanup(func() { runPicker = oldRunPicker })
+
+	var gotItems []pick.Item
+	runPicker = func(_ string, items []pick.Item) (string, bool, error) {
+		gotItems = items
+		return "", false, nil
+	}
+
+	if _, err := runMenuAuth(&cobra.Command{}); err != nil {
+		t.Fatalf("runMenuAuth: %v", err)
+	}
+
+	var hasLogin bool
+	for _, it := range gotItems {
+		if it.Value == "login" {
+			hasLogin = true
+		}
+	}
+	if !hasLogin {
+		t.Errorf("runMenuAuth picker items = %#v, want an item with Value \"login\"", gotItems)
+	}
+}
+
+// TestRunMenuAuthLoginChoiceRunsDeviceFlow proves choosing "login" from the
+// Auth menu actually runs the OAuth Device Flow (via authLogin), not just
+// status/how-to-connect text.
+func TestRunMenuAuthLoginChoiceRunsDeviceFlow(t *testing.T) {
+	stubDeviceFlow(t)
+
+	oldRunPicker := runPicker
+	t.Cleanup(func() { runPicker = oldRunPicker })
+	runPicker = func(string, []pick.Item) (string, bool, error) {
+		return "login", true, nil
+	}
+
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+
+	wait, err := runMenuAuth(cmd)
+	if err != nil {
+		t.Fatalf("runMenuAuth: %v", err)
+	}
+	if !wait {
+		t.Error("runMenuAuth wait = false after login, want true")
+	}
+	if out := buf.String(); !strings.Contains(out, "octocat") {
+		t.Errorf("runMenuAuth login output = %q, want it to contain the device-flow login result (octocat)", out)
+	}
+}
+
+// TestRunMenuAuthHowChoiceMentionsLoginNotStorageClaim proves the "how to
+// connect" text points at `relio auth login` and no longer claims Relio
+// stores nothing — stale since v1.13.0 added internal/tokenstore.
+func TestRunMenuAuthHowChoiceMentionsLoginNotStorageClaim(t *testing.T) {
+	oldRunPicker := runPicker
+	t.Cleanup(func() { runPicker = oldRunPicker })
+	runPicker = func(string, []pick.Item) (string, bool, error) {
+		return "how", true, nil
+	}
+
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+
+	if _, err := runMenuAuth(cmd); err != nil {
+		t.Fatalf("runMenuAuth: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "relio auth login") {
+		t.Errorf("runMenuAuth how output = %q, want it to mention `relio auth login`", out)
+	}
+	if strings.Contains(out, "stores nothing") {
+		t.Errorf("runMenuAuth how output = %q, want it to NOT claim Relio stores nothing (false since tokenstore)", out)
+	}
+}
+
 func TestRunMenuReleaseBackStepsToPreviousPicker(t *testing.T) {
 	_, dir := initTempRepo(t)
 	if err := config.Default("proj").Save(dir); err != nil {

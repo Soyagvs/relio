@@ -355,7 +355,7 @@ var en = map[MessageID]string{
 		"which one was found and who it belongs to.",
 
 	AuthStatusShort:      "Show which token relio found and who it belongs to",
-	AuthNotAuthenticated: "not authenticated (set GITHUB_TOKEN or run `gh auth login`)",
+	AuthNotAuthenticated: "not authenticated (run `relio auth login`, or set GITHUB_TOKEN)",
 	AuthLoggedInAs:       "logged in as %s (via %s)",
 
 	AuthLoginShort:  "Sign in to GitHub",
@@ -368,6 +368,11 @@ var en = map[MessageID]string{
 	AuthLoginDenied:         "You declined the authorization request. Run `relio auth login` again if that was a mistake.",
 	AuthLogoutSuccess:       "Logged out. The stored GitHub token was removed.",
 	AuthLogoutNothingStored: "Nothing to log out of: no stored GitHub token was found.",
+
+	AuthMenuHowLogin:     "Run `relio auth login` to sign in with GitHub's OAuth Device Flow — no manual token needed.",
+	AuthMenuHowStorage:   "The resulting token is stored in your OS keychain, with a protected local file as fallback.",
+	AuthMenuHowOverride:  "RELIO_GITHUB_TOKEN, GITHUB_TOKEN, GH_TOKEN and `gh auth token` still work, and take priority when set.",
+	AuthMenuHowTransport: "Whichever token is used, it is only ever sent to GitHub in the Authorization header.",
 
 	ImageShort: "Make a shareable image of a release",
 	ImageLong: "Render a dark, developer-styled release card. Everything on it comes\n" +
