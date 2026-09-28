@@ -72,12 +72,23 @@ Fixed with TDD: added `TestDryRunPreviewReportsExistingTagCollision` (`internal/
 - Existing non-dry-run release flow is unchanged.
 
 ## Progress
-- Branch: none yet — committing directly to `main` per this session's established pattern (see prior oauth-device-flow-followup fix, commit `9714f53`, RDD-reviewed and approved on `main`).
+- Branch: committed directly to `main` per this session's established pattern (see prior oauth-device-flow-followup fix, commit `9714f53`, RDD-reviewed and approved on `main`). Commits: `88a6b0a` (T1), `7fdeab7` (T2 docs), `caa8aac` (tag-collision fix), `c55a094` (task-file update) — 4 commits ahead of `origin/main` alongside `9714f53` (5 total), none pushed yet.
 - Mapping done this session via delegated `codegraph_explore`-based exploration (see file:line evidence in Constraints above).
 - Two product decisions resolved via user AskUserQuestion (2026-09-28): Validate-only hooks under dry-run; full changelog text in preview.
+- RDD (receipt-driven development) is enabled and on by default for this repo. Every commit went through the native 4-lens review lifecycle (risk/resilience/readability/reliability for high-risk candidates, reliability-only for the docs-only one) via `gentle-ai review status/start/capture-result/acknowledge-approved`, each requiring fresh user consent (candidate-scoped, never inherited). The readability lens on T1 and the reliability lens on the combined T1+T2 candidate each found one CRITICAL finding (documented above) that triggered a bounded correction via `gentle-ai review recover`/`capture-correction-plan` before a fresh review passed clean. Final combined review (lineage `review-20e2660dcf0f5b7a`) approved and acknowledged, receipt burned.
+
+## Non-blocking findings from the final review (not acted on — future polish, not defects)
+- `dryRunPreview`'s tag-collision error (`fmt.Errorf("tag %s already exists", ...)`) bypasses i18n, unlike every other line in the same function (readability + reliability + resilience all flagged this independently).
+- The `repo.HasTag` error return in the collision check is unwrapped — a git-layer failure surfaces with no context about what was being checked (resilience).
+- When the tag collision is hit, the full changelog text was already printed before the error — not incorrect (no side effect), but the "fail fast" comment's intent isn't fully realized in the output ordering (reliability).
+- `dryRunPreview`'s `ChangelogSkipped`/`NoTag`/`WouldPublish` branches (`--no-changelog`/`--no-tag`/`--publish` combined with `--dry-run`) are implemented but not exercised by any test (reliability).
+- Repeated `writeLine`/err-check boilerplate (~10x) in `dryRunPreview` could collapse into a small helper (readability, mechanical).
 
 ## Next step
-Delegate T1 to a writer (strict TDD), review its diff, then T2 docs.
+All of T1, T2, and the tag-collision follow-up fix are implemented, tested, committed, and RDD-approved. Remaining:
+- Manual smoke test of `relio --dry-run` / `relio --dry-run --publish` against a real repo (optional, not required by CI).
+- Decide whether to act on the non-blocking findings above now or later.
+- Push the 5 unpushed commits when the user is ready (not done automatically — delivery stays the user's decision).
 
 ## Engram mirror status
 **Pending** — `mem_save` to topic `odd/dry-run-flag/tasks` failed: "multiple active runtime sessions match the current project and directory" (same recurring issue as the oauth-device-flow feature's mirror). This file remains the source of truth; retry later, not blocking implementation.
