@@ -59,6 +59,11 @@ Fixed directly (orchestrator, TDD): added `TestDoReleaseDryRunSkipsConfirmation`
   - `README.md`: added to the roadmap's "Shipped" line.
   - Route: direct inline (docs-only, mechanical, no design decision left once T1 landed).
 
+## Follow-up fix (RDD 4-lens review, reliability lens, CRITICAL — commit `caa8aac`)
+Gentle AI's combined T1+T2 review (reliability lens) flagged: `dryRunPreview`'s tag-preview branch printed "tag %s would be created" unconditionally whenever `plan.TagUpdate` was set, with no check for whether that tag already exists — `release.Plan.Apply` has always guarded against this (a defense against a real race: another process tagging the same name between planning and applying), but `--dry-run` skips `Apply` entirely and so silently skipped that same check too, contradicting the feature's own promise to show what a real run would do.
+
+Fixed with TDD: added `TestDryRunPreviewReportsExistingTagCollision` (`internal/release.BuildPlan` first, then create the colliding tag afterward — mirrors `internal/release`'s own `TestApplyRefusesDuplicateTag` pattern for simulating the race — then call `dryRunPreview` directly). RED confirmed (compile failure: `dryRunPreview` didn't yet take a `*gitrepo.Repo`). `dryRunPreview` now takes `repo *gitrepo.Repo`, runs the identical `repo.HasTag` check `Apply`'s own guard uses, and returns the same `"tag %s already exists"` error before reporting "would be created". GREEN confirmed: new test passes, full `cmd`/`internal/release`/`internal/i18n` suites and full `go test ./... -race` all green, `go build`/`go vet`/`gofmt -l .` clean, `golangci-lint` shows only the same pre-existing unrelated `cmd/init.go` finding. Files touched: `cmd/root.go`, `cmd/root_test.go`.
+
 ## Acceptance criteria
 - `relio --dry-run` (and `relio --dry-run --publish`) prints the full plan (version, tag, full changelog text, version-file diffs, publish intent) and exits 0 with the repo byte-for-byte unchanged (no new commit, no new tag, no changelog/version-file writes).
 - Validate hooks still run and can abort a dry-run (proving whether the real release would pass validation).
