@@ -51,7 +51,17 @@ var retryBackoff = 2 * time.Second
 // it. It's a package var so tests can shrink it; a caller-supplied shorter
 // deadline still wins, since context.WithTimeout always honours the earlier
 // of the two.
-var perHostTimeout = 60 * time.Second
+//
+// It must stay large enough to let all maxAttempts actually run even if
+// every single attempt takes the full client.Timeout, or it silently cuts
+// retries short exactly under the slow-but-alive conditions retrying exists
+// to help with: worst case is maxAttempts*client.Timeout plus the backoff
+// between attempts (1*retryBackoff + 2*retryBackoff for maxAttempts=3) =
+// 3*45s + 3*2s = 141s. 150s leaves a small margin.
+// TestPerHostTimeoutAccommodatesMaxAttempts enforces this relationship, so
+// bumping maxAttempts or client.Timeout without also raising this value
+// fails the build.
+var perHostTimeout = 150 * time.Second
 
 // Upload sends path to a host and returns a URL. It tries litterbox (temporary,
 // 72h) first, then catbox (permanent) as a fallback, retrying each host up to

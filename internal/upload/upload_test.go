@@ -239,6 +239,74 @@ func TestUploadReturnsPromptlyOnContextCancellationDuringBackoff(t *testing.T) {
 	}
 }
 
+// withClient sets client for the duration of a test and restores it
+// afterward, so a test can shrink the per-attempt HTTP timeout without
+// touching the real 45s production default.
+func withClient(t *testing.T, c *http.Client) {
+	t.Helper()
+	saved := client
+	client = c
+	t.Cleanup(func() { client = saved })
+}
+
+// TestPerHostTimeoutAccommodatesMaxAttempts is an invariant test, not a
+// timing test: it guards against perHostTimeout silently drifting below
+// what maxAttempts actually needs at the worst case (every attempt taking
+// the full client.Timeout) -- exactly the CRITICAL bug this fixes, where a
+// too-small perHostTimeout cut retries short after roughly one attempt
+// precisely under the slow-but-alive conditions retrying exists to help
+// with. Runs instantly; it never waits on a real clock.
+func TestPerHostTimeoutAccommodatesMaxAttempts(t *testing.T) {
+	var backoffSum time.Duration
+	for attempt := 1; attempt < maxAttempts; attempt++ {
+		backoffSum += time.Duration(attempt) * retryBackoff
+	}
+	worstCase := time.Duration(maxAttempts)*client.Timeout + backoffSum
+	if perHostTimeout < worstCase {
+		t.Errorf("perHostTimeout = %v, want at least %v (maxAttempts=%d * client.Timeout=%v + backoff=%v) so a slow-but-alive host actually gets all its retries",
+			perHostTimeout, worstCase, maxAttempts, client.Timeout, backoffSum)
+	}
+}
+
+// TestUploadSucceedsOnFinalAttemptEvenWhenEarlyAttemptsApproachClientTimeout
+// is the behavioral counterpart to TestPerHostTimeoutAccommodatesMaxAttempts:
+// a host that is merely slow (each failed attempt takes close to the full
+// per-attempt client timeout) must still get to try maxAttempts times within
+// its per-host budget, succeeding on the last one -- the scenario the
+// CRITICAL finding showed the previous 60s perHostTimeout cut short after
+// roughly one attempt. Scaled to milliseconds so it runs fast; the shrunk
+// perHostTimeout mirrors the same formula the production default now uses.
+func TestUploadSucceedsOnFinalAttemptEvenWhenEarlyAttemptsApproachClientTimeout(t *testing.T) {
+	shrunkClientTimeout := 40 * time.Millisecond
+	withClient(t, &http.Client{Timeout: shrunkClientTimeout})
+	withRetryBackoff(t, 5*time.Millisecond)
+	withPerHostTimeout(t, 3*shrunkClientTimeout+(1+2)*5*time.Millisecond+20*time.Millisecond) // + margin
+	path := writeTemp(t, "PNGDATA")
+
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&hits, 1)
+		if n < 3 {
+			time.Sleep(shrunkClientTimeout + 10*time.Millisecond) // exceeds the client timeout -> this attempt fails
+			return
+		}
+		_, _ = w.Write([]byte("https://litter.example/ok.png"))
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	url, err := Upload(context.Background(), path, io.Discard)
+	if err != nil {
+		t.Fatalf("Upload: %v, want the 3rd attempt to succeed within the per-host budget", err)
+	}
+	if url != "https://litter.example/ok.png" {
+		t.Errorf("url = %q", url)
+	}
+	if got := atomic.LoadInt32(&hits); got != 3 {
+		t.Errorf("hits = %d, want 3 (all attempts must get a chance within budget)", got)
+	}
+}
+
 // withPerHostTimeout sets perHostTimeout for the duration of a test and
 // restores it afterward, so the bound can be shrunk without burning real
 // wall-clock time.
