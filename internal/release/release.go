@@ -343,7 +343,8 @@ func (p Plan) CheckTagCollision(repo *gitrepo.Repo) error {
 		return err
 	}
 	if exists {
-		return fmt.Errorf("tag %s already exists: %w", name, ErrTagExists)
+		// ErrTagExists already says "already exists" -- don't repeat it here.
+		return fmt.Errorf("tag %s: %w", name, ErrTagExists)
 	}
 	return nil
 }
@@ -356,10 +357,13 @@ func (p Plan) Apply(repo *gitrepo.Repo) (ApplyResult, error) {
 	var res ApplyResult
 
 	// Fail before touching anything if the target tag is already taken.
-	if err := p.CheckTagCollision(repo); err != nil {
-		return res, err
-	}
 	name := p.TagName()
+	if err := p.CheckTagCollision(repo); err != nil {
+		if errors.Is(err, ErrTagExists) {
+			return res, err
+		}
+		return res, fmt.Errorf("checking tag %s: %w", name, err)
+	}
 
 	// commitPaths accumulates every file that must ride in the release commit —
 	// the changelog first, then any version files — so the tag points at a

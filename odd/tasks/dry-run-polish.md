@@ -63,10 +63,15 @@ Close out the non-blocking findings left by the `--dry-run` feature's final RDD 
 - `golangci-lint`'s `cmd/init.go:28` SA1006 finding is gone.
 - `go build`, `go vet`, `gofmt -l .`, `go test ./... -race`, `golangci-lint run ./...` all clean.
 
+## Follow-up fix (RDD review, all 3 code lenses independently flagged the same regression, commit pending)
+T1's `CheckTagCollision` extraction introduced a real regression the review caught: `ErrTagExists`'s own text is `"release: tag already exists"`, and `CheckTagCollision` wrapped it as `fmt.Errorf("tag %s already exists: %w", name, ErrTagExists)` — a real (non-dry-run) `relio release` hitting a tag collision now showed the doubled `"tag v1.4.0 already exists: release: tag already exists"`. Only the dry-run path avoided this (it discards the wrapped text and builds a fresh i18n message via `errors.Is`). Separately, `CheckTagCollision`'s `repo.HasTag` I/O-failure path stayed bare (no context) for `Apply`'s real-run caller, while the dry-run caller got a clean, wrapped message for the identical failure — the same kind of two-paths-diverge drift the whole extraction was meant to close.
+
+Fixed with TDD (orchestrator, direct): added `TestApplyCollisionErrorNotDoubled` (asserts `strings.Count(err.Error(), "already exists") == 1`) and `TestApplyWrapsTagCheckFailure` (deletes `.git` after `BuildPlan`, asserts the real-run error now contains `"checking tag"`) to `internal/release/release_test.go`. RED confirmed for both (doubled text counted 2; bare git error had no "checking tag" context). Fixed: `CheckTagCollision`'s sentinel wrap changed from `"tag %s already exists: %w"` to `"tag %s: %w"` (relies on `ErrTagExists`'s own text for the phrase, no repetition); `Apply` now distinguishes the sentinel case (`errors.Is(err, ErrTagExists)`, returned as-is) from a real `HasTag` failure (wrapped as `fmt.Errorf("checking tag %s: %w", name, err)`), giving the real-run path the same contextual clarity the dry-run path already had. GREEN confirmed: both new tests pass, `TestApplyRefusesDuplicateTag`/`TestCheckTagCollision*`/`TestDryRunPreview*` all still pass, full `go test ./... -race` green, `go build`/`go vet`/`gofmt -l .` clean. Files touched: `internal/release/release.go`, `internal/release/release_test.go`.
+
 ## Progress
 - Committing directly to `main` per this session's established pattern (user preference, confirmed: PRs only for repos that aren't their own).
-- RDD (receipt-driven development) is on for this repo — expect the same consent/4-lens review cycle as the prior features this session before this can be reported done.
-- T1 implemented and fully verified this session (see task entry above for RED/GREEN evidence and exact verification output); left uncommitted for the orchestrator's diff review, per this task's own instructions.
+- RDD (receipt-driven development) is on for this repo — every commit this session went through the consent/4-lens review cycle; T1's commit was reviewed and approved (3 lenses independently caught the message-doubling regression above, fixed post-approval in a follow-up commit).
+- T1 implemented, fully verified, committed, and RDD-approved. The follow-up fix above is implemented and verified, pending its own commit + review cycle.
 
 ## Next step
 T1's diff is ready for the orchestrator to review and commit. Remaining after that:

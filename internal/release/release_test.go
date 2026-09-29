@@ -765,6 +765,64 @@ func TestApplyRefusesDuplicateTag(t *testing.T) {
 	}
 }
 
+// TestApplyCollisionErrorNotDoubled guards against CheckTagCollision's
+// sentinel-wrapping repeating "already exists" (once from the wrap, once
+// from ErrTagExists's own text) in the message a real (non-dry-run) release
+// actually surfaces to the user.
+func TestApplyCollisionErrorNotDoubled(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.3.2")
+	commit(t, dir, "feat: thing")
+
+	cfg := config.Default("x")
+	disabled := false
+	cfg.Release.Changelog = &disabled
+	p, err := BuildPlan(r, cfg, Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag(t, dir, "v1.4.0") // pre-create the target
+
+	_, err = p.Apply(r)
+	if err == nil {
+		t.Fatal("Apply returned nil, want a collision error")
+	}
+	if n := strings.Count(err.Error(), "already exists"); n != 1 {
+		t.Errorf("err = %q, want exactly one \"already exists\", got %d", err, n)
+	}
+}
+
+// TestApplyWrapsTagCheckFailure guards against a real (non-dry-run) release
+// surfacing a bare, context-free error when CheckTagCollision's underlying
+// repo.HasTag call fails for a reason other than a collision (e.g. a
+// corrupted or inaccessible .git directory) -- mirrors
+// TestDryRunPreviewWrapsTagCheckFailure's coverage of the same failure mode
+// on the dry-run path.
+func TestApplyWrapsTagCheckFailure(t *testing.T) {
+	dir, r := newRepo(t)
+	commit(t, dir, "chore: init")
+	tag(t, dir, "v1.3.2")
+	commit(t, dir, "feat: thing")
+
+	p, err := BuildPlan(r, config.Default("x"), Options{Now: fixedNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.RemoveAll(filepath.Join(dir, ".git")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Apply(r)
+	if err == nil {
+		t.Fatal("Apply returned nil, want an error (the .git directory is gone)")
+	}
+	if !strings.Contains(err.Error(), "checking tag") {
+		t.Errorf("err = %q, want context about checking the tag", err)
+	}
+}
+
 func TestCheckTagCollisionDetectsExistingTag(t *testing.T) {
 	dir, r := newRepo(t)
 	commit(t, dir, "chore: init")
