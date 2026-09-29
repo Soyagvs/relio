@@ -71,7 +71,10 @@ Fixed with TDD (orchestrator, direct): added `TestApplyCollisionErrorNotDoubled`
 ## Progress
 - Committing directly to `main` per this session's established pattern (user preference, confirmed: PRs only for repos that aren't their own).
 - RDD (receipt-driven development) is on for this repo — every commit this session went through the consent/4-lens review cycle; T1's commit was reviewed and approved (3 lenses independently caught the message-doubling regression above, fixed post-approval in a follow-up commit).
-- T1 implemented, fully verified, committed, and RDD-approved. The follow-up fix above is implemented and verified, pending its own commit + review cycle.
+- T1 implemented, fully verified, committed, and RDD-approved. The follow-up fix above is implemented, verified, committed, and RDD-approved (6 non-blocking readability/resilience/reliability findings, none CRITICAL — doc-comment accuracy nits and a duplicated `TagName()` call, no real defects this round). Both commits ahead of `origin/main`, unpushed.
+
+## Next step
+Batch complete. Awaiting user decision on pushing, then move to the "grande" items: `releases list/delete`, upload retry/progress, and the self-update approach (user deferred that decision earlier — asked to do small work first).
 
 ## Next step
 T1's diff is ready for the orchestrator to review and commit. Remaining after that:
