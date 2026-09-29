@@ -77,9 +77,20 @@ Remaining items from the TUI gap analysis + the deferred self-update decision, b
 - `relio image` retries a failed upload (litterbox/catbox) with backoff and prints visible progress instead of silently hanging for up to 45s per host.
 - `go build`, `go vet`, `gofmt -l .`, `go test ./... -race`, `golangci-lint run ./...` all clean.
 
+## Follow-up fix (RDD 4-lens review, reliability lens, CRITICAL R4-upload-retry-latency — commit pending)
+The combined T1+T2+T3 review's reliability lens flagged `internal/upload`'s new retry logic: `Upload` was called from `cmd/image.go` with `context.Background()` (no deadline), so `maxAttempts=3` at up to 45s per attempt, across 2 hosts, could hang up to ~4.7 minutes with nothing to stop it. Two compounding bugs: (1) a progress-line write failure aborted the whole retry loop instead of being treated as cosmetic; (2) retrying a non-idempotent POST risks a duplicate upload if a response is lost after the server already stored the file.
+
+Fixed with TDD (orchestrator, direct):
+1. **Bounded total time**: added `overallTimeout` (90s default, package var for tests) — `Upload` now wraps its own context with `context.WithTimeout(ctx, overallTimeout)` regardless of what the caller passes, so it self-bounds even against `context.Background()`. A caller-supplied shorter deadline still wins (`context.WithTimeout` always honours the earlier of the two — verified by `TestUploadCallerDeadlineShorterThanOverallTimeoutWins`). New tests: `TestUploadBoundsTotalTimeEvenWithBackgroundContext`, `TestUploadCallerDeadlineShorterThanOverallTimeoutWins`.
+2. **Progress-write failure no longer aborts retry**: the `fmt.Fprintln(progress, ...)` error is now deliberately discarded (`_, _ = ...`) instead of returned. New test: `TestUploadProgressWriteFailureDoesNotAbortRetry` (a writer that always errors; verifies the retry still completes and succeeds).
+3. **Duplicate-upload risk — accepted tradeoff, not "fixed"**: considered restricting retries to transport-level errors only (never retry after any HTTP response was received), which would reduce this risk — but rejected it: the existing, already-tested retry behavior (`TestUploadRetriesOnFailureThenSucceeds`, `TestUploadFallsBackToCatboxAfterLitterboxExhausted`) deliberately retries on an ordinary non-2xx response (litterbox/catbox's own transient failures, the retry feature's main reason to exist), and refusing to retry after any response would silently break that intended, already-verified behavior. litterbox/catbox offer no idempotency key, so there's no clean primitive to close this gap without either breaking the feature's purpose or adding disproportionate complexity for a bounded correction. Documented as an explicit, accepted tradeoff in a code comment on `postWithRetry` instead of silently leaving it unexplained.
+
+RED confirmed: `overallTimeout` undefined (compile failure) before the fix. GREEN confirmed: all 3 new tests pass, all 8 pre-existing `internal/upload` tests still pass unchanged, full `go test ./... -race` green, `go build`/`go vet`/`gofmt -l .` clean, `golangci-lint` shows only the same 5 pre-existing unrelated `errcheck` findings. Files touched: `internal/upload/upload.go`, `internal/upload/upload_test.go`.
+
 ## Progress
 - Committing directly to `main` per this session's established pattern.
 - RDD is on — expect the same consent/review cycle per commit as every prior feature this session. Lesson learned this session: don't commit anything else while a review is still in flight for another candidate, to avoid `review recover` cycles.
+- T1, T2, T3 implemented (3 parallel writers), verified, committed as 3 separate commits, and put through one combined RDD review (1678 lines, high risk, 4 lenses — one lens transiently failed on a provider session-limit error and was retried successfully). The reliability lens's one CRITICAL finding (above) is fixed and pending its own commit + review round.
 
 ## Next step
-Delegate T1, T2, T3 to three parallel writers (strict TDD). Review each diff, commit each separately (or together if all land cleanly and no review is mid-flight), run through RDD. Then T4 docs.
+Commit the upload latency/progress-write follow-up fix, re-enter RDD review, then T4 docs. Then ask the user about pushing everything.

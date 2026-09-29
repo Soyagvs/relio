@@ -239,6 +239,110 @@ func TestUploadReturnsPromptlyOnContextCancellationDuringBackoff(t *testing.T) {
 	}
 }
 
+// withOverallTimeout sets overallTimeout for the duration of a test and
+// restores it afterward, so the bound can be shrunk without burning real
+// wall-clock time.
+func withOverallTimeout(t *testing.T, d time.Duration) {
+	t.Helper()
+	saved := overallTimeout
+	overallTimeout = d
+	t.Cleanup(func() { overallTimeout = saved })
+}
+
+// TestUploadBoundsTotalTimeEvenWithBackgroundContext guards against Upload
+// hanging for minutes when the caller passes a context with no deadline of
+// its own (cmd/image.go currently calls it with context.Background()) --
+// retrying every host up to maxAttempts times at up to 45s per attempt could
+// otherwise take several minutes with nothing to stop it.
+func TestUploadBoundsTotalTimeEvenWithBackgroundContext(t *testing.T) {
+	withRetryBackoff(t, 5*time.Second)
+	withOverallTimeout(t, 50*time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer failing.Close()
+	withHosts(t, failing.URL, failing.URL)
+
+	start := time.Now()
+	_, err := Upload(context.Background(), path, io.Discard)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed > 1*time.Second {
+		t.Errorf("Upload took %v with context.Background() and no caller deadline, want well under 1s given overallTimeout", elapsed)
+	}
+}
+
+// TestUploadCallerDeadlineShorterThanOverallTimeoutWins guards against the
+// internal overallTimeout silently overriding a shorter deadline the caller
+// already supplied.
+func TestUploadCallerDeadlineShorterThanOverallTimeoutWins(t *testing.T) {
+	withRetryBackoff(t, 5*time.Second)
+	withOverallTimeout(t, time.Minute) // deliberately much longer than the caller's own deadline below
+	path := writeTemp(t, "PNGDATA")
+
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer failing.Close()
+	withHosts(t, failing.URL, failing.URL)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := Upload(ctx, path, io.Discard)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed > 1*time.Second {
+		t.Errorf("Upload took %v, want the caller's shorter 20ms deadline to win over the 1-minute overallTimeout", elapsed)
+	}
+}
+
+// TestUploadProgressWriteFailureDoesNotAbortRetry guards against a cosmetic
+// I/O error on the progress writer (e.g. a broken stdout pipe) turning into
+// a hard abort of the substantive network operation.
+func TestUploadProgressWriteFailureDoesNotAbortRetry(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&hits, 1)
+		if n < 2 {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("https://litter.example/ok.png"))
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	url, err := Upload(context.Background(), path, alwaysErrorWriter{})
+	if err != nil {
+		t.Fatalf("Upload: %v, want it to succeed despite the progress writer failing", err)
+	}
+	if url != "https://litter.example/ok.png" {
+		t.Errorf("url = %q", url)
+	}
+	if got := atomic.LoadInt32(&hits); got != 2 {
+		t.Errorf("requests = %d, want 2 (the retry must still have happened)", got)
+	}
+}
+
+type alwaysErrorWriter struct{}
+
+func (alwaysErrorWriter) Write([]byte) (int, error) {
+	return 0, errors.New("broken pipe")
+}
+
 func TestUploadRetryProgressMessageFormat(t *testing.T) {
 	withRetryBackoff(t, time.Millisecond)
 	path := writeTemp(t, "PNGDATA")

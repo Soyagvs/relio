@@ -40,6 +40,15 @@ const maxAttempts = 3
 // avoid burning real wall-clock time, matching ui.introFrameDelay.
 var retryBackoff = 2 * time.Second
 
+// overallTimeout bounds the total time Upload spends across every host and
+// retry attempt combined, regardless of what deadline (if any) the caller's
+// own context carries. Without this, a caller passing context.Background()
+// (as cmd/image.go does) combined with maxAttempts retries at up to 45s each
+// per host could hang for minutes with nothing to stop it. It's a package
+// var so tests can shrink it; a caller-supplied shorter deadline still wins,
+// since context.WithTimeout always honours the earlier of the two.
+var overallTimeout = 90 * time.Second
+
 // Upload sends path to a host and returns a URL. It tries litterbox (temporary,
 // 72h) first, then catbox (permanent) as a fallback, retrying each host up to
 // maxAttempts times with a backoff delay between attempts. progress receives
@@ -48,6 +57,8 @@ var retryBackoff = 2 * time.Second
 // attempts and short-circuits the remaining hosts. The error names every host
 // that failed.
 func Upload(ctx context.Context, path string, progress io.Writer) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, overallTimeout)
+	defer cancel()
 	if progress == nil {
 		progress = io.Discard
 	}
@@ -78,13 +89,25 @@ func Upload(ctx context.Context, path string, progress io.Writer) (string, error
 // printing a progress line to progress and sleeping a cancellable backoff
 // between attempts. It returns the last error once attempts are exhausted, or
 // ctx's error if ctx is done during a backoff wait.
+//
+// Accepted tradeoff: the retried request (post) is not idempotent, and
+// litterbox/catbox offer no idempotency key. If a request's response is lost
+// after the server already stored the file (a timeout on the read, say), the
+// next retry can create a duplicate, orphaned upload. Retrying is still
+// deliberately on by default here because these hosts' own transient
+// failures (observed as an ordinary non-2xx response) are the common case
+// this exists to smooth over, and refusing to retry after any response would
+// defeat that -- the residual duplicate risk is a known, accepted tradeoff of
+// retrying against a non-idempotent third-party API with no better primitive
+// to reach for.
 func postWithRetry(ctx context.Context, progress io.Writer, name, host, fileField, path string, fields map[string]string) (string, error) {
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if attempt > 1 {
-			if _, werr := fmt.Fprintln(progress, i18n.T(i18n.UploadRetrying, name, attempt, maxAttempts)); werr != nil {
-				return "", werr
-			}
+			// A failure writing the progress line (a broken pipe, say) is
+			// cosmetic -- it must not abort the substantive network
+			// operation, so its error is deliberately discarded.
+			_, _ = fmt.Fprintln(progress, i18n.T(i18n.UploadRetrying, name, attempt, maxAttempts))
 		}
 		url, err := post(ctx, host, fileField, path, fields)
 		if err == nil {
