@@ -14,14 +14,16 @@ type TagDeleter interface {
 	DeleteTag(name string) error
 }
 
-// ChangelogWriteError wraps a failure writing the changelog after the git tag
-// was already deleted, so callers can render "tag deleted, but the changelog
-// write failed" differently from a tag-deletion failure (where nothing
-// changed at all).
-type ChangelogWriteError struct{ Err error }
+// ChangelogError wraps a failure reading or writing the changelog after the
+// git tag was already deleted, so callers can render "tag deleted, but the
+// changelog step failed" differently from a tag-deletion failure (where
+// nothing changed at all) — and, critically, know that the tag is already
+// gone and any cached list of tags must be refreshed even though this call
+// returned an error.
+type ChangelogError struct{ Err error }
 
-func (e *ChangelogWriteError) Error() string { return e.Err.Error() }
-func (e *ChangelogWriteError) Unwrap() error { return e.Err }
+func (e *ChangelogError) Error() string { return e.Err.Error() }
+func (e *ChangelogError) Unwrap() error { return e.Err }
 
 // Delete deletes the given tag and, when changelogPath has a matching
 // "## [version]" section, removes that section too. It is the single
@@ -42,7 +44,7 @@ func Delete(repo TagDeleter, changelogPath, version string) (changelogRemoved bo
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, err
+		return false, &ChangelogError{Err: err}
 	}
 
 	content := string(data)
@@ -52,7 +54,7 @@ func Delete(repo TagDeleter, changelogPath, version string) (changelogRemoved bo
 
 	updated := changelog.RemoveSection(content, version)
 	if err := os.WriteFile(changelogPath, []byte(updated), 0o644); err != nil {
-		return false, &ChangelogWriteError{Err: err}
+		return false, &ChangelogError{Err: err}
 	}
 	return true, nil
 }

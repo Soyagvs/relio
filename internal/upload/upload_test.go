@@ -239,14 +239,14 @@ func TestUploadReturnsPromptlyOnContextCancellationDuringBackoff(t *testing.T) {
 	}
 }
 
-// withOverallTimeout sets overallTimeout for the duration of a test and
+// withPerHostTimeout sets perHostTimeout for the duration of a test and
 // restores it afterward, so the bound can be shrunk without burning real
 // wall-clock time.
-func withOverallTimeout(t *testing.T, d time.Duration) {
+func withPerHostTimeout(t *testing.T, d time.Duration) {
 	t.Helper()
-	saved := overallTimeout
-	overallTimeout = d
-	t.Cleanup(func() { overallTimeout = saved })
+	saved := perHostTimeout
+	perHostTimeout = d
+	t.Cleanup(func() { perHostTimeout = saved })
 }
 
 // TestUploadBoundsTotalTimeEvenWithBackgroundContext guards against Upload
@@ -256,7 +256,7 @@ func withOverallTimeout(t *testing.T, d time.Duration) {
 // otherwise take several minutes with nothing to stop it.
 func TestUploadBoundsTotalTimeEvenWithBackgroundContext(t *testing.T) {
 	withRetryBackoff(t, 5*time.Second)
-	withOverallTimeout(t, 50*time.Millisecond)
+	withPerHostTimeout(t, 20*time.Millisecond)
 	path := writeTemp(t, "PNGDATA")
 
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -269,20 +269,20 @@ func TestUploadBoundsTotalTimeEvenWithBackgroundContext(t *testing.T) {
 	_, err := Upload(context.Background(), path, io.Discard)
 	elapsed := time.Since(start)
 
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	if err == nil {
+		t.Fatal("expected an error when both hosts exhaust their per-host budget")
 	}
 	if elapsed > 1*time.Second {
-		t.Errorf("Upload took %v with context.Background() and no caller deadline, want well under 1s given overallTimeout", elapsed)
+		t.Errorf("Upload took %v with context.Background() and no caller deadline, want well under 1s given perHostTimeout", elapsed)
 	}
 }
 
-// TestUploadCallerDeadlineShorterThanOverallTimeoutWins guards against the
-// internal overallTimeout silently overriding a shorter deadline the caller
+// TestUploadCallerDeadlineShorterThanPerHostTimeoutWins guards against the
+// internal perHostTimeout silently overriding a shorter deadline the caller
 // already supplied.
-func TestUploadCallerDeadlineShorterThanOverallTimeoutWins(t *testing.T) {
+func TestUploadCallerDeadlineShorterThanPerHostTimeoutWins(t *testing.T) {
 	withRetryBackoff(t, 5*time.Second)
-	withOverallTimeout(t, time.Minute) // deliberately much longer than the caller's own deadline below
+	withPerHostTimeout(t, time.Minute) // deliberately much longer than the caller's own deadline below
 	path := writeTemp(t, "PNGDATA")
 
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +302,74 @@ func TestUploadCallerDeadlineShorterThanOverallTimeoutWins(t *testing.T) {
 		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
 	}
 	if elapsed > 1*time.Second {
-		t.Errorf("Upload took %v, want the caller's shorter 20ms deadline to win over the 1-minute overallTimeout", elapsed)
+		t.Errorf("Upload took %v, want the caller's shorter 20ms deadline to win over the 1-minute perHostTimeout", elapsed)
+	}
+}
+
+// TestUploadPerHostBudgetDoesNotStarveFallback is the regression test for
+// the CRITICAL finding: a single global time budget shared across both
+// hosts let a slow-but-responsive first host alone consume the whole
+// budget, so catbox never got a real chance -- defeating the fallback the
+// retry feature exists to provide. With a per-host budget, litterbox
+// exhausting its own share must still leave catbox free to try (and here,
+// succeed).
+func TestUploadPerHostBudgetDoesNotStarveFallback(t *testing.T) {
+	withRetryBackoff(t, 5*time.Second) // long enough that only the per-host deadline (not a retry) explains litterbox stopping
+	withPerHostTimeout(t, 30*time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	// litterbox hangs past its own per-host budget on every request. block
+	// must close before litterSrv.Close() runs (Close waits for in-flight
+	// handlers to return), so this defer is declared after litterSrv's —
+	// defers run LIFO, so close(block) fires first.
+	block := make(chan struct{})
+	litterSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-block
+	}))
+	defer litterSrv.Close()
+	defer close(block)
+
+	catSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("https://catbox.example/ok.png"))
+	}))
+	defer catSrv.Close()
+	withHosts(t, litterSrv.URL, catSrv.URL)
+
+	url, err := Upload(context.Background(), path, io.Discard)
+	if err != nil {
+		t.Fatalf("Upload: %v, want catbox to still succeed despite litterbox exhausting its own budget", err)
+	}
+	if url != "https://catbox.example/ok.png" {
+		t.Errorf("url = %q", url)
+	}
+}
+
+// TestUploadBothHostsExhaustedNamesBothInError guards against a per-host
+// timeout swallowing the real failure information: when every host exhausts
+// its own budget, the final error must still name every host (as it already
+// does for an ordinary non-timeout failure), not just report a bare
+// "context deadline exceeded" with no indication of what was tried.
+func TestUploadBothHostsExhaustedNamesBothInError(t *testing.T) {
+	withRetryBackoff(t, 5*time.Second)
+	withPerHostTimeout(t, 20*time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	// block must close before hanging.Close() runs; defers run LIFO, so
+	// declare hanging.Close() first.
+	block := make(chan struct{})
+	hanging := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-block
+	}))
+	defer hanging.Close()
+	defer close(block)
+	withHosts(t, hanging.URL, hanging.URL)
+
+	_, err := Upload(context.Background(), path, io.Discard)
+	if err == nil {
+		t.Fatal("expected an error when every host exhausts its own budget")
+	}
+	if !strings.Contains(err.Error(), "litterbox") || !strings.Contains(err.Error(), "catbox") {
+		t.Errorf("err = %v, want it to name both litterbox and catbox even though both timed out", err)
 	}
 }
 

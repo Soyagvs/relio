@@ -111,10 +111,14 @@ func TestDeleteTagFailurePropagatesRawError(t *testing.T) {
 	}
 }
 
-// TestDeleteReadErrorPropagatesRaw proves a changelog read failure that is
-// NOT "file does not exist" (e.g. the path is a directory) is returned
-// as-is, distinguishing it from the "no changelog file" case above.
-func TestDeleteReadErrorPropagatesRaw(t *testing.T) {
+// TestDeleteReadErrorWrapsError proves a changelog read failure that is NOT
+// "file does not exist" (e.g. the path is a directory) is wrapped in
+// *ChangelogError, the same as a write failure — the tag is already gone at
+// this point, and callers (doDelete) need to be able to tell "the delete
+// itself failed" (raw error, nothing changed) apart from "the tag is gone
+// but the changelog step failed" (ChangelogError, state must be refreshed)
+// regardless of whether that changelog step failed on read or on write.
+func TestDeleteReadErrorWrapsError(t *testing.T) {
 	dir := t.TempDir()
 	// A directory at the changelog path makes os.ReadFile fail with an error
 	// that is not os.IsNotExist.
@@ -128,16 +132,20 @@ func TestDeleteReadErrorPropagatesRaw(t *testing.T) {
 	if err == nil {
 		t.Fatal("Delete err = nil, want non-nil when the changelog path is a directory")
 	}
-	var cwErr *ChangelogWriteError
-	if errors.As(err, &cwErr) {
-		t.Errorf("Delete err should not be a ChangelogWriteError for a read failure, got %v", err)
+	var cErr *ChangelogError
+	if !errors.As(err, &cErr) {
+		t.Fatalf("Delete err = %v (%T), want a *ChangelogError", err, err)
+	}
+	// The tag deletion itself must still have gone through.
+	if len(repo.deleted) != 1 || repo.deleted[0] != "v0.2.0" {
+		t.Errorf("deleted = %v, want [v0.2.0] even though the changelog read failed", repo.deleted)
 	}
 }
 
 // TestDeleteChangelogWriteFailureWrapsError proves a failure writing the
 // updated changelog — after the tag was already deleted — is wrapped in
-// ChangelogWriteError so callers can render it distinctly from a
-// tag-deletion failure.
+// ChangelogError so callers can render it distinctly from a tag-deletion
+// failure.
 func TestDeleteChangelogWriteFailureWrapsError(t *testing.T) {
 	dir := t.TempDir()
 	path := writeDeleteFixture(t, dir)
@@ -154,9 +162,9 @@ func TestDeleteChangelogWriteFailureWrapsError(t *testing.T) {
 	if changelogRemoved {
 		t.Error("changelogRemoved = true, want false when the write failed")
 	}
-	var cwErr *ChangelogWriteError
-	if !errors.As(err, &cwErr) {
-		t.Fatalf("Delete err = %v (%T), want a *ChangelogWriteError", err, err)
+	var cErr *ChangelogError
+	if !errors.As(err, &cErr) {
+		t.Fatalf("Delete err = %v (%T), want a *ChangelogError", err, err)
 	}
 	// The tag deletion itself must still have gone through.
 	if len(repo.deleted) != 1 || repo.deleted[0] != "v0.2.0" {

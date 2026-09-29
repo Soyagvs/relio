@@ -158,9 +158,9 @@ func (m model) doDelete() model {
 
 	changelogRemoved, err := Delete(m.repo, m.changelogPath, tag.Name)
 	if err != nil {
-		var cwErr *ChangelogWriteError
-		if errors.As(err, &cwErr) {
-			m.err = i18n.T(i18n.ReleasesChangelogWriteError, cwErr.Err)
+		var cErr *ChangelogError
+		if errors.As(err, &cErr) {
+			m.err = i18n.T(i18n.ReleasesChangelogWriteError, cErr.Err)
 			m.reload()
 		} else {
 			m.err = err.Error()

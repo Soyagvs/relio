@@ -40,25 +40,29 @@ const maxAttempts = 3
 // avoid burning real wall-clock time, matching ui.introFrameDelay.
 var retryBackoff = 2 * time.Second
 
-// overallTimeout bounds the total time Upload spends across every host and
-// retry attempt combined, regardless of what deadline (if any) the caller's
-// own context carries. Without this, a caller passing context.Background()
-// (as cmd/image.go does) combined with maxAttempts retries at up to 45s each
-// per host could hang for minutes with nothing to stop it. It's a package
-// var so tests can shrink it; a caller-supplied shorter deadline still wins,
-// since context.WithTimeout always honours the earlier of the two.
-var overallTimeout = 90 * time.Second
+// perHostTimeout bounds the time Upload spends on a single host — every
+// attempt and backoff wait against it combined — regardless of what deadline
+// (if any) the caller's own context carries. Without this, a caller passing
+// context.Background() (as cmd/image.go does) combined with maxAttempts
+// retries at up to 45s each could hang for minutes with nothing to stop it.
+// The bound is applied per host, not once across the whole call: a single
+// global budget would let a slow-but-responsive first host alone consume it,
+// starving the second host of the real chance the fallback exists to give
+// it. It's a package var so tests can shrink it; a caller-supplied shorter
+// deadline still wins, since context.WithTimeout always honours the earlier
+// of the two.
+var perHostTimeout = 60 * time.Second
 
 // Upload sends path to a host and returns a URL. It tries litterbox (temporary,
 // 72h) first, then catbox (permanent) as a fallback, retrying each host up to
-// maxAttempts times with a backoff delay between attempts. progress receives
-// one line per retry (nothing for a host's first attempt); a nil progress is
-// safe and simply discards the lines. ctx cancellation aborts a wait between
-// attempts and short-circuits the remaining hosts. The error names every host
-// that failed.
+// maxAttempts times with a backoff delay between attempts, each host bounded
+// by its own perHostTimeout. progress receives one line per retry (nothing
+// for a host's first attempt); a nil progress is safe and simply discards
+// the lines. Cancelling ctx itself (as opposed to one host's own budget
+// expiring) aborts immediately and short-circuits the remaining hosts. The
+// error names every host that failed, including one that failed because its
+// own per-host budget ran out.
 func Upload(ctx context.Context, path string, progress io.Writer) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, overallTimeout)
-	defer cancel()
 	if progress == nil {
 		progress = io.Discard
 	}
@@ -73,10 +77,15 @@ func Upload(ctx context.Context, path string, progress io.Writer) (string, error
 
 	var failed []string
 	for _, a := range attempts {
-		url, err := postWithRetry(ctx, progress, a.name, a.host, "fileToUpload", path, a.fields)
+		hostCtx, cancel := context.WithTimeout(ctx, perHostTimeout)
+		url, err := postWithRetry(hostCtx, progress, a.name, a.host, "fileToUpload", path, a.fields)
+		cancel()
 		if err == nil {
 			return url, nil
 		}
+		// ctx (not hostCtx, which cancel() just ended regardless) tells us
+		// whether the caller itself is done -- as opposed to just this
+		// host's own budget running out, which must not abort the loop.
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}

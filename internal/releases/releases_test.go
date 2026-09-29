@@ -260,6 +260,39 @@ func TestDoDeleteTagFailureLeavesTagsUntouched(t *testing.T) {
 	}
 }
 
+// TestDoDeleteReloadsAfterChangelogReadError guards against the tag list
+// going stale in the TUI: when the tag is deleted successfully but the
+// subsequent changelog read fails for a reason other than "file does not
+// exist" (e.g. the changelog path is a directory), doDelete must still
+// reload so the browser stops showing the already-deleted tag as present.
+func TestDoDeleteReloadsAfterChangelogReadError(t *testing.T) {
+	fr := &fakeRepo{
+		tags: []gitrepo.TagInfo{
+			{Name: "v0.2.0", Date: "2026-09-06"},
+			{Name: "v0.1.0", Date: "2026-08-01"},
+		},
+	}
+	dir := t.TempDir()
+	// A directory at the changelog path makes the post-delete read fail with
+	// an error that is not os.IsNotExist.
+	asDir := filepath.Join(dir, "CHANGELOG.md")
+	if err := os.Mkdir(asDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m := newModel(fr, "demo", asDir)
+
+	m = send(m, "d", "y")
+	if len(fr.deleted) != 1 || fr.deleted[0] != "v0.2.0" {
+		t.Fatalf("expected v0.2.0 deleted, got %v", fr.deleted)
+	}
+	if m.err == "" {
+		t.Error("m.err should be set when the post-delete changelog read fails")
+	}
+	if len(m.tags) != 1 || m.tags[0].Name != "v0.1.0" {
+		t.Errorf("tags = %+v, want reloaded to just [v0.1.0] -- the tag is already gone even though the changelog step failed", m.tags)
+	}
+}
+
 func TestCtrlCKillsFromConfirmDelete(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)

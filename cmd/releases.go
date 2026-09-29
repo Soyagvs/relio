@@ -206,9 +206,9 @@ func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config
 	changelogPath := filepath.Join(repo.Root(), cfg.Release.ChangelogFile)
 	changelogRemoved, err := releases.Delete(repo, changelogPath, tagName)
 	if err != nil {
-		var cwErr *releases.ChangelogWriteError
-		if errors.As(err, &cwErr) {
-			return fmt.Errorf(i18n.T(i18n.ReleasesChangelogWriteError), cwErr.Err)
+		var cErr *releases.ChangelogError
+		if errors.As(err, &cErr) {
+			return fmt.Errorf(i18n.T(i18n.ReleasesChangelogWriteError), cErr.Err)
 		}
 		return err
 	}
