@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -228,7 +229,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 				return err
 			}
 		}
-		url, uerr := upload.Upload(uploadSrc)
+		url, uerr := upload.Upload(context.Background(), uploadSrc, out)
 		if uerr != nil {
 			if _, err := fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error()); err != nil {
 				return err

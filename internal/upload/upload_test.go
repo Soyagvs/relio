@@ -1,13 +1,18 @@
 package upload
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func writeTemp(t *testing.T, body string) string {
@@ -75,5 +80,190 @@ func TestToPlainRejectsNonURLBody(t *testing.T) {
 
 	if _, err := ToPlain(srv.URL, path); err == nil {
 		t.Fatal("expected error for non-URL body")
+	}
+}
+
+// withRetryBackoff sets retryBackoff for the duration of a test and restores
+// it afterward, so retry tests don't burn real wall-clock time.
+func withRetryBackoff(t *testing.T, d time.Duration) {
+	t.Helper()
+	saved := retryBackoff
+	retryBackoff = d
+	t.Cleanup(func() { retryBackoff = saved })
+}
+
+// withHosts points litterbox and catbox at the given URLs for the duration of
+// a test and restores the real hosts afterward.
+func withHosts(t *testing.T, litter, cat string) {
+	t.Helper()
+	savedLitter, savedCat := litterbox, catbox
+	litterbox, catbox = litter, cat
+	t.Cleanup(func() {
+		litterbox, catbox = savedLitter, savedCat
+	})
+}
+
+func TestUploadRetriesOnFailureThenSucceeds(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	var requests int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&requests, 1)
+		if n < 3 {
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("https://litter.example/ok.png"))
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	var progress strings.Builder
+	url, err := Upload(context.Background(), path, &progress)
+	if err != nil {
+		t.Fatalf("Upload: %v", err)
+	}
+	if url != "https://litter.example/ok.png" {
+		t.Errorf("url = %q", url)
+	}
+	if got := atomic.LoadInt32(&requests); got != 3 {
+		t.Errorf("requests = %d, want 3", got)
+	}
+	out := progress.String()
+	if !strings.Contains(out, "litterbox") || !strings.Contains(out, "2") || !strings.Contains(out, "3") {
+		t.Errorf("progress output = %q, want retry lines mentioning litterbox and attempts 2 and 3", out)
+	}
+	if n := strings.Count(out, "\n"); n != 2 {
+		t.Errorf("progress printed %d lines, want 2 (one per retry, none for the first attempt)", n)
+	}
+}
+
+func TestUploadFallsBackToCatboxAfterLitterboxExhausted(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	var litterHits, catHits int32
+	litterSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&litterHits, 1)
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer litterSrv.Close()
+	catSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&catHits, 1)
+		if n < 2 {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("https://catbox.example/ok.png"))
+	}))
+	defer catSrv.Close()
+	withHosts(t, litterSrv.URL, catSrv.URL)
+
+	var progress strings.Builder
+	url, err := Upload(context.Background(), path, &progress)
+	if err != nil {
+		t.Fatalf("Upload: %v", err)
+	}
+	if url != "https://catbox.example/ok.png" {
+		t.Errorf("url = %q", url)
+	}
+	if got := atomic.LoadInt32(&litterHits); got != 3 {
+		t.Errorf("litterbox hits = %d, want 3 (all attempts exhausted before falling back)", got)
+	}
+	if got := atomic.LoadInt32(&catHits); got != 2 {
+		t.Errorf("catbox hits = %d, want 2", got)
+	}
+	out := progress.String()
+	if !strings.Contains(out, "catbox") {
+		t.Errorf("progress output = %q, want a retry line mentioning catbox", out)
+	}
+}
+
+func TestUploadGivesUpAfterAllHostsExhausted(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer failing.Close()
+	withHosts(t, failing.URL, failing.URL)
+
+	_, err := Upload(context.Background(), path, io.Discard)
+	if err == nil {
+		t.Fatal("expected error when every host is exhausted")
+	}
+	if !strings.Contains(err.Error(), "litterbox") || !strings.Contains(err.Error(), "catbox") {
+		t.Errorf("err = %v, want it to name both litterbox and catbox", err)
+	}
+}
+
+func TestUploadNilProgressWriterIsSafe(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("https://litter.example/ok.png"))
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	if _, err := Upload(context.Background(), path, nil); err != nil {
+		t.Fatalf("Upload with nil progress writer: %v", err)
+	}
+}
+
+func TestUploadReturnsPromptlyOnContextCancellationDuringBackoff(t *testing.T) {
+	withRetryBackoff(t, 5*time.Second)
+	path := writeTemp(t, "PNGDATA")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := Upload(ctx, path, io.Discard)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed > 1*time.Second {
+		t.Errorf("Upload took %v to return after ctx cancellation, want well under 1s", elapsed)
+	}
+}
+
+func TestUploadRetryProgressMessageFormat(t *testing.T) {
+	withRetryBackoff(t, time.Millisecond)
+	path := writeTemp(t, "PNGDATA")
+
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&hits, 1)
+		if n < 2 {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("https://litter.example/ok.png"))
+	}))
+	defer srv.Close()
+	withHosts(t, srv.URL, "http://catbox.invalid")
+
+	var progress strings.Builder
+	if _, err := Upload(context.Background(), path, &progress); err != nil {
+		t.Fatalf("Upload: %v", err)
+	}
+	line := strings.TrimSpace(progress.String())
+	if !strings.Contains(line, "litterbox") {
+		t.Errorf("progress line = %q, want it to name the host", line)
+	}
+	if !strings.Contains(line, strconv.Itoa(2)) || !strings.Contains(line, strconv.Itoa(maxAttempts)) {
+		t.Errorf("progress line = %q, want it to show attempt 2 of %d", line, maxAttempts)
 	}
 }
