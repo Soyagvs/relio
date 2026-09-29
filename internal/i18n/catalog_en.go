@@ -185,7 +185,10 @@ var en = map[MessageID]string{
 
 	VersionInfoLine:        "%s %s (commit %s, built %s)\n",
 	VersionShort:           "Print the Relio version",
-	VersionUpdateAvailable: "▲ v%s available — brew upgrade relio",
+	VersionUpdateAvailable: "▲ v%s available",
+
+	UpdateHintBrew:   "Run `brew upgrade relio` to update.",
+	UpdateHintManual: "See https://github.com/soyagvs/relio/blob/main/docs/install.md to update.",
 
 	HelpSectionCommands:     "Commands",
 	HelpSectionReleaseFlags: "Release flags",
@@ -337,6 +340,16 @@ var en = map[MessageID]string{
 	ReleasesEditDone:       "%s updated",
 	ReleasesEditCommitHint: "review the diff and commit when ready (git add %[1]s && git commit)",
 
+	ReleasesListShort: "List every local release tag",
+	ReleasesListEmpty: "No releases yet.",
+
+	ReleasesDeleteShort: "Delete a local release tag and its changelog section",
+	ReleasesDeleteLong:  "Deletes the local git tag and its matching CHANGELOG.md section. It does not touch the GitHub Release or push anything — that stays manual.",
+
+	ReleasesDeleteFlagYesUsage:  "skip the confirmation prompt",
+	ReleasesDeleteNoSuchTag:     "no release tag for version %s",
+	ReleasesDeleteConfirmPrompt: "Delete %s? This removes the local git tag and its changelog section.  [y/N] ",
+
 	StatsShort: "Show Relio's public download and GitHub stats",
 	StatsLong: "Read-only public statistics from the GitHub REST API: release asset\n" +
 		"download counts, per-release and per-platform breakdowns, stars and forks.\n\n" +
@@ -433,4 +446,6 @@ var en = map[MessageID]string{
 	ImageDestSaveDesc:  "Write it to %s",
 	ImageDestLinkLabel: "Download link only",
 	ImageDestLinkDesc:  "Upload for a QR + link — nothing written to disk",
+
+	UploadRetrying: "retrying upload to %s (attempt %d/%d)...",
 }

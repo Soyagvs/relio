@@ -1,6 +1,7 @@
 package releases
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,10 +17,11 @@ import (
 )
 
 type fakeRepo struct {
-	tags     []gitrepo.TagInfo
-	messages map[string]string
-	commits  map[string][]conventional.Raw // keyed by "to" tag name
-	deleted  []string
+	tags      []gitrepo.TagInfo
+	messages  map[string]string
+	commits   map[string][]conventional.Raw // keyed by "to" tag name
+	deleted   []string
+	deleteErr error // when set, DeleteTag returns this instead of mutating tags
 }
 
 func (f *fakeRepo) Tags() ([]gitrepo.TagInfo, error) { return f.tags, nil }
@@ -31,6 +33,9 @@ func (f *fakeRepo) CommitsBetween(from, to string) ([]conventional.Raw, error) {
 }
 
 func (f *fakeRepo) DeleteTag(name string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
 	f.deleted = append(f.deleted, name)
 	out := f.tags[:0]
 	for _, t := range f.tags {
@@ -231,6 +236,27 @@ func TestCtrlCKills(t *testing.T) {
 	m = send(m, "ctrl+c")
 	if !m.quit || !m.killed {
 		t.Fatalf("ctrl+c should set quit and killed, got quit=%v killed=%v", m.quit, m.killed)
+	}
+}
+
+// TestDoDeleteTagFailureLeavesTagsUntouched is the model-level regression
+// counterpart to TestDeleteTagFailurePropagatesRawError (delete_test.go): a
+// failure deleting the tag surfaces as m.err (the raw error text, matching
+// the pre-extraction behavior) and never removes the tag from the list.
+func TestDoDeleteTagFailureLeavesTagsUntouched(t *testing.T) {
+	fr, path := setup(t)
+	fr.deleteErr = errors.New("boom")
+	m := newModel(fr, "demo", path)
+
+	m = send(m, "d", "y")
+	if m.err != "boom" {
+		t.Errorf("m.err = %q, want %q", m.err, "boom")
+	}
+	if len(m.tags) != 2 {
+		t.Errorf("tags = %v, want unchanged (2) after a failed delete", m.tags)
+	}
+	if len(fr.deleted) != 0 {
+		t.Errorf("deleted = %v, want none recorded on failure", fr.deleted)
 	}
 }
 

@@ -222,7 +222,14 @@ const (
 	// Short text and update-available nudge (PR6a).
 	VersionInfoLine        MessageID = "version.info_line" // "%s %s (commit %s, built %s)\n"
 	VersionShort           MessageID = "version.short"
-	VersionUpdateAvailable MessageID = "version.update_available" // "▲ v%s available — brew upgrade relio"
+	VersionUpdateAvailable MessageID = "version.update_available" // "▲ v%s available"
+
+	// InstallHint (internal/update.InstallHint) — the upgrade command printed
+	// alongside VersionUpdateAvailable / BannerUpdateAvailable, chosen by
+	// detecting whether the running binary lives under a Homebrew/Linuxbrew
+	// Cellar. Never replaces the binary itself -- see internal/update.
+	UpdateHintBrew   MessageID = "update.hint_brew"   // "Run `brew upgrade relio` to update."
+	UpdateHintManual MessageID = "update.hint_manual" // "See <install docs> to update."
 
 	// Help reference screen (cmd/help.go): section headers, the footer line,
 	// and every row's description. Row *names* (command syntax, flag
@@ -419,6 +426,22 @@ const (
 	ReleasesEditDone       MessageID = "releases.edit_done"        // "%s updated"
 	ReleasesEditCommitHint MessageID = "releases.edit_commit_hint" // "review the diff and commit when ready (git add %[1]s && git commit)"
 
+	// `releases list` / `releases delete` (cmd/releases.go): Short/Long text,
+	// the --yes flag usage, the confirmation prompt, and the no-such-tag
+	// error. Both subcommands reuse ReleasesDeleteCancelled, ReleasesDeleted,
+	// ReleasesRemovedTag, ReleasesRemovedTagAndChangelog and
+	// ReleasesChangelogWriteError above — the CLI mirrors the TUI's delete
+	// exactly, so its outcome messages are shared, not duplicated.
+	ReleasesListShort MessageID = "releases.list_short"
+	ReleasesListEmpty MessageID = "releases.list_empty"
+
+	ReleasesDeleteShort MessageID = "releases.delete_short"
+	ReleasesDeleteLong  MessageID = "releases.delete_long"
+
+	ReleasesDeleteFlagYesUsage  MessageID = "releases.delete_flag_yes_usage"
+	ReleasesDeleteNoSuchTag     MessageID = "releases.delete_no_such_tag"    // "no release tag for version %s"
+	ReleasesDeleteConfirmPrompt MessageID = "releases.delete_confirm_prompt" // "Delete %s? This removes the local git tag and its changelog section.  [y/N] "
+
 	// Stats command (cmd/stats.go): Short/Long text, the --repo/--prerelease
 	// flag usage strings, and every literal in renderStats — the header,
 	// section headers, row labels, the prerelease tag suffix, the "N older"
@@ -521,4 +544,9 @@ const (
 	ImageDestSaveDesc  MessageID = "image.dest_save_desc" // "Write it to %s"
 	ImageDestLinkLabel MessageID = "image.dest_link_label"
 	ImageDestLinkDesc  MessageID = "image.dest_link_desc"
+
+	// Upload package (internal/upload/upload.go): the progress line printed
+	// before each retry attempt against a host, while `relio image` waits on
+	// the litterbox/catbox upload.
+	UploadRetrying MessageID = "upload.retrying" // "retrying upload to %s (attempt %d/%d)..."
 )

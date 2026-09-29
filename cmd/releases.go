@@ -14,6 +14,7 @@ import (
 	"github.com/soyagvs/relio/internal/editor"
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/i18n"
+	"github.com/soyagvs/relio/internal/releases"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
@@ -25,6 +26,8 @@ func newReleasesCmd(f *releaseFlags) *cobra.Command {
 		Short: i18n.T(i18n.ReleasesShort),
 	}
 	cmd.AddCommand(newReleasesEditCmd(f))
+	cmd.AddCommand(newReleasesListCmd(f))
+	cmd.AddCommand(newReleasesDeleteCmd(f))
 	return cmd
 }
 
@@ -92,4 +95,127 @@ func runReleasesEdit(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	}
 	_, err = fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ReleasesEditCommitHint, cfg.Release.ChangelogFile)))
 	return err
+}
+
+// newReleasesListCmd builds `relio releases list`, a non-interactive dump of
+// every local tag — the same data source the interactive browser
+// (`internal/releases`, reachable from the main menu) uses, with no GitHub
+// API call.
+func newReleasesListCmd(f *releaseFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: i18n.T(i18n.ReleasesListShort),
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, _, err := openRepoAndConfig(f.dir)
+			if err != nil {
+				return err
+			}
+			return runReleasesList(cmd, repo)
+		},
+	}
+	return cmd
+}
+
+// runReleasesList prints every local tag, newest first, one per line.
+func runReleasesList(cmd *cobra.Command, repo *gitrepo.Repo) error {
+	out := cmd.OutOrStdout()
+
+	tags, err := repo.Tags()
+	if err != nil {
+		return err
+	}
+	if len(tags) == 0 {
+		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.ReleasesListEmpty)))
+		return err
+	}
+	for _, t := range tags {
+		if _, err := fmt.Fprintf(out, "%-12s  %s  %s\n", t.Name, t.Date, t.Subject); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// newReleasesDeleteCmd builds `relio releases delete <version>`, which
+// mirrors exactly what the interactive browser's own delete does: the local
+// git tag and its matching CHANGELOG.md section, and nothing else. The
+// GitHub Release (if one was published) and anything pushed to a remote are
+// deliberately untouched — see ReleasesDeleteLong.
+func newReleasesDeleteCmd(f *releaseFlags) *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "delete <version>",
+		Short: i18n.T(i18n.ReleasesDeleteShort),
+		Long:  i18n.T(i18n.ReleasesDeleteLong),
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, cfg, err := openRepoAndConfig(f.dir)
+			if err != nil {
+				return err
+			}
+			return runReleasesDelete(cmd, repo, cfg, args[0], yes)
+		},
+	}
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, i18n.T(i18n.ReleasesDeleteFlagYesUsage))
+	return cmd
+}
+
+// resolveTagName finds the tag repo.Tags() actually has for version,
+// accepting it with or without a leading "v" (matching how
+// internal/changelog's own section lookup treats the version).
+func resolveTagName(repo *gitrepo.Repo, version string) (string, error) {
+	tags, err := repo.Tags()
+	if err != nil {
+		return "", err
+	}
+	want := strings.TrimPrefix(version, "v")
+	for _, t := range tags {
+		if strings.TrimPrefix(t.Name, "v") == want {
+			return t.Name, nil
+		}
+	}
+	return "", fmt.Errorf(i18n.T(i18n.ReleasesDeleteNoSuchTag), version)
+}
+
+// runReleasesDelete deletes the local tag and its matching changelog
+// section, via the same internal/releases.Delete the interactive browser
+// uses — see that package for the shared two-step implementation. It never
+// touches the remote GitHub Release.
+func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, version string, yes bool) error {
+	out := cmd.OutOrStdout()
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(out, a...)
+		return err
+	}
+
+	tagName, err := resolveTagName(repo, version)
+	if err != nil {
+		return err
+	}
+
+	if !yes {
+		if _, err := fmt.Fprint(out, i18n.T(i18n.ReleasesDeleteConfirmPrompt, tagName)); err != nil {
+			return err
+		}
+		if !readYes(cmd.InOrStdin()) {
+			return writeLine(ui.Info(i18n.T(i18n.ReleasesDeleteCancelled)))
+		}
+	}
+
+	changelogPath := filepath.Join(repo.Root(), cfg.Release.ChangelogFile)
+	changelogRemoved, err := releases.Delete(repo, changelogPath, tagName)
+	if err != nil {
+		var cwErr *releases.ChangelogWriteError
+		if errors.As(err, &cwErr) {
+			return fmt.Errorf(i18n.T(i18n.ReleasesChangelogWriteError), cwErr.Err)
+		}
+		return err
+	}
+
+	removed := i18n.T(i18n.ReleasesRemovedTag)
+	if changelogRemoved {
+		removed = i18n.T(i18n.ReleasesRemovedTagAndChangelog)
+	}
+	return writeLine(ui.Success([]string{i18n.T(i18n.ReleasesDeleted, tagName, removed)}))
 }

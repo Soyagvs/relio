@@ -155,22 +155,23 @@ func (m model) doDelete() model {
 	if !ok {
 		return m
 	}
-	if err := m.repo.DeleteTag(tag.Name); err != nil {
-		m.err = err.Error()
+
+	changelogRemoved, err := Delete(m.repo, m.changelogPath, tag.Name)
+	if err != nil {
+		var cwErr *ChangelogWriteError
+		if errors.As(err, &cwErr) {
+			m.err = i18n.T(i18n.ReleasesChangelogWriteError, cwErr.Err)
+			m.reload()
+		} else {
+			m.err = err.Error()
+		}
 		return m
 	}
 
 	removed := i18n.T(i18n.ReleasesRemovedTag)
-	if m.changelog != "" && changelog.ExtractSection(m.changelog, tag.Name) != "" {
-		updated := changelog.RemoveSection(m.changelog, tag.Name)
-		if err := os.WriteFile(m.changelogPath, []byte(updated), 0o644); err != nil {
-			m.err = i18n.T(i18n.ReleasesChangelogWriteError, err)
-			m.reload()
-			return m
-		}
+	if changelogRemoved {
 		removed = i18n.T(i18n.ReleasesRemovedTagAndChangelog)
 	}
-
 	m.reload()
 	m.status = i18n.T(i18n.ReleasesDeleted, tag.Name, removed)
 	return m

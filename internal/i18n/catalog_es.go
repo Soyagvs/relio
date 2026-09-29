@@ -187,7 +187,10 @@ var es = map[MessageID]string{
 
 	VersionInfoLine:        "%s %s (commit %s, compilado %s)\n",
 	VersionShort:           "Imprime la versión de Relio",
-	VersionUpdateAvailable: "▲ v%s disponible — brew upgrade relio",
+	VersionUpdateAvailable: "▲ v%s disponible",
+
+	UpdateHintBrew:   "Ejecuta `brew upgrade relio` para actualizar.",
+	UpdateHintManual: "Consulta https://github.com/soyagvs/relio/blob/main/docs/install.md para actualizar.",
 
 	HelpSectionCommands:     "Comandos",
 	HelpSectionReleaseFlags: "Opciones de lanzamiento",
@@ -339,6 +342,16 @@ var es = map[MessageID]string{
 	ReleasesEditDone:       "%s actualizado",
 	ReleasesEditCommitHint: "revisá el diff y hacé commit cuando quieras (git add %[1]s && git commit)",
 
+	ReleasesListShort: "Listar cada etiqueta de lanzamiento local",
+	ReleasesListEmpty: "Aún no hay lanzamientos.",
+
+	ReleasesDeleteShort: "Eliminar una etiqueta de lanzamiento local y su sección del historial de cambios",
+	ReleasesDeleteLong:  "Elimina la etiqueta de git local y su sección correspondiente en CHANGELOG.md. No toca el Release de GitHub ni hace push de nada — eso sigue siendo manual.",
+
+	ReleasesDeleteFlagYesUsage:  "omitir la solicitud de confirmación",
+	ReleasesDeleteNoSuchTag:     "no hay ninguna etiqueta de lanzamiento para la versión %s",
+	ReleasesDeleteConfirmPrompt: "¿Eliminar %s? Esto elimina la etiqueta de git local y su sección del historial de cambios.  [y/N] ",
+
 	StatsShort: "Muestra las estadísticas públicas de descargas y de GitHub de Relio",
 	StatsLong: "Estadísticas públicas de solo lectura desde la API REST de GitHub: conteos de\n" +
 		"descargas de assets de lanzamiento, desgloses por lanzamiento y por plataforma,\n" +
@@ -438,4 +451,6 @@ var es = map[MessageID]string{
 	ImageDestSaveDesc:  "Escribirla en %s",
 	ImageDestLinkLabel: "Solo enlace de descarga",
 	ImageDestLinkDesc:  "Subirla para un QR + enlace — no se escribe nada en disco",
+
+	UploadRetrying: "reintentando la subida a %s (intento %d/%d)...",
 }
