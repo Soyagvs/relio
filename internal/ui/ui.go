@@ -17,6 +17,7 @@ import (
 	"github.com/soyagvs/relio/internal/changelog"
 	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/release"
+	"github.com/soyagvs/relio/internal/update"
 )
 
 // Brand palette: orange + purple, red reserved for failures. 256-colour indices
@@ -360,6 +361,7 @@ func Footer(version, available string) string {
 		Dim.Render("   ·   ") + Dim.Render(RepoURL) + "\n")
 	if available != "" {
 		b.WriteString(bannerIndent + Key.Render(i18n.T(i18n.BannerUpdateAvailable, strings.TrimPrefix(available, "v"))) + "\n")
+		b.WriteString(bannerIndent + Dim.Render(update.InstallHint()) + "\n")
 	}
 	return b.String()
 }

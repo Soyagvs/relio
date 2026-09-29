@@ -145,7 +145,11 @@ func TestGoldenEnglishHelpUnchanged(t *testing.T) {
 		}
 	}
 
-	if got := i18n.T(i18n.VersionUpdateAvailable, "1.2.3"); got != "▲ v1.2.3 available — brew upgrade relio" {
+	// The hardcoded "— brew upgrade relio" suffix was removed: it was wrong
+	// for non-Homebrew installs. The install-method-specific hint now comes
+	// from internal/update.InstallHint, rendered on its own line by
+	// renderUpdateNotice (cmd/version.go) and ui.Footer.
+	if got := i18n.T(i18n.VersionUpdateAvailable, "1.2.3"); got != "▲ v1.2.3 available" {
 		t.Errorf("i18n.T(VersionUpdateAvailable, ...) = %q", got)
 	}
 	if got := newVersionCmd().Short; got != "Print the Relio version" {

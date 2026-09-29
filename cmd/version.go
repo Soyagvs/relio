@@ -25,7 +25,7 @@ func newVersionCmd() *cobra.Command {
 			// keep getting a single clean line.
 			if stdoutIsTTY() {
 				if v := update.Available(version); v != "" {
-					if _, err := fmt.Fprintln(w, ui.Key.Render(i18n.T(i18n.VersionUpdateAvailable, v))); err != nil {
+					if _, err := fmt.Fprint(w, renderUpdateNotice(v, update.InstallHint())); err != nil {
 						return err
 					}
 				}
@@ -33,4 +33,14 @@ func newVersionCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// renderUpdateNotice renders the "new version available" line plus the
+// install-method-specific upgrade hint (see internal/update.InstallHint).
+// Kept as a pure function of its already-resolved inputs -- rather than
+// calling update.Available/update.InstallHint itself -- so it's testable
+// without a real TTY or a real running binary.
+func renderUpdateNotice(latest, hint string) string {
+	return ui.Key.Render(i18n.T(i18n.VersionUpdateAvailable, latest)) + "\n" +
+		ui.Dim.Render(hint) + "\n"
 }

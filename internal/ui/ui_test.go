@@ -76,6 +76,30 @@ func TestFooterUpdateNotice(t *testing.T) {
 	}
 }
 
+// TestFooterUpdateNoticeIncludesInstallHint proves the update-available
+// notice also carries the install-method-specific upgrade hint
+// (internal/update.InstallHint), not just the bare "new version" line — the
+// running test binary is never Homebrew-installed, so this deterministically
+// resolves to the manual-install hint.
+func TestFooterUpdateNoticeIncludesInstallHint(t *testing.T) {
+	out := Footer("v1.2.3", "v1.3.0")
+	want := i18n.T(i18n.UpdateHintManual)
+	if !strings.Contains(out, want) {
+		t.Errorf("Footer missing install hint %q:\n%s", want, out)
+	}
+}
+
+// TestFooterNoUpdateNoticeOmitsInstallHint proves the hint only appears
+// alongside an actual update notice, not on every Footer render.
+func TestFooterNoUpdateNoticeOmitsInstallHint(t *testing.T) {
+	out := Footer("v1.2.3", "")
+	for _, unwanted := range []string{i18n.T(i18n.UpdateHintManual), i18n.T(i18n.UpdateHintBrew)} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("Footer with no update available unexpectedly contains hint %q:\n%s", unwanted, out)
+		}
+	}
+}
+
 func TestEyeGlintMoves(t *testing.T) {
 	count := func(g [][]byte, want byte) int {
 		n := 0
