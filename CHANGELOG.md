@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.14.0] - 2026-09-29
+
+### Added
+
+- release: Add --dry-run flag to preview a release with no side effects
+- releases: Add non-interactive list and delete subcommands
+- update: Tell the user the right upgrade command, don't self-install
+- upload: Retry with backoff and visible progress
+
+### Fixed
+
+- Per-host upload budget, refresh TUI state after changelog-read failure
+- auth: Rewrite stale menu Auth screen for device flow
+- release: Report tag collision in --dry-run preview
+- release: Share tag-collision check, i18n dry-run errors, fail fast
+- release: Stop doubling the tag-collision message, add real-run context
+- releases: Recover a stale changelog section after an interrupted delete
+- upload: Bound total retry time, don't abort on progress-write error
+- upload: Raise perHostTimeout to actually fit maxAttempts
+
 ## [1.13.1] - 2026-09-26
 
 ### Fixed
