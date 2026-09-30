@@ -182,6 +182,14 @@ func resolveTagName(repo *gitrepo.Repo, version string) (string, error) {
 // section, via the same internal/releases.Delete the interactive browser
 // uses — see that package for the shared two-step implementation. It never
 // touches the remote GitHub Release.
+//
+// If version has no matching tag but the changelog still carries a section
+// for it, this is treated as an interrupted prior delete (the tag was
+// already removed, but a subsequent changelog failure left the section
+// behind) and recovered by finishing just that step — see
+// recoverStaleChangelogSection. Without this, a retry after such a failure
+// has nothing left for resolveTagName to find and permanently gets "no such
+// version" instead of a way to finish the cleanup.
 func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, version string, yes bool) error {
 	out := cmd.OutOrStdout()
 	writeLine := func(a ...any) error {
@@ -189,8 +197,13 @@ func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config
 		return err
 	}
 
+	changelogPath := filepath.Join(repo.Root(), cfg.Release.ChangelogFile)
+
 	tagName, err := resolveTagName(repo, version)
 	if err != nil {
+		if releases.HasStaleChangelogSection(changelogPath, version) {
+			return recoverStaleChangelogSection(cmd, changelogPath, version, yes)
+		}
 		return err
 	}
 
@@ -203,7 +216,6 @@ func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config
 		}
 	}
 
-	changelogPath := filepath.Join(repo.Root(), cfg.Release.ChangelogFile)
 	changelogRemoved, err := releases.Delete(repo, changelogPath, tagName)
 	if err != nil {
 		var cErr *releases.ChangelogError
@@ -218,4 +230,36 @@ func runReleasesDelete(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config
 		removed = i18n.T(i18n.ReleasesRemovedTagAndChangelog)
 	}
 	return writeLine(ui.Success([]string{i18n.T(i18n.ReleasesDeleted, tagName, removed)}))
+}
+
+// recoverStaleChangelogSection finishes an interrupted `releases delete`:
+// version has no matching git tag (it's already gone), but the changelog
+// still has a section for it. It confirms (unless yes) then removes just
+// that section — the tag side of the original delete already succeeded, so
+// there is nothing left to do there.
+func recoverStaleChangelogSection(cmd *cobra.Command, changelogPath, version string, yes bool) error {
+	out := cmd.OutOrStdout()
+	writeLine := func(a ...any) error {
+		_, err := fmt.Fprintln(out, a...)
+		return err
+	}
+
+	if !yes {
+		if _, err := fmt.Fprint(out, i18n.T(i18n.ReleasesDeleteRecoverConfirmPrompt, version)); err != nil {
+			return err
+		}
+		if !readYes(cmd.InOrStdin()) {
+			return writeLine(ui.Info(i18n.T(i18n.ReleasesDeleteCancelled)))
+		}
+	}
+
+	if _, err := releases.RemoveChangelogSection(changelogPath, version); err != nil {
+		var cErr *releases.ChangelogError
+		if errors.As(err, &cErr) {
+			return fmt.Errorf(i18n.T(i18n.ReleasesChangelogWriteError), cErr.Err)
+		}
+		return err
+	}
+
+	return writeLine(ui.Success([]string{i18n.T(i18n.ReleasesRecoveredStaleChangelog, version)}))
 }

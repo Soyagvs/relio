@@ -350,6 +350,9 @@ var en = map[MessageID]string{
 	ReleasesDeleteNoSuchTag:     "no release tag for version %s",
 	ReleasesDeleteConfirmPrompt: "Delete %s? This removes the local git tag and its changelog section.  [y/N] ",
 
+	ReleasesDeleteRecoverConfirmPrompt: "%s has no tag, but the changelog still has its section (likely left over from an interrupted delete). Remove that section?  [y/N] ",
+	ReleasesRecoveredStaleChangelog:    "Removed the stale changelog section for %s (its tag was already gone).",
+
 	StatsShort: "Show Relio's public download and GitHub stats",
 	StatsLong: "Read-only public statistics from the GitHub REST API: release asset\n" +
 		"download counts, per-release and per-platform breakdowns, stars and forks.\n\n" +

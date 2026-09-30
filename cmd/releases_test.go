@@ -244,6 +244,54 @@ func TestRunReleasesDeleteRemovesTagAndChangelogSection(t *testing.T) {
 	}
 }
 
+// TestRunReleasesDeleteRecoversStaleChangelogSectionWhenTagAlreadyGone
+// guards against a real gap: if a prior `releases delete` removed the tag
+// but failed before cleaning up the changelog (e.g. a transient write
+// failure), resolveTagName can no longer find a tag for that version, so a
+// naive re-run would fail with "no such version" and leave the stale
+// section stuck forever with no tool-mediated way to finish the cleanup.
+func TestRunReleasesDeleteRecoversStaleChangelogSectionWhenTagAlreadyGone(t *testing.T) {
+	dir, r := newStatusRepo(t)
+	releasesTagState(t, dir)
+	releasesWrite(t, dir, "CHANGELOG.md", releasesDeleteChangelogFixture)
+	// Simulate the interrupted-delete state directly: the tag is already
+	// gone, but the changelog section for it was never removed.
+	undoGit(t, dir, "tag", "-d", "v1.1.0")
+
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+	if err := runReleasesDelete(cmd, r, config.Default("proj"), "v1.1.0", true); err != nil {
+		t.Fatalf("runReleasesDelete: %v, want it to recover by finishing the stale changelog cleanup", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dir, "CHANGELOG.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "## [1.1.0]") || strings.Contains(string(got), "New thing") {
+		t.Errorf("stale changelog section not removed:\n%s", got)
+	}
+	if !strings.Contains(string(got), "## [1.0.0]") {
+		t.Errorf("wrong section removed:\n%s", got)
+	}
+}
+
+// TestRunReleasesDeleteNoSuchVersionWhenNothingToRecover proves the
+// recovery path only kicks in when there's actually a stale section to
+// clean up — a version with neither a tag nor a changelog section still
+// correctly errors as "no such version."
+func TestRunReleasesDeleteNoSuchVersionWhenNothingToRecover(t *testing.T) {
+	dir, r := newStatusRepo(t)
+	releasesTagState(t, dir)
+
+	err := runReleasesDelete(&cobra.Command{}, r, config.Default("proj"), "9.9.9", true)
+	if err == nil {
+		t.Fatal("runReleasesDelete: error = nil, want non-nil when there is truly nothing for this version")
+	}
+	_ = dir
+}
+
 func TestRunReleasesDeleteAcceptsVersionWithoutVPrefix(t *testing.T) {
 	dir, r := newStatusRepo(t)
 	releasesTagState(t, dir)

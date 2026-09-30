@@ -442,6 +442,15 @@ const (
 	ReleasesDeleteNoSuchTag     MessageID = "releases.delete_no_such_tag"    // "no release tag for version %s"
 	ReleasesDeleteConfirmPrompt MessageID = "releases.delete_confirm_prompt" // "Delete %s? This removes the local git tag and its changelog section.  [y/N] "
 
+	// Recovery path: version has no matching tag (already deleted) but the
+	// changelog still has a stale section for it — a previous delete likely
+	// removed the tag but failed before finishing this step. Finishing the
+	// cleanup is the only way to escape a permanently out-of-sync changelog,
+	// since once the tag is gone there is nothing left for resolveTagName to
+	// find on a plain retry.
+	ReleasesDeleteRecoverConfirmPrompt MessageID = "releases.delete_recover_confirm_prompt" // "%s has no tag, but the changelog still has its section (likely left over from an interrupted delete). Remove that section?  [y/N] "
+	ReleasesRecoveredStaleChangelog    MessageID = "releases.recovered_stale_changelog"     // "Removed the stale changelog section for %s (its tag was already gone)."
+
 	// Stats command (cmd/stats.go): Short/Long text, the --repo/--prerelease
 	// flag usage strings, and every literal in renderStats — the header,
 	// section headers, row labels, the prerelease tag suffix, the "N older"

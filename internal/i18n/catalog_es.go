@@ -352,6 +352,9 @@ var es = map[MessageID]string{
 	ReleasesDeleteNoSuchTag:     "no hay ninguna etiqueta de lanzamiento para la versión %s",
 	ReleasesDeleteConfirmPrompt: "¿Eliminar %s? Esto elimina la etiqueta de git local y su sección del historial de cambios.  [y/N] ",
 
+	ReleasesDeleteRecoverConfirmPrompt: "%s no tiene etiqueta, pero el historial de cambios todavía tiene su sección (probablemente de una eliminación interrumpida). ¿Eliminar esa sección?  [y/N] ",
+	ReleasesRecoveredStaleChangelog:    "Se eliminó la sección residual del historial de cambios para %s (su etiqueta ya no existía).",
+
 	StatsShort: "Muestra las estadísticas públicas de descargas y de GitHub de Relio",
 	StatsLong: "Estadísticas públicas de solo lectura desde la API REST de GitHub: conteos de\n" +
 		"descargas de assets de lanzamiento, desgloses por lanzamiento y por plataforma,\n" +

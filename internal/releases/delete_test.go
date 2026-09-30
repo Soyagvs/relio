@@ -142,6 +142,53 @@ func TestDeleteReadErrorWrapsError(t *testing.T) {
 	}
 }
 
+// TestHasStaleChangelogSectionFindsExistingSection proves the recovery check
+// `relio releases delete` uses (when a version no longer resolves to a tag)
+// correctly reports a section that is still present.
+func TestHasStaleChangelogSectionFindsExistingSection(t *testing.T) {
+	dir := t.TempDir()
+	path := writeDeleteFixture(t, dir)
+
+	if !HasStaleChangelogSection(path, "v0.2.0") {
+		t.Error("HasStaleChangelogSection = false, want true for a version with a section")
+	}
+}
+
+// TestHasStaleChangelogSectionFalseWhenAbsent proves it reports false both
+// when the version has no section and when the changelog file itself is
+// missing — neither case is "there's a stale section to recover."
+func TestHasStaleChangelogSectionFalseWhenAbsent(t *testing.T) {
+	dir := t.TempDir()
+	path := writeDeleteFixture(t, dir)
+
+	if HasStaleChangelogSection(path, "v9.9.9") {
+		t.Error("HasStaleChangelogSection = true, want false for a version absent from the changelog")
+	}
+	if HasStaleChangelogSection(filepath.Join(dir, "does-not-exist.md"), "v0.2.0") {
+		t.Error("HasStaleChangelogSection = true, want false when the changelog file does not exist")
+	}
+}
+
+// TestRemoveChangelogSectionSucceedsWithoutAnyRepo proves the extracted
+// changelog-only step (the recovery path `relio releases delete` uses once
+// a tag is already gone) works standalone, with no TagDeleter involved at
+// all — Delete's own tests already cover it as part of the combined flow.
+func TestRemoveChangelogSectionSucceedsWithoutAnyRepo(t *testing.T) {
+	dir := t.TempDir()
+	path := writeDeleteFixture(t, dir)
+
+	removed, err := RemoveChangelogSection(path, "v0.2.0")
+	if err != nil {
+		t.Fatalf("RemoveChangelogSection: %v", err)
+	}
+	if !removed {
+		t.Error("removed = false, want true")
+	}
+	if HasStaleChangelogSection(path, "v0.2.0") {
+		t.Error("section still present after RemoveChangelogSection")
+	}
+}
+
 // TestDeleteChangelogWriteFailureWrapsError proves a failure writing the
 // updated changelog — after the tag was already deleted — is wrapped in
 // ChangelogError so callers can render it distinctly from a tag-deletion
