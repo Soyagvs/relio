@@ -219,6 +219,40 @@ git add CHANGELOG.md && git commit
 
 ---
 
+## `relio releases list`
+
+Every local tag, newest first — the same data the interactive **Releases**
+browser (below) shows, printed non-interactively. No GitHub API call.
+
+```
+$ relio releases list
+v1.4.0        2026-09-06  release v1.4.0
+v1.3.0        2026-08-01  release v1.3.0
+```
+
+---
+
+## `relio releases delete`
+
+Delete a release you don't want anymore. Mirrors exactly what the
+interactive **Releases** browser's own `d` key does (below): removes the
+local git tag and its matching `CHANGELOG.md` section — nothing else.
+
+```bash
+relio releases delete 1.4.0        # asks to confirm
+relio releases delete 1.4.0 -y     # skip the confirmation
+```
+
+It **never touches the GitHub Release or pushes anything** — if you already
+published that release, delete it from GitHub's web UI yourself.
+
+If an earlier delete was interrupted after removing the tag but before
+finishing the changelog cleanup (a permissions error mid-write, say),
+running the same command again finishes that cleanup instead of failing with
+"no such version" — there's nothing left to lose track of.
+
+---
+
 ## `relio guide`
 
 A step-by-step walkthrough of the whole flow, for when you are meeting Relio for
@@ -358,7 +392,7 @@ PNG to the current directory (latest tag / horizontal / orange).
 | `--shape` | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
 | `--theme` | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added / Changed / Fixed) are fixed. |
 | `--hash` | Prefix each line with its short commit hash. Off by default. |
-| `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
+| `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. A flaky host is retried a few times with backoff (with a progress line per retry) before falling back to the next one. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
 | `--link-only` | Upload for the URL + QR **without** writing a file to disk. |
 
 ```bash
@@ -434,7 +468,12 @@ The version is `dev` unless the binary was built with `HEAD` exactly on a tag
 (that's what `make install` does), or with
 `-ldflags "-X github.com/soyagvs/relio/cmd.version=…"` (that's what the official
 release build does). It also carries the same `▲ vX.Y.Z available` hint as the
-menu.
+menu — when a newer version exists, it adds a second line telling you the
+right way to update: `Run \`brew upgrade relio\` to update.` if the running
+binary resolves into a Homebrew Cellar path, or a pointer at
+[docs/install.md](install.md) otherwise. Relio never replaces its own binary —
+this is a hint, not an auto-updater. Set `RELIO_NO_UPDATE_CHECK` to any value
+(or run in CI) to skip the check entirely.
 
 ## Global flags
 

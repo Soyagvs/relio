@@ -186,7 +186,9 @@ Pick **Release**, read the preview, confirm. Relio then:
   (`--publish`) · hand-editing the notes before writing (`--edit`) · changelog
   footer — contributors line + compare link · per-user GitHub sign-in via
   `relio auth login` (OAuth Device Flow) with hybrid OS-keychain/file storage ·
-  previewing a release with no side effects (`--dry-run`).
+  previewing a release with no side effects (`--dry-run`) ·
+  `relio releases list` / `relio releases delete` · install-method-aware
+  update hints · retrying `relio image` uploads with backoff.
 - **Later** — release plugins (`BeforeRelease` / `AfterRelease` in Go), richer
   `relio post` templates.
 
