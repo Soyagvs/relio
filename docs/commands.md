@@ -342,10 +342,15 @@ Also the **Setup** menu entry, which prompts for the project name.
 
 ## `relio post`
 
-Generates a short, plain-text announcement from the commits since the last tag.
-**Only the text goes to stdout**, so `relio post | pbcopy` (or `| wl-copy`)
-copies it cleanly. Colour is added when stdout is a terminal and stripped when
-it is piped.
+Generates a short, plain-text announcement from an existing release tag. With
+no `--version`, it uses the latest tag in scripts and prompts you with a small
+version/date/commit table in an interactive terminal. **Only the text goes to stdout**, so
+`relio post | pbcopy` (or `| wl-copy`) copies it cleanly. Colour is added when
+stdout is a terminal and stripped when it is piped.
+
+| Flag | Meaning |
+| ---- | ------- |
+| `--version` | Release tag to announce. Default: latest tag outside a TTY, picker inside a TTY. |
 
 | `--format` | Output |
 | ---------- | ------ |
@@ -356,7 +361,7 @@ it is piped.
 | `changelog` | The exact section that goes into `CHANGELOG.md`. |
 
 ```
-$ relio post --format social
+$ relio post --version v1.4.0 --format social
 Azeink -- Release
 
 v1.4.0 · 06.09.26 · 14:36
@@ -368,7 +373,10 @@ fix       Supervisor login
 ```
 
 *(This is a preview of the content generator — nothing is published.)* Also the
-**Announcement** menu entry.
+**Create post** menu entry. In an interactive terminal, Create post uses the
+shared release table: press `Enter` to preview a release, `Esc`/`b` to return to
+the table, then move to `✔ confirm` and press `Enter` before choosing the post
+format.
 
 ---
 
@@ -406,15 +414,17 @@ If a changelog line is long it wraps onto the next line; if there are too many
 commits for the card, each section is capped and a `+ N more` line is added — it
 never spills outside the card, on any shape.
 
-The **Releases** menu entry opens a split browser: versions on the left, the
-selected release summary on the right.
+The **List releases**, **Create post**, and **Create image** menu entries share
+the same release table. The table itself shows only release rows; press `Enter`
+to open the selected release preview/details screen.
 
 ```
-↑/↓      move between versions, or scroll the summary when it is focused
-l / →    focus the summary for the selected version
-h / ←    return focus to the versions table
+↑/↓      move between versions in the table, or scroll a preview
+Enter    open preview from the table; activate focused preview buttons
+Esc / b  return from preview to the table
+✔ confirm  Create post/image only: confirm the selected release and continue
 n / p    next / previous page in the versions table
-d        delete the version — removes the git tag AND its CHANGELOG.md section (y/N)
+d        List releases only: delete the version — removes the git tag AND its CHANGELOG.md section (y/N)
 q        back to the main menu
 ```
 

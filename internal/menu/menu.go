@@ -70,8 +70,9 @@ var items = []item{
 // (Help, Exit) are reachable with the arrow keys only.
 const digitRows = 9
 
-// Menu chrome: a fixed label column so the descriptions line up, a minimum row
-// width, and a green bar behind the selected row inside the rounded card.
+// Menu chrome: a fixed number + label column so the descriptions line up, a
+// minimum row width, and a green bar behind the selected row inside the rounded
+// card.
 const (
 	labelCol    = 17
 	minRowWidth = 40
@@ -190,9 +191,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // and never below minRowWidth unless the terminal itself is narrower.
 func (m model) rowWidth() int {
 	natural := 0
-	for _, it := range items {
-		// Plain body: "  " marker + padded label + "  " + desc.
-		body := fmt.Sprintf("  %s  %s", padLabel(it.Label()), it.Desc())
+	for i, it := range items {
+		// Plain body: "  " marker + number + padded label + "  " + desc.
+		body := fmt.Sprintf("  %s%s  %s", rowNumber(i), padLabel(it.Label()), it.Desc())
 		if w := utf8.RuneCountInString(body) + cardChrome; w > natural {
 			natural = w
 		}
@@ -212,6 +213,10 @@ func (m model) rowWidth() int {
 // on top of the item rows' own content (1 column of border + 1 of padding on
 // each side).
 const cardChrome = 4
+
+func rowNumber(i int) string {
+	return fmt.Sprintf("%2d  ", i+1)
+}
 
 func padLabel(label string) string {
 	return label + strings.Repeat(" ", max(0, labelCol-utf8.RuneCountInString(label)))
@@ -247,19 +252,20 @@ func (m model) View() string {
 		if i == m.cursor {
 			marker = "> "
 		}
+		number := rowNumber(i)
 		label := padLabel(it.Label())
 
 		// Fixed-width prefix, then the description truncated so the whole body
 		// fits in exactly cardW visible columns and nothing ever wraps.
-		prefix := marker + label + "  "
+		prefix := marker + number + label + "  "
 		desc := ui.Truncate(it.Desc(), max(0, cardW-utf8.RuneCountInString(prefix)))
 
 		// Colorize the already-fitted pieces; visible widths are unchanged.
-		labelOut, descOut := label, ui.Dim.Render(desc)
+		numberOut, labelOut, descOut := ui.Dim.Render(number), label, ui.Dim.Render(desc)
 		if i == m.cursor {
-			labelOut, descOut = selText.Render(label), selDesc.Render(desc)
+			numberOut, labelOut, descOut = selText.Render(number), selText.Render(label), selDesc.Render(desc)
 		}
-		body := marker + labelOut + "  " + descOut
+		body := marker + numberOut + labelOut + "  " + descOut
 
 		if i == m.cursor {
 			// Width(cardW) now equals the body width, so it pads (fills the bar)

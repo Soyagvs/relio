@@ -119,7 +119,7 @@ func buildRows(footer bool) []row {
 	if !footer {
 		rows = append(rows, row{kind: rowInfo, label: func() string { return i18n.T(i18n.SettingsFooterDisabledReason) }, group: 2})
 	}
-	rows = append(rows, row{kind: rowBack, label: func() string { return "<- Back" }, group: 3, enabled: true})
+	rows = append(rows, row{kind: rowBack, label: func() string { return "<- Back to home" }, group: 3, enabled: true})
 	return rows
 }
 

@@ -151,7 +151,7 @@ func TestNewPostCmdShortLongLocalizeAtConstructionTime(t *testing.T) {
 	shortES, longES := cES.Short, cES.Long
 	formatUsageES := cES.Flags().Lookup("format").Usage
 
-	if shortEN != "Generate copy-paste release text for social posts" {
+	if shortEN != "Create copy-paste text from an existing release" {
 		t.Errorf("newPostCmd().Short (en) = %q", shortEN)
 	}
 	if shortES == shortEN || shortES == "" {
@@ -299,7 +299,26 @@ func postRepoWithTag(t *testing.T) string {
 	return dir
 }
 
-func TestRunPostNoCommitsLocalizesOutput(t *testing.T) {
+func TestRunPostUsesLatestExistingReleaseWhenNoUnreleasedCommits(t *testing.T) {
+	dir := postRepoWithTag(t)
+	f := &releaseFlags{dir: dir}
+
+	c := newPostCmd(f)
+	var out, errBuf bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&errBuf)
+	if err := c.RunE(c, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "proj · v1.0.0") {
+		t.Errorf("post should render the latest existing release, got stdout:\n%s", out.String())
+	}
+	if strings.Contains(errBuf.String(), "nothing to announce") {
+		t.Errorf("post should not reject an existing release with no unreleased commits:\n%s", errBuf.String())
+	}
+}
+
+func TestRunPostCopyHintLocalizesOutput(t *testing.T) {
 	dir := postRepoWithTag(t)
 	f := &releaseFlags{dir: dir}
 
@@ -308,24 +327,26 @@ func TestRunPostNoCommitsLocalizesOutput(t *testing.T) {
 
 	i18n.SetLanguage("en")
 	cEN := newPostCmd(f)
-	var errBufEN bytes.Buffer
+	var outEN, errBufEN bytes.Buffer
+	cEN.SetOut(&outEN)
 	cEN.SetErr(&errBufEN)
 	if err := cEN.RunE(cEN, nil); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(errBufEN.String(), "No commits since the last tag — nothing to announce.") {
+	if !strings.Contains(errBufEN.String(), "# release text — copy from here:") {
 		t.Errorf("english golden text missing:\n%s", errBufEN.String())
 	}
 
 	i18n.SetLanguage("es")
 	cES := newPostCmd(f)
-	var errBufES bytes.Buffer
+	var outES, errBufES bytes.Buffer
+	cES.SetOut(&outES)
 	cES.SetErr(&errBufES)
 	if err := cES.RunE(cES, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	if errBufEN.String() == errBufES.String() {
-		t.Error("post no-commits output unchanged across languages")
+		t.Error("post copy hint output unchanged across languages")
 	}
 }

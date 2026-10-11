@@ -20,6 +20,7 @@ import (
 	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/pick"
+	relbrowser "github.com/soyagvs/relio/internal/releases"
 	"github.com/soyagvs/relio/internal/ui"
 	"github.com/soyagvs/relio/internal/upload"
 )
@@ -46,7 +47,8 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runReleaseImage(cmd, repo, cfg, im)
+			_, err = runReleaseImage(cmd, repo, cfg, im)
+			return err
 		},
 	}
 
@@ -84,35 +86,103 @@ func themeItems() []pick.Item {
 	}
 }
 
-func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags) error {
+func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags) (bool, error) {
 	out := cmd.OutOrStdout()
 	interactive := stdinIsTTY() && stdoutIsTTY()
 
 	tags, err := repo.Tags()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(tags) == 0 {
 		_, err := fmt.Fprintln(out, ui.Info(i18n.T(i18n.ImageNoReleasesYet)))
-		return err
+		return true, err
 	}
 
-	// Resolve the release: flag, else prompt (TTY), else latest.
-	version := im.version
-	if version == "" {
-		if interactive {
-			items := make([]pick.Item, len(tags))
-			for i, t := range tags {
-				items[i] = pick.Item{Label: t.Name, Desc: t.DateTime + " · " + t.Subject, Value: t.Name}
+	if interactive && im.version == "" {
+		for {
+			version, ok, err := relbrowser.RunSelect(repo, cfg)
+			if err != nil || !ok {
+				return false, err
 			}
-			var ok bool
-			if version, ok, err = pick.Run(i18n.T(i18n.ImagePickReleaseTitle), items); err != nil || !ok {
-				return err
+
+			shape, ok, err := pickImageShape(im, interactive)
+			if err != nil {
+				return false, err
 			}
-		} else {
-			version = tags[0].Name // newest
+			if !ok {
+				continue
+			}
+
+			for {
+				theme, ok, err := pickImageTheme(im, interactive)
+				if err != nil {
+					return false, err
+				}
+				if !ok {
+					break
+				}
+
+				ok, err = renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, theme, interactive)
+				if err != nil {
+					return false, err
+				}
+				if ok {
+					return true, nil
+				}
+			}
 		}
 	}
+
+	version := im.version
+	if version == "" {
+		version = tags[0].Name // newest
+	}
+
+	shape, ok, err := pickImageShape(im, interactive)
+	if err != nil || !ok {
+		return false, err
+	}
+	theme, ok, err := pickImageTheme(im, interactive)
+	if err != nil || !ok {
+		return false, err
+	}
+	return renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, theme, interactive)
+}
+
+func pickImageShape(im imageFlags, interactive bool) (card.Shape, bool, error) {
+	shape, valid := card.ParseShape(im.shape)
+	if valid {
+		return shape, true, nil
+	}
+	if !interactive {
+		return card.Horizontal, true, nil
+	}
+	name, ok, err := pick.Run(i18n.T(i18n.ImagePickShapeTitle), shapeItems())
+	if err != nil || !ok {
+		return card.Horizontal, ok, err
+	}
+	shape, _ = card.ParseShape(name)
+	return shape, true, nil
+}
+
+func pickImageTheme(im imageFlags, interactive bool) (string, bool, error) {
+	theme := strings.ToLower(im.theme)
+	if validTheme(theme) {
+		return theme, true, nil
+	}
+	if !interactive {
+		return "orange", true, nil
+	}
+	name, ok, err := pick.Run(i18n.T(i18n.ImagePickThemeTitle), themeItems())
+	if err != nil || !ok {
+		return "", ok, err
+	}
+	return name, true, nil
+}
+
+func renderAndDeliverReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags, tags []gitrepo.TagInfo, version string, shape card.Shape, theme string, interactive bool) (bool, error) {
+	out := cmd.OutOrStdout()
 
 	idx := -1
 	for i, t := range tags {
@@ -122,45 +192,16 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		}
 	}
 	if idx < 0 {
-		return fmt.Errorf(i18n.T(i18n.ImageNoSuchRelease), version)
+		return false, fmt.Errorf(i18n.T(i18n.ImageNoSuchRelease), version)
 	}
 
-	// Resolve the shape: flag, else prompt (TTY), else horizontal.
-	shape, valid := card.ParseShape(im.shape)
-	if !valid {
-		if interactive {
-			name, ok, perr := pick.Run(i18n.T(i18n.ImagePickShapeTitle), shapeItems())
-			if perr != nil || !ok {
-				return perr
-			}
-			shape, _ = card.ParseShape(name)
-		} else {
-			shape = card.Horizontal
-		}
-	}
-
-	// Resolve the theme: flag, else prompt (TTY), else orange.
-	theme := strings.ToLower(im.theme)
-	if !validTheme(theme) {
-		if interactive {
-			name, ok, perr := pick.Run(i18n.T(i18n.ImagePickThemeTitle), themeItems())
-			if perr != nil || !ok {
-				return perr
-			}
-			theme = name
-		} else {
-			theme = "orange"
-		}
-	}
-
-	// Gather the commits for that version.
 	from := ""
 	if idx+1 < len(tags) {
 		from = tags[idx+1].Name
 	}
 	raw, err := repo.CommitsBetween(from, version)
 	if err != nil {
-		return err
+		return false, err
 	}
 	notes := changelog.Build(conventional.ParseMany(raw))
 
@@ -179,7 +220,6 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 		destDir = filepath.Dir(a)
 	}
 
-	// Decide what to do with the image: save it, upload it for a link, or both.
 	save, link, ask := imageDest(im, interactive)
 	if ask {
 		ans, ok, perr := pick.Run(i18n.T(i18n.ImagePickDestTitle), []pick.Item{
@@ -188,7 +228,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			{Label: i18n.T(i18n.ImageDestLinkLabel), Desc: i18n.T(i18n.ImageDestLinkDesc), Value: "link"},
 		})
 		if perr != nil || !ok {
-			return perr
+			return false, perr
 		}
 		save, link = destFromAnswer(ans)
 	}
@@ -196,57 +236,56 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	uploadSrc := ""
 	if save {
 		if err := card.Save(img, localPath); err != nil {
-			return err
+			return false, err
 		}
 		abs, _ := filepath.Abs(localPath)
 		if _, err := fmt.Fprintln(out, ui.Success([]string{i18n.T(i18n.ImageSaved, localPath)})); err != nil {
-			return err
+			return false, err
 		}
 		if _, err := fmt.Fprintln(out, ui.Dim.Render("  "+abs)); err != nil {
-			return err
+			return false, err
 		}
 		uploadSrc = localPath
 	}
 
 	if link {
-		// No local copy to send — render to a temp file just for the upload.
 		if uploadSrc == "" {
 			tmp, terr := os.CreateTemp("", "relio-*.png")
 			if terr != nil {
-				return terr
+				return false, terr
 			}
 			if err := tmp.Close(); err != nil {
-				return err
+				return false, err
 			}
 			defer func() { _ = os.Remove(tmp.Name()) }()
 			if err := card.Save(img, tmp.Name()); err != nil {
-				return err
+				return false, err
 			}
 			uploadSrc = tmp.Name()
 		}
 
 		if save {
 			if _, err := fmt.Fprintln(out); err != nil {
-				return err
+				return false, err
 			}
 		}
 		url, uerr := upload.Upload(context.Background(), uploadSrc, out)
 		if uerr != nil {
 			if _, err := fmt.Fprintln(out, ui.Warn.Render("✗ ")+uerr.Error()); err != nil {
-				return err
+				return false, err
 			}
 			if save {
 				if _, err := fmt.Fprintln(out, ui.Dim.Render(i18n.T(i18n.ImageStillSavedLocally))); err != nil {
-					return err
+					return false, err
 				}
 			}
-			return nil
+			return true, nil
 		}
 		if err := printImageLink(out, url); err != nil {
-			return err
+			return false, err
 		}
 	}
-	return nil
+	return true, nil
 }
 
 func printImageLink(out io.Writer, url string) error {

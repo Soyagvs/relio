@@ -157,6 +157,7 @@ func stdinIsTTY() bool  { return isatty.IsTerminal(os.Stdin.Fd()) }
 func stdoutIsTTY() bool { return isatty.IsTerminal(os.Stdout.Fd()) }
 
 var runPicker = pick.Run
+var runHomePicker = pick.RunHome
 
 // runRoot decides between the interactive menu and a direct release.
 func runRoot(cmd *cobra.Command, f *releaseFlags) error {
@@ -266,20 +267,20 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 			if oerr != nil {
 				return oerr
 			}
-			if err := runReleaseText(cmd, repo, cfg); err != nil {
+			waitForBack, err = runReleaseText(cmd, repo, cfg)
+			if err != nil {
 				return err
 			}
-			waitForBack = true
 
 		case menu.ReleaseImage:
 			repo, cfg, oerr := openRepoAndConfig(f.dir)
 			if oerr != nil {
 				return oerr
 			}
-			if err := runReleaseImage(cmd, repo, cfg, imageFlags{}); err != nil {
+			waitForBack, err = runReleaseImage(cmd, repo, cfg, imageFlags{})
+			if err != nil {
 				return err
 			}
-			waitForBack = true
 
 		case menu.Setup:
 			if err := runMenuSetup(cmd, f); err != nil {
@@ -298,7 +299,6 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
-			waitForBack = true
 
 		case menu.Guide:
 			if err := runGuide(cmd, f); err != nil {
@@ -307,13 +307,15 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
-			waitForBack = true
 
 		case menu.Help:
-			if _, err := fmt.Fprintln(out, helpReference()); err != nil {
+			if stdoutIsTTY() {
+				if err := runHelp(); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintln(out, helpReference()); err != nil {
 				return err
 			}
-			waitForBack = true
 		}
 
 		if waitForBack {
@@ -335,7 +337,7 @@ func waitMenuBack(cmd *cobra.Command) error {
 	if _, err := fmt.Fprintln(out); err != nil {
 		return err
 	}
-	_, _, err := runPicker("", nil)
+	_, _, err := runHomePicker("", nil)
 	if err != nil {
 		return err
 	}
@@ -377,7 +379,7 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (bool, error) {
 		var chosen bool
 		switch step {
 		case 0:
-			relType, chosen, err = runPicker("Release type", []pick.Item{
+			relType, chosen, err = runHomePicker("Release type", []pick.Item{
 				{Label: "Final release", Desc: "the next stable version", Value: "final"},
 				{Label: "Release candidate (rc.N)", Desc: "a pre-release you can iterate on, then finalize", Value: "rc"},
 			})
@@ -418,7 +420,7 @@ func runMenuRelease(cmd *cobra.Command, f *releaseFlags) (bool, error) {
 func runMenuAuth(cmd *cobra.Command) (bool, error) {
 	out := cmd.OutOrStdout()
 
-	choice, chosen, err := runPicker("Auth", []pick.Item{
+	choice, chosen, err := runHomePicker("Auth", []pick.Item{
 		{Label: "Show sign-in status", Desc: "which token relio found and who it belongs to", Value: "status"},
 		{Label: "Sign in", Desc: "start the GitHub OAuth Device Flow", Value: "login"},
 		{Label: "How to connect", Desc: "`relio auth login`, env vars, or `gh auth login`", Value: "how"},
@@ -489,34 +491,32 @@ func promptLine(r io.Reader, w io.Writer, prompt, def string) string {
 	return def
 }
 
-// runReleaseText asks for a post format, then prints the text (stdout only).
-func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) error {
-	plan, err := release.BuildPlan(repo, cfg, release.Options{})
-	if err != nil {
-		return err
-	}
-	if plan.NothingToRelease() {
-		_, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Info("No commits since the last tag — nothing to announce."))
-		return err
-	}
+// runReleaseText asks for a release and post format, then prints the text (stdout only).
+func runReleaseText(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config) (bool, error) {
+	for {
+		plan, chosen, err := buildReleasePostPlan(repo, cfg, "", true)
+		if err != nil || !chosen {
+			return false, err
+		}
 
-	format, chosen, err := pick.Run("Release text — pick a format", postFormatItems())
-	if err != nil {
-		return err
-	}
-	if !chosen {
-		return nil
-	}
+		format, chosen, err := pick.Run("Release text — pick a format", postFormatItems())
+		if err != nil {
+			return false, err
+		}
+		if !chosen {
+			continue
+		}
 
-	text, err := renderPost(cfg.Project, plan, format)
-	if err != nil {
-		return err
+		text, err := renderPost(cfg.Project, plan, format)
+		if err != nil {
+			return false, err
+		}
+		if _, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:")); err != nil {
+			return false, err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), text)
+		return true, err
 	}
-	if _, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Dim.Render("# release text — copy from here:")); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), text)
-	return err
 }
 
 // doRelease builds a plan, confirms it (wizard when interactive), and applies it.
@@ -585,7 +585,7 @@ func doRelease(out io.Writer, repo *gitrepo.Repo, cfg config.Config, f *releaseF
 			return werr
 		}
 		if !res.Confirmed {
-			return writeLine(ui.Info("Cancelled. Nothing was written."))
+			return nil
 		}
 		if res.Bump != plan.Bump {
 			plan, err = release.BuildPlan(repo, cfg, release.Options{ForceBump: res.Bump, Prerelease: f.rc})

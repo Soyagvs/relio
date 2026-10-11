@@ -229,8 +229,8 @@ func TestOutsideRepoFooterDisabledView(t *testing.T) {
 func TestViewShowsSeparatedBackRow(t *testing.T) {
 	m := newModel("")
 	view := m.View()
-	if !strings.Contains(view, "<- Back") {
-		t.Fatalf("View() missing back row:\n%s", view)
+	if !strings.Contains(view, "<- Back to home") {
+		t.Fatalf("View() missing home back row:\n%s", view)
 	}
 	if !strings.Contains(view, i18n.T(i18n.SettingsFooterDisabledReason)+"\n\n") {
 		t.Fatalf("View() must visually separate the back row from settings rows:\n%s", view)

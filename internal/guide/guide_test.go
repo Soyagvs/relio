@@ -206,13 +206,19 @@ func TestStepperBackAtFirstStepExits(t *testing.T) {
 func TestStepperControlRowDimsUnselectedControl(t *testing.T) {
 	m := teaModel{steps: buildSteps(Context{})}
 
-	if got, want := m.controlRow(), ui.Key.Render("▸ "+nextLabel)+"\n"+ui.Dim.Render("  "+backLabel); got != want {
+	if got, want := m.controlRow(), ui.Key.Render("▸ "+nextLabel)+"\n"+ui.Dim.Render("  "+backHomeLabel); got != want {
 		t.Fatalf("default control row = %q, want %q", got, want)
 	}
 
 	m.selectBack = true
-	if got, want := m.controlRow(), ui.Dim.Render("  "+nextLabel)+"\n"+ui.Key.Render("▸ "+backLabel); got != want {
+	if got, want := m.controlRow(), ui.Dim.Render("  "+nextLabel)+"\n"+ui.Key.Render("▸ "+backHomeLabel); got != want {
 		t.Fatalf("back-selected control row = %q, want %q", got, want)
+	}
+
+	m.i = 1
+	m.selectBack = true
+	if got, want := m.controlRow(), ui.Dim.Render("  "+nextLabel)+"\n"+ui.Key.Render("▸ "+backLabel); got != want {
+		t.Fatalf("nested back-selected control row = %q, want %q", got, want)
 	}
 }
 
@@ -373,6 +379,10 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	if !strings.Contains(v, "<- Back") || !strings.Contains(v, "Next ->") {
 		t.Errorf("View() missing the explicit back/next controls:\n%s", v)
 	}
+	first := teaModel{steps: buildSteps(Context{})}.View()
+	if !strings.Contains(first, "<- Back to home") {
+		t.Errorf("first step should render Back to home:\n%s", first)
+	}
 	if !strings.Contains(v, "▸ Next ->") {
 		t.Errorf("View() should select Next by default:\n%s", v)
 	}
@@ -461,6 +471,10 @@ func TestStepsLocalizeUnderSpanish(t *testing.T) {
 	}
 	if !strings.Contains(v, "<- Back") || !strings.Contains(v, "Next ->") {
 		t.Errorf("es View() missing the explicit back/next controls:\n%s", v)
+	}
+	first := teaModel{steps: buildSteps(Context{})}.View()
+	if !strings.Contains(first, "<- Back to home") {
+		t.Errorf("es first step should render Back to home:\n%s", first)
 	}
 	if !strings.Contains(v, "▸ Next ->") {
 		t.Errorf("es View() should select Next by default:\n%s", v)

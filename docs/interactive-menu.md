@@ -7,46 +7,49 @@ another action.
 ```
   RELIO menu
 
-  1  Release          Create a release — final or rc, and optionally push + publish
-  2  Status           What's unreleased and the version it suggests
-  3  Check            Which commits since the last tag are Conventional Commits
-  4  Releases         Browse versions, read notes, delete one
-  5  Announcement     Copy-paste release text — pick a format
-  6  Release image    Save or share a PNG release card
+  1  Create release   Draft, preview, and tag a final release or rc
+  2  Release status   See what's unreleased and the version it suggests
+  3  Check commits    Validate Conventional Commits since the last tag
+  4  List releases    Browse versions, read notes, delete one
+  5  Create post      Create announcement text from a release
+  6  Create image     Create a PNG card from a release
   7  Auth             GitHub connection — status and how to link
-  8  Setup            Create or inspect .release.yaml
+  8  Setup project    Create or inspect .release.yaml
   9  Settings         Language and release-footer preferences
-     Guide            Step-by-step walkthrough of the whole flow
-     Help             Every command and flag
-     Exit             Leave Relio
+ 10  Guide            Step-by-step walkthrough of the whole flow
+ 11  Help             Every command and flag
+ 12  Exit             Leave Relio
 
-  ↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit
+  ↑/↓/j/k move · ? Help · g Guide · enter select · q quit
 ```
 
 | Key | Does |
 | --- | ---- |
-| `↑` / `↓` | move the cursor |
-| `1`–`9` | jump straight to that row and select it (the first nine rows only — **Guide**, **Help**, and **Exit** are arrow-only) |
-| `?` | open **Help** |
-| `g` | open the **Guide** |
+| `↑` / `↓` / `j` / `k` | move the cursor |
+| `?` | open the **Help** module |
+| `g` | open the **Guide** module |
 | `enter` | run the highlighted row |
 | `q` | quit |
 
 A few rows do more than run a flagless command:
 
-- **Release** asks three quick questions — *final release or release candidate*,
-  *tag locally or push + publish*, and *whether to edit the notes first* — so you
-  never have to remember `--rc`, `--publish`, or `--edit`. Then it runs the
-  normal preview + wizard.
+- **Create release** asks three quick questions — *final release or release
+  candidate*, *tag locally or push + publish*, and *whether to edit the notes
+  first* — so you never have to remember `--rc`, `--publish`, or `--edit`. Then
+  it runs the normal preview + wizard.
 - **Auth** shows which GitHub token Relio found and who it belongs to, or
   explains how to connect one.
-- **Releases** opens a split browser: versions on the left, the selected
-  release summary on the right. Use `l` / `→` to focus the summary, `h` / `←` to
-  return to the versions table, `n` / `p` to page the versions, `d` to delete a
-  local release, and `q` to return to the menu.
-- **Release image** can save the PNG, upload it, or both. Upload paths print a
+- **List releases**, **Create post**, and **Create image** use the same release
+  table. The table shows versions only; press `Enter` to open a release preview,
+  then `b` / `Esc` to return to the table. List releases can preview and delete
+  local releases with `d`. Create post/image move to the `✔ confirm` button and
+  press `Enter`, then continue to their format or image options.
+- **Create image** can save the PNG, upload it, or both. Upload paths print a
   plain URL first, then a QR code, so mobile terminals and `mosh` sessions have
   a copyable link even when QR scanning is awkward.
+- **Help** opens a tabbed reference instead of printing one long page. Use
+  `←`/`→` or `tab` to switch between command, flag, and menu sections, then
+  `Enter` on `Back to home` to return to the menu.
 - **Setup** runs `relio init` (or tells you the config already exists).
 - **Settings** switches the UI language (English / Español) and toggles the
   changelog-footer preferences (contributors line, compare link) — see

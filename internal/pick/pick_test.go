@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/soyagvs/relio/internal/i18n"
-	"github.com/soyagvs/relio/internal/ui"
 )
 
 var sample = []Item{
@@ -123,14 +122,12 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		t.Errorf("View() does not end with the expected hint line:\n%s", v)
 	}
 
-	// Cancelled trace line, byte-identical to the historical hardcoded string.
-	wantCancelled := "→ cancelled"
-	if got := i18n.T(i18n.PickCancelled); got != wantCancelled {
-		t.Errorf("i18n.T(PickCancelled) under en = %q, want %q", got, wantCancelled)
-	}
 	cancelled := send(model{title: "t", items: sample}, "q")
-	wantView := ui.Dim.Render(wantCancelled) + "\n"
-	if got := cancelled.View(); got != wantView {
-		t.Errorf("cancelled View() = %q, want %q", got, wantView)
+	if got := cancelled.View(); got != "" {
+		t.Errorf("cancelled View() = %q, want blank", got)
+	}
+	chosen := send(model{title: "t", items: sample}, "enter")
+	if got := chosen.View(); got != "" {
+		t.Errorf("chosen View() = %q, want blank", got)
 	}
 }

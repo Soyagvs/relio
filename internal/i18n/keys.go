@@ -136,6 +136,7 @@ const (
 	ReleasesHintMove           MessageID = "releases.hint_move"
 	ReleasesHintPage           MessageID = "releases.hint_page"
 	ReleasesHintShowExit       MessageID = "releases.hint_show_exit"
+	ReleasesHintConfirm        MessageID = "releases.hint_confirm"
 	ReleasesHintDelete         MessageID = "releases.hint_delete"
 	ReleasesHintBack           MessageID = "releases.hint_back"
 

@@ -13,6 +13,7 @@ import (
 )
 
 const backLabel = "<- Back"
+const backHomeLabel = "<- Back to home"
 
 // ErrQuit is returned by Run when the user hard-quits with ctrl+c, as opposed to
 // backing out of the list with the back option or q/esc (which returns
@@ -72,11 +73,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.chosen {
-		return ui.Dim.Render("→ "+m.items[m.cursor].Label) + "\n"
-	}
-	if m.quit {
-		return ui.Dim.Render(i18n.T(i18n.PickCancelled)) + "\n"
+	if m.chosen || m.quit {
+		return ""
 	}
 
 	var b strings.Builder
@@ -104,7 +102,15 @@ func (m model) View() string {
 // backed out with the back option or q/esc (err is nil then); a ctrl+c hard-quit
 // returns ErrQuit.
 func Run(title string, items []Item) (value string, chosen bool, err error) {
-	items = appendBackItem(items)
+	return runWithBackLabel(title, items, backLabel)
+}
+
+func RunHome(title string, items []Item) (value string, chosen bool, err error) {
+	return runWithBackLabel(title, items, backHomeLabel)
+}
+
+func runWithBackLabel(title string, items []Item, back string) (value string, chosen bool, err error) {
+	items = appendBackItem(items, back)
 	final, e := tea.NewProgram(model{title: title, items: items, back: len(items) - 1, hasBack: true}).Run()
 	if e != nil {
 		return "", false, e
@@ -119,9 +125,13 @@ func Run(title string, items []Item) (value string, chosen bool, err error) {
 	return m.items[m.cursor].Value, true, nil
 }
 
-func appendBackItem(items []Item) []Item {
+func appendBackItem(items []Item, label ...string) []Item {
+	back := backLabel
+	if len(label) > 0 && label[0] != "" {
+		back = label[0]
+	}
 	withBack := make([]Item, 0, len(items)+1)
 	withBack = append(withBack, items...)
-	withBack = append(withBack, Item{Label: backLabel})
+	withBack = append(withBack, Item{Label: back})
 	return withBack
 }

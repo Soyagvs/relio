@@ -111,7 +111,7 @@ func TestPaginatedTableShowsReleaseMetadata(t *testing.T) {
 	m := newModel(fr, "demo", path)
 
 	v := m.View()
-	for _, want := range []string{"Commits", "Version", "Date", "1", "v0.2.0", "2026-09-06", "Page 1/1", "Summary", "Second thing"} {
+	for _, want := range []string{"Commits", "Version", "Date", "1", "v0.2.0", "2026-09-06", "Page 1/1"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("view missing %q:\n%s", want, v)
 		}
@@ -146,15 +146,16 @@ func TestDetailShowsNotesWithCommitHashForSelection(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
 
+	m = send(m, "enter")
 	v := m.View()
 	if !strings.Contains(v, "Second thing") {
-		t.Errorf("expected v0.2.0 notes in view:\n%s", v)
+		t.Errorf("expected v0.2.0 notes in preview:\n%s", v)
 	}
 	if !strings.Contains(v, "aaaaaaa") {
 		t.Errorf("expected v0.2.0 commit hash next to its note:\n%s", v)
 	}
 
-	m = send(m, "down") // select v0.1.0
+	m = send(m, "esc", "down", "enter") // select v0.1.0 and preview
 	v = m.View()
 	if !strings.Contains(v, "First thing") || !strings.Contains(v, "bbbbbbb") {
 		t.Errorf("expected v0.1.0 note + hash after moving down:\n%s", v)
@@ -220,8 +221,8 @@ func TestBackRowExitsWithoutPickingRelease(t *testing.T) {
 	m := newModel(fr, "demo", path)
 
 	view := m.View()
-	if !strings.Contains(view, backLabel) {
-		t.Fatalf("view missing back row %q:\n%s", backLabel, view)
+	if !strings.Contains(view, backHomeLabel) {
+		t.Fatalf("view missing home back row %q:\n%s", backHomeLabel, view)
 	}
 
 	m = send(m, "down", "down")
@@ -245,8 +246,8 @@ func TestBackRowNavigationReturnsToLastRelease(t *testing.T) {
 	}
 
 	m = send(m, "l")
-	if m.quit || m.focus != focusDetail {
-		t.Fatalf("l on release should focus detail, got quit=%v focus=%v", m.quit, m.focus)
+	if m.quit || m.mode != preview {
+		t.Fatalf("l on release should open preview, got quit=%v mode=%v", m.quit, m.mode)
 	}
 }
 
@@ -255,7 +256,7 @@ func TestEmptyReleasesShowSelectableBack(t *testing.T) {
 	m := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
 
 	view := m.View()
-	if !strings.Contains(view, backLabel) || !m.onBack() {
+	if !strings.Contains(view, backHomeLabel) || !m.onBack() {
 		t.Fatalf("empty view should show selectable back row, onBack=%v:\n%s", m.onBack(), view)
 	}
 
@@ -344,21 +345,74 @@ func TestCtrlCKillsFromConfirmDelete(t *testing.T) {
 	}
 }
 
-func TestLFocusesSummaryPaneAndHReturnsToTable(t *testing.T) {
+func TestLShowsPreviewAndHReturnsToTable(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
 
 	m = send(m, "down", "l")
-	if m.quit || m.focus != focusDetail || m.detailOffset != 0 {
-		t.Fatalf("l should focus detail without quitting, got quit=%v focus=%v offset=%d", m.quit, m.focus, m.detailOffset)
+	if m.quit || m.mode != preview || m.detailOffset != 0 {
+		t.Fatalf("l should open preview without quitting, got quit=%v mode=%v offset=%d", m.quit, m.mode, m.detailOffset)
 	}
-	if v := m.View(); !strings.Contains(v, "Summary") || !strings.Contains(v, "First thing") || !strings.Contains(v, "│") {
-		t.Fatalf("split pane should show selected summary:\n%s", v)
+	if v := m.View(); !strings.Contains(v, "Preview") || !strings.Contains(v, "First thing") || !strings.Contains(v, "│") {
+		t.Fatalf("preview should show selected release notes:\n%s", v)
 	}
 
 	m = send(m, "h")
-	if m.quit || m.focus != focusTable {
-		t.Fatalf("h from detail should return to table, got quit=%v focus=%v", m.quit, m.focus)
+	if m.quit || m.mode != browse {
+		t.Fatalf("h from preview should return to table, got quit=%v mode=%v", m.quit, m.mode)
+	}
+}
+
+func TestSelectModelConfirmsOnlyFromPreview(t *testing.T) {
+	fr, path := setup(t)
+	m := newSelectModel(fr, "demo", path)
+
+	m = send(m, "enter")
+	if m.confirmed || m.mode != preview {
+		t.Fatalf("first enter should open preview, got confirmed=%v mode=%v", m.confirmed, m.mode)
+	}
+
+	m = send(m, "esc")
+	if m.confirmed || m.mode != browse {
+		t.Fatalf("esc should go back to table, got confirmed=%v mode=%v", m.confirmed, m.mode)
+	}
+
+	m = send(m, "enter", "down")
+	if !m.previewConfirm || m.previewBack {
+		t.Fatalf("down from preview should focus Confirm, confirm=%v back=%v", m.previewConfirm, m.previewBack)
+	}
+	if v := m.View(); !strings.Contains(v, "▸ "+ui.Key.Render("✔ confirm")) {
+		t.Fatalf("preview should render focused Confirm button:\n%s", v)
+	}
+	m = send(m, "enter")
+	if !m.confirmed {
+		t.Fatal("enter on Confirm should confirm selected release")
+	}
+	if got := m.View(); got != "" {
+		t.Fatalf("confirmed selector should leave no preview in scrollback, got:\n%s", got)
+	}
+}
+
+func TestSelectableModeCannotDeleteReleases(t *testing.T) {
+	fr, path := setup(t)
+	m := newSelectModel(fr, "demo", path)
+
+	m = send(m, "d", "y")
+	if m.mode == confirmDelete || len(fr.deleted) != 0 {
+		t.Fatalf("selectable release picker must not delete releases, mode=%v deleted=%v", m.mode, fr.deleted)
+	}
+	if v := m.View(); strings.Contains(v, keyHint("d", i18n.T(i18n.ReleasesHintDelete))) {
+		t.Fatalf("selectable release picker should not advertise delete:\n%s", v)
+	}
+}
+
+func TestListModelEnterPreviewDoesNotConfirm(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+
+	m = send(m, "enter", "enter")
+	if m.confirmed || m.quit {
+		t.Fatalf("list releases may view but not confirm, got confirmed=%v quit=%v", m.confirmed, m.quit)
 	}
 }
 
@@ -383,6 +437,23 @@ func TestDetailPaneScrollsLongNotes(t *testing.T) {
 	after := m.View()
 	if !strings.Contains(after, "↑ more") || strings.Contains(after, "relio -- release") {
 		t.Fatalf("detail pane should scroll down and show up indicator:\n%s", after)
+	}
+}
+
+func TestPreviewCanMoveDownToBackRow(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+	m = send(m, "enter", "down")
+	if !m.previewBack {
+		t.Fatalf("down at end of preview should focus Back row")
+	}
+	if v := m.View(); !strings.Contains(v, "▸ "+ui.Key.Render(backLabel)) {
+		t.Fatalf("preview should render focused Back row:\n%s", v)
+	}
+
+	m = send(m, "enter")
+	if m.mode != browse || m.previewBack {
+		t.Fatalf("enter on preview Back should return to table, mode=%v previewBack=%v", m.mode, m.previewBack)
 	}
 }
 
@@ -422,7 +493,7 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	}
 
 	// Footer hints, byte-identical to the current English catalog strings.
-	wantFooter := keyHint("↑/↓", "move") + keyHint("l", "details") + keyHint("n/p", "page") +
+	wantFooter := keyHint("↑/↓", "move") + keyHint("enter", "details") + keyHint("n/p", "page") +
 		keyHint("d", "delete") + keyHint("q", "back")
 	if !strings.HasSuffix(v, wantFooter) {
 		t.Errorf("View() does not end with the expected footer:\n%s", v)
@@ -459,8 +530,8 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	empty := &fakeRepo{}
 	em := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
 	wantEmpty := wantTitle + ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n" +
-		"▸ " + ui.Key.Render(backLabel) + "\n\n" +
-		keyHint("↑/↓", "move") + keyHint("l", "details") + keyHint("n/p", "page") + keyHint("d", "delete") + keyHint("q", "back")
+		"▸ " + ui.Key.Render(backHomeLabel) + "\n\n" +
+		keyHint("↑/↓", "move") + keyHint("enter", "details") + keyHint("n/p", "page") + keyHint("d", "delete") + keyHint("q", "back")
 	if ev := em.View(); ev != wantEmpty {
 		t.Errorf("empty View() = %q, want %q", ev, wantEmpty)
 	}
@@ -476,7 +547,7 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	noNotes := &fakeRepo{tags: []gitrepo.TagInfo{{Name: "v0.1.0", Date: "2026-08-01"}}}
 	nm := newModel(noNotes, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
 	wantNoNotes := ui.Dim.Render("(no notes for this version)")
-	if nv := nm.View(); !strings.Contains(nv, wantNoNotes) {
+	if nv := send(nm, "enter").View(); !strings.Contains(nv, wantNoNotes) {
 		t.Errorf("View() missing no-notes fallback %q:\n%s", wantNoNotes, nv)
 	}
 }
@@ -509,7 +580,7 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 			t.Errorf("es View() missing localized hint %q, got:\n%s", spanish, v)
 		}
 	}
-	if !strings.Contains(v, backLabel) || !strings.Contains(v, "q volver") {
+	if !strings.Contains(v, backHomeLabel) || !strings.Contains(v, "q volver") {
 		t.Errorf("es View() should show the explicit back row instead of q-back hint, got:\n%s", v)
 	}
 
@@ -542,7 +613,7 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 	if !strings.Contains(ev, "Aún no hay lanzamientos. Crea uno desde el menú.") || strings.Contains(ev, "No releases yet") {
 		t.Errorf("es empty View() = %q, want localized empty state", ev)
 	}
-	if !strings.Contains(ev, backLabel) || !strings.Contains(ev, "q volver") {
+	if !strings.Contains(ev, backHomeLabel) || !strings.Contains(ev, "q volver") {
 		t.Errorf("es empty View() should show the explicit back row instead of q-back hint, got:\n%s", ev)
 	}
 
@@ -553,7 +624,7 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 
 	noNotes := &fakeRepo{tags: []gitrepo.TagInfo{{Name: "v0.1.0", Date: "2026-08-01"}}}
 	nm := newModel(noNotes, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
-	if nv := nm.View(); !strings.Contains(nv, "(sin notas para esta versión)") || strings.Contains(nv, "no notes for this version") {
+	if nv := send(nm, "enter").View(); !strings.Contains(nv, "(sin notas para esta versión)") || strings.Contains(nv, "no notes for this version") {
 		t.Errorf("es View() missing localized no-notes fallback, got:\n%s", nv)
 	}
 }

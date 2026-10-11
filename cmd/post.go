@@ -3,19 +3,25 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/soyagvs/relio/internal/changelog"
+	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/conventional"
+	"github.com/soyagvs/relio/internal/gitrepo"
 	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/pick"
 	"github.com/soyagvs/relio/internal/release"
+	relbrowser "github.com/soyagvs/relio/internal/releases"
+	"github.com/soyagvs/relio/internal/semver"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
 func newPostCmd(f *releaseFlags) *cobra.Command {
 	var format string
+	var version string
 
 	c := &cobra.Command{
 		Use:   "post",
@@ -27,12 +33,8 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			plan, err := release.BuildPlan(repo, cfg, release.Options{})
-			if err != nil {
-				return err
-			}
-			if plan.NothingToRelease() {
-				_, err := fmt.Fprintln(cmd.ErrOrStderr(), ui.Info(i18n.T(i18n.PostNoCommits)))
+			plan, chosen, err := buildReleasePostPlan(repo, cfg, version, stdinIsTTY() && stdoutIsTTY())
+			if err != nil || !chosen {
 				return err
 			}
 
@@ -54,6 +56,7 @@ func newPostCmd(f *releaseFlags) *cobra.Command {
 	// postFormatItems below for the translated display labels shown in the
 	// interactive picker.
 	c.Flags().StringVar(&format, "format", "minimal", "minimal | social | technical | casual | changelog")
+	c.Flags().StringVar(&version, "version", "", i18n.T(i18n.ImageFlagVersionUsage))
 	return c
 }
 
@@ -71,6 +74,82 @@ func postFormatItems() []pick.Item {
 		{Label: i18n.T(i18n.PostFormatCasualLabel), Desc: i18n.T(i18n.HelpPostCasualDesc), Value: "casual"},
 		{Label: i18n.T(i18n.PostFormatChangelogLabel), Desc: i18n.T(i18n.HelpPostChangelogDesc), Value: "changelog"},
 	}
+}
+
+func buildReleasePostPlan(repo *gitrepo.Repo, cfg config.Config, version string, interactive bool) (release.Plan, bool, error) {
+	tags, err := repo.Tags()
+	if err != nil {
+		return release.Plan{}, false, err
+	}
+	if len(tags) == 0 {
+		return release.Plan{}, false, fmt.Errorf(i18n.T(i18n.PostNoCommits))
+	}
+
+	if version == "" {
+		if interactive {
+			var ok bool
+			if version, ok, err = pickPostRelease(repo, cfg, tags); err != nil || !ok {
+				return release.Plan{}, false, err
+			}
+		} else {
+			version = tags[0].Name
+		}
+	}
+
+	idx := -1
+	for i, t := range tags {
+		if t.Name == version {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return release.Plan{}, false, fmt.Errorf(i18n.T(i18n.ImageNoSuchRelease), version)
+	}
+	plan, err := postPlanForTag(repo, cfg, tags, idx)
+	return plan, err == nil, err
+}
+
+func pickPostRelease(repo *gitrepo.Repo, cfg config.Config, tags []gitrepo.TagInfo) (value string, chosen bool, err error) {
+	_ = tags
+	return relbrowser.RunSelect(repo, cfg)
+}
+
+func postPlanForTag(repo *gitrepo.Repo, cfg config.Config, tags []gitrepo.TagInfo, idx int) (release.Plan, error) {
+	from := ""
+	if idx+1 < len(tags) {
+		from = tags[idx+1].Name
+	}
+	raw, err := repo.CommitsBetween(from, tags[idx].Name)
+	if err != nil {
+		return release.Plan{}, err
+	}
+	commits := conventional.ParseMany(raw)
+	version, err := semver.Parse(tags[idx].Name)
+	if err != nil {
+		return release.Plan{}, err
+	}
+	return release.Plan{
+		Config:  cfg,
+		Next:    version,
+		Commits: commits,
+		Notes:   changelog.Build(commits),
+		Now:     postTimeForTag(tags[idx]),
+	}, nil
+}
+
+func postTimeForTag(tag gitrepo.TagInfo) time.Time {
+	if tag.DateTime != "" {
+		if t, err := time.ParseInLocation("2006-01-02 15:04", tag.DateTime, time.Local); err == nil {
+			return t
+		}
+	}
+	if tag.Date != "" {
+		if t, err := time.ParseInLocation("2006-01-02", tag.Date, time.Local); err == nil {
+			return t
+		}
+	}
+	return time.Now()
 }
 
 // renderPost builds the announcement text for the given format.

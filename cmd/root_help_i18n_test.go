@@ -4,7 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/soyagvs/relio/internal/i18n"
+	"github.com/soyagvs/relio/internal/ui"
 )
 
 // lookupFlag finds name in either the command's local or persistent flag set.
@@ -84,6 +87,43 @@ func TestHelpAndRootLocalizeAtConstructionTime(t *testing.T) {
 // cmd/version.go's update-available template against i18n.T() under the
 // default "en" language: converting those literals to i18n.T() calls MUST
 // NOT change a single byte of English output.
+func TestHelpModelUsesTabsAndBackHome(t *testing.T) {
+	prev := i18n.Current()
+	if prev != "en" {
+		i18n.SetLanguage("en")
+	}
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	m := newHelpModel()
+	v := m.View()
+	for _, want := range []string{"COMMANDS", "Release flags", "post flags", "image flags", "Menu", "<- Back to home"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("Help View() missing %q:\n%s", want, v)
+		}
+	}
+	if strings.Contains(v, "RELEASE FLAGS\n") {
+		t.Fatalf("Help View() should show only the active tab body, not every section:\n%s", v)
+	}
+
+	n, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m = n.(helpModel)
+	if m.idx != 1 {
+		t.Fatalf("right should move to next tab, idx=%d", m.idx)
+	}
+	if v := m.View(); !strings.Contains(v, "RELEASE FLAGS") || !strings.Contains(v, ui.Key.Render("▸ Release flags ")) {
+		t.Fatalf("Help View() did not switch to release flags tab:\n%s", v)
+	}
+
+	n, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = n.(helpModel)
+	if !m.done || cmd == nil {
+		t.Fatalf("enter on Help should return home, done=%v cmd nil=%v", m.done, cmd == nil)
+	}
+	if got := m.View(); got != "" {
+		t.Fatalf("done Help View() = %q, want blank", got)
+	}
+}
+
 func TestGoldenEnglishHelpUnchanged(t *testing.T) {
 	prev := i18n.Current()
 	if prev != "en" {

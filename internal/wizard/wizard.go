@@ -110,12 +110,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.quitting {
-		// The plan preview was already printed to the scrollback by the caller;
-		// leave only a short trace of the decision here.
-		if m.result.Confirmed {
-			return ui.Dim.Render(fmt.Sprintf(i18n.T(i18n.WizardConfirmed), m.nextVersion().String())) + "\n"
-		}
-		return ui.Dim.Render(i18n.T(i18n.WizardCancelled)) + "\n"
+		return ""
 	}
 
 	var b strings.Builder

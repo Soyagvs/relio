@@ -47,12 +47,12 @@ func TestRunMenuSetupNotAGitRepo(t *testing.T) {
 }
 
 func TestWaitMenuBackPrintsSeparatorClearsAndRunsBackPicker(t *testing.T) {
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
 
 	var gotTitle string
 	var gotItems []pick.Item
-	runPicker = func(title string, items []pick.Item) (string, bool, error) {
+	runHomePicker = func(title string, items []pick.Item) (string, bool, error) {
 		gotTitle = title
 		gotItems = items
 		return "", false, nil
@@ -74,10 +74,10 @@ func TestWaitMenuBackPrintsSeparatorClearsAndRunsBackPicker(t *testing.T) {
 }
 
 func TestWaitMenuBackPropagatesHardQuit(t *testing.T) {
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
 
-	runPicker = func(string, []pick.Item) (string, bool, error) {
+	runHomePicker = func(string, []pick.Item) (string, bool, error) {
 		return "", false, pick.ErrQuit
 	}
 
@@ -94,10 +94,10 @@ func TestWaitMenuBackPropagatesHardQuit(t *testing.T) {
 }
 
 func TestRunMenuAuthBackChoiceSkipsMenuBackWait(t *testing.T) {
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
 
-	runPicker = func(string, []pick.Item) (string, bool, error) {
+	runHomePicker = func(string, []pick.Item) (string, bool, error) {
 		return "", false, nil
 	}
 
@@ -114,11 +114,11 @@ func TestRunMenuAuthBackChoiceSkipsMenuBackWait(t *testing.T) {
 // actually sign in, not just "status" and "how" — regression for the menu
 // screen having no login path at all.
 func TestRunMenuAuthOffersLoginChoice(t *testing.T) {
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
 
 	var gotItems []pick.Item
-	runPicker = func(_ string, items []pick.Item) (string, bool, error) {
+	runHomePicker = func(_ string, items []pick.Item) (string, bool, error) {
 		gotItems = items
 		return "", false, nil
 	}
@@ -144,9 +144,9 @@ func TestRunMenuAuthOffersLoginChoice(t *testing.T) {
 func TestRunMenuAuthLoginChoiceRunsDeviceFlow(t *testing.T) {
 	stubDeviceFlow(t)
 
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
-	runPicker = func(string, []pick.Item) (string, bool, error) {
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
+	runHomePicker = func(string, []pick.Item) (string, bool, error) {
 		return "login", true, nil
 	}
 
@@ -170,9 +170,9 @@ func TestRunMenuAuthLoginChoiceRunsDeviceFlow(t *testing.T) {
 // connect" text points at `relio auth login` and no longer claims Relio
 // stores nothing — stale since v1.13.0 added internal/tokenstore.
 func TestRunMenuAuthHowChoiceMentionsLoginNotStorageClaim(t *testing.T) {
-	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
-	runPicker = func(string, []pick.Item) (string, bool, error) {
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runHomePicker = oldRunHomePicker })
+	runHomePicker = func(string, []pick.Item) (string, bool, error) {
 		return "how", true, nil
 	}
 
@@ -200,7 +200,8 @@ func TestRunMenuReleaseBackStepsToPreviousPicker(t *testing.T) {
 	}
 
 	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runPicker = oldRunPicker; runHomePicker = oldRunHomePicker })
 
 	responses := []struct {
 		value  string
@@ -220,6 +221,7 @@ func TestRunMenuReleaseBackStepsToPreviousPicker(t *testing.T) {
 		responses = responses[1:]
 		return next.value, next.chosen, nil
 	}
+	runHomePicker = runPicker
 
 	wait, err := runMenuRelease(&cobra.Command{}, &releaseFlags{dir: dir})
 	if err != nil {
@@ -241,7 +243,8 @@ func TestRunMenuReleaseBackFromEditStepsToPublish(t *testing.T) {
 	}
 
 	oldRunPicker := runPicker
-	t.Cleanup(func() { runPicker = oldRunPicker })
+	oldRunHomePicker := runHomePicker
+	t.Cleanup(func() { runPicker = oldRunPicker; runHomePicker = oldRunHomePicker })
 
 	responses := []struct {
 		value  string
@@ -263,6 +266,7 @@ func TestRunMenuReleaseBackFromEditStepsToPublish(t *testing.T) {
 		responses = responses[1:]
 		return next.value, next.chosen, nil
 	}
+	runHomePicker = runPicker
 
 	wait, err := runMenuRelease(&cobra.Command{}, &releaseFlags{dir: dir})
 	if err != nil {

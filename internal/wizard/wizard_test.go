@@ -141,28 +141,21 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		t.Errorf("View() does not end with the expected hint line:\n%s", v)
 	}
 
-	// Confirmed trace line, byte-identical to the historical hardcoded
-	// string.
 	confirmed := send(newModel(p), "enter")
-	wantConfirmed := ui.Dim.Render("→ confirmed v1.4.0") + "\n"
-	if got := confirmed.View(); got != wantConfirmed {
-		t.Errorf("confirmed View() = %q, want %q", got, wantConfirmed)
+	if got := confirmed.View(); got != "" {
+		t.Errorf("confirmed View() = %q, want blank", got)
 	}
 
-	// Cancelled trace line, byte-identical to the historical hardcoded
-	// string.
 	cancelled := send(newModel(p), "q")
-	wantCancelled := ui.Dim.Render("→ cancelled") + "\n"
-	if got := cancelled.View(); got != wantCancelled {
-		t.Errorf("cancelled View() = %q, want %q", got, wantCancelled)
+	if got := cancelled.View(); got != "" {
+		t.Errorf("cancelled View() = %q, want blank", got)
 	}
 }
 
 // TestChoiceLabelsLocalizeUnderSpanish proves the wizard's choice labels,
-// header, bump-from line, hint, and trace lines actually route through
-// i18n.T (not just accidentally identical in English): switching to "es"
-// must change every one of them and must NOT leave the English literal
-// behind.
+// header, bump-from line, and hint actually route through i18n.T (not just
+// accidentally identical in English): switching to "es" must change every one
+// of them and must NOT leave the English literal behind.
 func TestChoiceLabelsLocalizeUnderSpanish(t *testing.T) {
 	prev := i18n.Current()
 	i18n.SetLanguage("es")
@@ -192,12 +185,12 @@ func TestChoiceLabelsLocalizeUnderSpanish(t *testing.T) {
 	}
 
 	confirmed := send(newModel(p), "enter")
-	if got := confirmed.View(); !strings.Contains(got, "confirmado v1.4.0") || strings.Contains(got, "confirmed") {
-		t.Errorf("es confirmed View() = %q, want localized confirmation", got)
+	if got := confirmed.View(); got != "" {
+		t.Errorf("es confirmed View() = %q, want blank", got)
 	}
 
 	cancelled := send(newModel(p), "q")
-	if got := cancelled.View(); !strings.Contains(got, "cancelado") || strings.Contains(got, "cancelled") {
-		t.Errorf("es cancelled View() = %q, want localized cancellation", got)
+	if got := cancelled.View(); got != "" {
+		t.Errorf("es cancelled View() = %q, want blank", got)
 	}
 }

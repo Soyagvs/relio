@@ -60,12 +60,12 @@ func TestSelectEveryAction(t *testing.T) {
 	}
 }
 
-func TestHelpAndGuideKeys(t *testing.T) {
-	if m := send(model{}, "?"); m.result != Help || !m.done {
-		t.Errorf("? key: result=%v done=%v, want Help", m.result, m.done)
+func TestHelpAndGuideKeysOpenTheirModules(t *testing.T) {
+	if m, selected := send(model{}, "?"), selectAction(Help); m.result != selected.result || !m.done {
+		t.Errorf("? key: result=%v done=%v, want Help module action %v", m.result, m.done, selected.result)
 	}
-	if m := send(model{}, "g"); m.result != Guide || !m.done {
-		t.Errorf("g key: result=%v done=%v, want Guide", m.result, m.done)
+	if m, selected := send(model{}, "g"), selectAction(Guide); m.result != selected.result || !m.done {
+		t.Errorf("g key: result=%v done=%v, want Guide module action %v", m.result, m.done, selected.result)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestCheckItemPresent(t *testing.T) {
 	for _, it := range items {
 		if it.action == Check {
 			found = true
-			if it.Label() != "Check" {
+			if it.Label() != "Check commits" {
 				t.Errorf("Check label = %q", it.Label())
 			}
 			if it.Desc() == "" {
@@ -122,26 +122,26 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLanguage(prev) })
 
 	wantLabels := map[Action]string{
-		Release:      "Release",
-		Status:       "Status",
-		Check:        "Check",
-		ViewReleases: "Releases",
-		ReleaseText:  "Announcement",
-		ReleaseImage: "Release image",
+		Release:      "Create release",
+		Status:       "Release status",
+		Check:        "Check commits",
+		ViewReleases: "List releases",
+		ReleaseText:  "Create post",
+		ReleaseImage: "Create image",
 		Auth:         "Auth",
-		Setup:        "Setup",
+		Setup:        "Setup project",
 		Settings:     "Settings",
 		Guide:        "Guide",
 		Help:         "Help",
 		Exit:         "Exit",
 	}
 	wantDescs := map[Action]string{
-		Release:      "Create a release — final or rc, and optionally push + publish",
-		Status:       "What's unreleased and the version it suggests",
-		Check:        "Which commits since the last tag are Conventional Commits",
+		Release:      "Draft, preview, and tag a final release or rc",
+		Status:       "See what's unreleased and the version it suggests",
+		Check:        "Validate Conventional Commits since the last tag",
 		ViewReleases: "Browse versions, read notes, delete one",
-		ReleaseText:  "Copy-paste release text — pick a format",
-		ReleaseImage: "Save or share a PNG release card",
+		ReleaseText:  "Create announcement text from a release",
+		ReleaseImage: "Create a PNG card from a release",
 		Auth:         "GitHub connection — status and how to link",
 		Setup:        "Create or inspect .release.yaml",
 		Settings:     "Language and release-footer preferences",
@@ -162,7 +162,7 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		}
 	}
 
-	wantHint := "↑/↓ move · 1–9 jump · ? help · g guide · enter select · q quit"
+	wantHint := "↑/↓/j/k move · ? Help · g Guide · enter select · q quit"
 	if got := i18n.T(i18n.MenuHint); got != wantHint {
 		t.Errorf("i18n.T(MenuHint) under en = %q, want %q", got, wantHint)
 	}
@@ -191,6 +191,16 @@ func TestBareViewOmitsBanner(t *testing.T) {
 	// list, so the small-terminal budget grows from 20 to 22.
 	if got := strings.Count(v, "\n") + 1; got > 22 {
 		t.Errorf("View() is %d lines, too tall for a small terminal", got)
+	}
+}
+
+func TestViewShowsNumbersForEveryMenuModule(t *testing.T) {
+	v := model{width: 100}.View()
+	for i, it := range items {
+		want := rowNumber(i) + it.Label()
+		if !strings.Contains(v, want) {
+			t.Fatalf("View() missing numbered menu row %q:\n%s", want, v)
+		}
 	}
 }
 

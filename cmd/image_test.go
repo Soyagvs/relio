@@ -244,7 +244,7 @@ func TestRunReleaseImageNoReleasesLocalizesOutput(t *testing.T) {
 		var buf bytes.Buffer
 		c := &cobra.Command{}
 		c.SetOut(&buf)
-		if err := runReleaseImage(c, r, config.Default("proj"), imageFlags{}); err != nil {
+		if _, err := runReleaseImage(c, r, config.Default("proj"), imageFlags{}); err != nil {
 			t.Fatalf("runReleaseImage: %v", err)
 		}
 		return buf.String()
@@ -276,7 +276,8 @@ func TestRunReleaseImageUnknownVersionLocalizesError(t *testing.T) {
 		var buf bytes.Buffer
 		c := &cobra.Command{}
 		c.SetOut(&buf)
-		return runReleaseImage(c, r, config.Default("proj"), imageFlags{version: "v9.9.9"})
+		_, err := runReleaseImage(c, r, config.Default("proj"), imageFlags{version: "v9.9.9"})
+		return err
 	}
 
 	errEN := run("en")

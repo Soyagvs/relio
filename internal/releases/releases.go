@@ -37,14 +37,8 @@ type mode int
 
 const (
 	browse mode = iota
+	preview
 	confirmDelete
-)
-
-type focus int
-
-const (
-	focusTable focus = iota
-	focusDetail
 )
 
 type model struct {
@@ -53,24 +47,34 @@ type model struct {
 	changelogPath string
 	changelog     string
 
-	tags         []gitrepo.TagInfo
-	cursor       int
-	mode         mode
-	status       string
-	err          string
-	quit         bool
-	killed       bool // hard-quit with ctrl+c
-	picked       int  // retained for older static output paths; -1 = none
-	focus        focus
-	detailOffset int
+	tags           []gitrepo.TagInfo
+	cursor         int
+	mode           mode
+	status         string
+	err            string
+	quit           bool
+	killed         bool // hard-quit with ctrl+c
+	picked         int  // retained for older static output paths; -1 = none
+	selectable     bool
+	confirmed      bool
+	detailOffset   int
+	previewBack    bool
+	previewConfirm bool
 }
 
 const backLabel = "<- Back"
+const backHomeLabel = "<- Back to home"
 const releasesPageSize = 10
 
 func newModel(repo repoPort, project, changelogPath string) model {
 	m := model{repo: repo, project: project, changelogPath: changelogPath, picked: -1}
 	m.reload()
+	return m
+}
+
+func newSelectModel(repo repoPort, project, changelogPath string) model {
+	m := newModel(repo, project, changelogPath)
+	m.selectable = true
 	return m
 }
 
@@ -155,6 +159,8 @@ func (m model) maxDetailOffset() int {
 
 func (m model) moveDetail(delta int) model {
 	m.detailOffset = max(0, min(m.detailOffset+delta, m.maxDetailOffset()))
+	m.previewBack = false
+	m.previewConfirm = false
 	return m
 }
 
@@ -188,26 +194,73 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.quit = true
 		return m, tea.Quit
 	case "esc", "tab":
-		if m.focus == focusDetail {
-			m.focus = focusTable
+		if m.mode == preview {
+			m.mode = browse
+			m.detailOffset = 0
+			m.previewBack = false
+			m.previewConfirm = false
 			return m, nil
 		}
 		m.quit = true
 		return m, tea.Quit
 	}
 
-	if m.focus == focusDetail {
+	if m.mode == preview {
 		switch key.String() {
-		case "h", "left":
-			m.focus = focusTable
+		case "b", "h", "left":
+			m.mode = browse
+			m.detailOffset = 0
+			m.previewBack = false
+			m.previewConfirm = false
 		case "up", "k":
-			m = m.moveDetail(-1)
+			if m.previewBack {
+				m.previewBack = false
+				if m.selectable {
+					m.previewConfirm = true
+				}
+			} else if m.previewConfirm {
+				m.previewConfirm = false
+			} else {
+				m = m.moveDetail(-1)
+			}
 		case "down", "j":
-			m = m.moveDetail(1)
+			if m.detailOffset >= m.maxDetailOffset() {
+				if m.selectable && !m.previewConfirm {
+					m.previewConfirm = true
+					m.previewBack = false
+				} else {
+					m.previewConfirm = false
+					m.previewBack = true
+				}
+			} else {
+				m = m.moveDetail(1)
+			}
 		case "pgup", "p":
 			m = m.moveDetail(-detailPaneLines)
 		case "pgdown", "n", " ":
-			m = m.moveDetail(detailPaneLines)
+			if m.detailOffset >= m.maxDetailOffset() {
+				if m.selectable && !m.previewConfirm {
+					m.previewConfirm = true
+					m.previewBack = false
+				} else {
+					m.previewConfirm = false
+					m.previewBack = true
+				}
+			} else {
+				m = m.moveDetail(detailPaneLines)
+			}
+		case "enter":
+			if m.previewBack {
+				m.mode = browse
+				m.detailOffset = 0
+				m.previewBack = false
+				m.previewConfirm = false
+				return m, nil
+			}
+			if m.previewConfirm && m.selectable {
+				m.confirmed = true
+				return m, tea.Quit
+			}
 		}
 		return m, nil
 	}
@@ -227,7 +280,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case "l", "right":
 		if _, ok := m.selected(); ok {
-			m.focus = focusDetail
+			m.mode = preview
 			m.detailOffset = 0
 		}
 	case "n", "pgdown":
@@ -239,10 +292,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quit = true
 			return m, tea.Quit
 		}
-	case "d", "x":
 		if _, ok := m.selected(); ok {
-			m.mode = confirmDelete
-			m.status = ""
+			m.picked = m.cursor
+			m.mode = preview
+			m.detailOffset = 0
+		}
+	case "d", "x":
+		if !m.selectable {
+			if _, ok := m.selected(); ok {
+				m.mode = confirmDelete
+				m.status = ""
+			}
 		}
 	}
 	return m, nil
@@ -329,12 +389,12 @@ func (m model) notesFor(idx int) string {
 
 const detailPaneLines = 18
 
-var (
-	rowSel      = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
-	detailFocus = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
-)
+var rowSel = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
 
 func (m model) View() string {
+	if m.confirmed {
+		return ""
+	}
 	if m.quit {
 		return m.staticView()
 	}
@@ -347,8 +407,10 @@ func (m model) View() string {
 	}
 	if len(m.tags) == 0 {
 		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmpty)))
+	} else if m.mode == preview {
+		b.WriteString(m.previewView())
 	} else {
-		b.WriteString(m.splitView())
+		b.WriteString(m.tableView())
 	}
 
 	if m.mode == confirmDelete {
@@ -358,35 +420,48 @@ func (m model) View() string {
 		if m.status != "" {
 			b.WriteString("\n" + ui.Ok.Render("✓ ") + m.status)
 		}
-		label := backLabel
-		marker := "  "
-		if m.onBack() {
-			marker = "▸ "
-			label = ui.Key.Render(label)
-		}
 		sep := "\n\n"
 		if strings.HasSuffix(b.String(), "\n") {
 			sep = "\n"
 		}
-		b.WriteString(sep + marker + label)
-		if m.focus == focusDetail {
-			b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("h/esc", i18n.T(i18n.ReleasesHintBack)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
+		b.WriteString(sep)
+		if m.mode == preview && m.selectable {
+			confirmLabel := i18n.T(i18n.ReleasesHintConfirm)
+			confirmMarker := "  "
+			if m.previewConfirm {
+				confirmMarker = "▸ "
+				confirmLabel = ui.Key.Render(confirmLabel)
+			}
+			b.WriteString(confirmMarker + confirmLabel + "\n")
+		}
+		label := backHomeLabel
+		if m.mode == preview {
+			label = backLabel
+		}
+		marker := "  "
+		if m.onBack() || (m.mode == preview && m.previewBack) {
+			marker = "▸ "
+			label = ui.Key.Render(label)
+		}
+		b.WriteString(marker + label)
+		if m.mode == preview {
+			b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("enter", i18n.T(i18n.ReleasesHintConfirm)) + keyHint("b/esc", i18n.T(i18n.ReleasesHintBack)))
 		} else {
-			b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("l", i18n.T(i18n.ReleasesHintShowExit)) + keyHint("n/p", i18n.T(i18n.ReleasesHintPage)) +
-				keyHint("d", i18n.T(i18n.ReleasesHintDelete)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
+			footer := keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("enter", i18n.T(i18n.ReleasesHintShowExit)) + keyHint("n/p", i18n.T(i18n.ReleasesHintPage))
+			if !m.selectable {
+				footer += keyHint("d", i18n.T(i18n.ReleasesHintDelete))
+			}
+			footer += keyHint("q", i18n.T(i18n.ReleasesHintBack))
+			b.WriteString("\n\n" + footer)
 		}
 	}
 	return b.String()
 }
 
-func (m model) splitView() string {
+func (m model) tableView() string {
 	start, end := m.pageBounds()
-	leftTitle := "Releases"
-	if m.focus == focusTable {
-		leftTitle = rowSel.Render(leftTitle)
-	}
-	left := []string{
-		fmt.Sprintf("╭─ %s %s", leftTitle, strings.Repeat("─", 26)),
+	rows := []string{
+		fmt.Sprintf("╭─ %s %s", rowSel.Render("Releases"), strings.Repeat("─", 26)),
 		fmt.Sprintf("│ %-10s %-10s %7s", i18n.T(i18n.ReleasesColumnVersion), i18n.T(i18n.ReleasesColumnDate), i18n.T(i18n.ReleasesColumnCommits)),
 		ui.Dim.Render("│ ────────── ────────── ───────"),
 	}
@@ -397,55 +472,34 @@ func (m model) splitView() string {
 			mark = "›"
 		}
 		row := fmt.Sprintf("│ %s %-10s %-10s %7d", mark, t.Name, t.Date, m.commitsFor(i))
-		if i == m.cursor && m.focus == focusTable {
+		if i == m.cursor {
 			row = rowSel.Render(row)
 		}
-		left = append(left, row)
+		rows = append(rows, row)
 	}
-	left = append(left, ui.Dim.Render(fmt.Sprintf("│ %s %d/%d", i18n.T(i18n.ReleasesPageLabel), m.page()+1, m.pageCount())))
-	left = append(left, "╰"+strings.Repeat("─", 36))
+	rows = append(rows, ui.Dim.Render(fmt.Sprintf("│ %s %d/%d", i18n.T(i18n.ReleasesPageLabel), m.page()+1, m.pageCount())))
+	rows = append(rows, "╰"+strings.Repeat("─", 36))
+	return strings.Join(rows, "\n") + "\n"
+}
 
-	rightTitle := "Summary"
-	if m.focus == focusDetail {
-		rightTitle = detailFocus.Render(rightTitle)
-	}
-	right := []string{fmt.Sprintf("╭─ %s %s", rightTitle, strings.Repeat("─", 54))}
+func (m model) previewView() string {
 	lines := m.detailLines()
 	if m.detailOffset > m.maxDetailOffset() {
 		m.detailOffset = m.maxDetailOffset()
 	}
 	endLine := min(len(lines), m.detailOffset+detailPaneLines)
+	rows := []string{fmt.Sprintf("╭─ %s %s", rowSel.Render("Preview"), strings.Repeat("─", 54))}
 	if m.detailOffset > 0 {
-		right = append(right, ui.Dim.Render("│ ↑ more"))
+		rows = append(rows, ui.Dim.Render("│ ↑ more"))
 	}
 	for _, line := range lines[m.detailOffset:endLine] {
-		right = append(right, "│ "+line)
+		rows = append(rows, "│ "+line)
 	}
 	if endLine < len(lines) {
-		right = append(right, ui.Dim.Render("│ ↓ more"))
+		rows = append(rows, ui.Dim.Render("│ ↓ more"))
 	}
-	right = append(right, "╰"+strings.Repeat("─", 64))
-
-	rows := max(len(left), len(right))
-	var b strings.Builder
-	for i := 0; i < rows; i++ {
-		l, r := "", ""
-		if i < len(left) {
-			l = left[i]
-		}
-		if i < len(right) {
-			r = right[i]
-		}
-		b.WriteString(padRight(l, 38) + "  " + r + "\n")
-	}
-	return b.String()
-}
-
-func padRight(s string, width int) string {
-	if n := lipgloss.Width(s); n < width {
-		return s + strings.Repeat(" ", width-n)
-	}
-	return s
+	rows = append(rows, "╰"+strings.Repeat("─", 64))
+	return strings.Join(rows, "\n") + "\n"
 }
 
 // keyHint renders "<key> label" with the key highlighted, padded for a footer row.
@@ -458,14 +512,17 @@ func keyHint(key, label string) string {
 // duplicate every version in the terminal history.
 func (m model) staticView() string { return "" }
 
-// Run opens the browser against repo and blocks until the user goes back.
-func Run(repo *gitrepo.Repo, cfg config.Config) error {
+func changelogPath(repo *gitrepo.Repo, cfg config.Config) string {
 	path := cfg.Release.ChangelogFile
 	if path == "" {
 		path = "CHANGELOG.md"
 	}
-	m := newModel(repo, cfg.Project, repo.Root()+string(os.PathSeparator)+path)
-	final, err := tea.NewProgram(m).Run()
+	return repo.Root() + string(os.PathSeparator) + path
+}
+
+// Run opens the browser against repo and blocks until the user goes back.
+func Run(repo *gitrepo.Repo, cfg config.Config) error {
+	final, err := tea.NewProgram(newModel(repo, cfg.Project, changelogPath(repo, cfg))).Run()
 	if err != nil {
 		return err
 	}
@@ -473,4 +530,22 @@ func Run(repo *gitrepo.Repo, cfg config.Config) error {
 		return ErrQuit
 	}
 	return nil
+}
+
+// RunSelect opens the shared release table and returns the release confirmed
+// from its preview screen. Backing out returns ok=false.
+func RunSelect(repo *gitrepo.Repo, cfg config.Config) (version string, ok bool, err error) {
+	final, err := tea.NewProgram(newSelectModel(repo, cfg.Project, changelogPath(repo, cfg))).Run()
+	if err != nil {
+		return "", false, err
+	}
+	out := final.(model)
+	if out.killed {
+		return "", false, ErrQuit
+	}
+	if !out.confirmed {
+		return "", false, nil
+	}
+	tag, selected := out.selected()
+	return tag.Name, selected, nil
 }

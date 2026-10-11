@@ -4,12 +4,19 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/soyagvs/relio/internal/i18n"
 	"github.com/soyagvs/relio/internal/ui"
 )
 
 // reference is the full command + flag listing shown by the menu's Help entry.
 type refRow struct{ name, desc string }
+
+type helpTab struct {
+	title string
+	rows  []refRow
+}
 
 // helpTables builds the reference rows at call time — never as package-level
 // vars — so every desc resolves through i18n.T() against whatever language
@@ -71,31 +78,113 @@ func helpTables() (commands, releaseFlags, postFlags, imageFlags, menu []refRow)
 	return
 }
 
+func helpTabs() []helpTab {
+	commands, releaseFlags, postFlags, imageFlags, menu := helpTables()
+	return []helpTab{
+		{i18n.T(i18n.HelpSectionCommands), commands},
+		{i18n.T(i18n.HelpSectionReleaseFlags), releaseFlags},
+		{i18n.T(i18n.HelpSectionPostFlags), postFlags},
+		{i18n.T(i18n.HelpSectionImageFlags), imageFlags},
+		{i18n.T(i18n.HelpSectionMenu), menu},
+	}
+}
+
 func helpReference() string {
 	var b strings.Builder
 	b.WriteString(ui.Banner("", version) + "\n\n")
 
-	section := func(title string, rows []refRow) {
-		b.WriteString(ui.Key.Render(strings.ToUpper(title)) + "\n")
-		width := 0
-		for _, r := range rows {
-			if len(r.name) > width {
-				width = len(r.name)
-			}
-		}
-		for _, r := range rows {
-			b.WriteString("  " + fmt.Sprintf("%-*s", width, r.name) + "  " + ui.Dim.Render(r.desc) + "\n")
-		}
-		b.WriteString("\n")
+	for _, tab := range helpTabs() {
+		b.WriteString(ui.Key.Render(strings.ToUpper(tab.title)) + "\n")
+		b.WriteString(helpTable(tab.rows) + "\n")
 	}
-
-	commands, releaseFlags, postFlags, imageFlags, menu := helpTables()
-	section(i18n.T(i18n.HelpSectionCommands), commands)
-	section(i18n.T(i18n.HelpSectionReleaseFlags), releaseFlags)
-	section(i18n.T(i18n.HelpSectionPostFlags), postFlags)
-	section(i18n.T(i18n.HelpSectionImageFlags), imageFlags)
-	section(i18n.T(i18n.HelpSectionMenu), menu)
 
 	b.WriteString(ui.Dim.Render(i18n.T(i18n.HelpFooter)))
 	return b.String()
+}
+
+func helpTable(rows []refRow) string {
+	width := 0
+	for _, r := range rows {
+		if len(r.name) > width {
+			width = len(r.name)
+		}
+	}
+	var b strings.Builder
+	for _, r := range rows {
+		b.WriteString("  " + fmt.Sprintf("%-*s", width, r.name) + "  " + ui.Dim.Render(r.desc) + "\n")
+	}
+	return b.String()
+}
+
+type helpModel struct {
+	tabs []helpTab
+	idx  int
+	done bool
+}
+
+func newHelpModel() helpModel {
+	return helpModel{tabs: helpTabs()}
+}
+
+func (m helpModel) Init() tea.Cmd { return nil }
+
+func (m helpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	key, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return m, nil
+	}
+	switch key.String() {
+	case "ctrl+c", "q", "esc":
+		m.done = true
+		return m, tea.Quit
+	case "left", "h", "shift+tab", "p":
+		if m.idx > 0 {
+			m.idx--
+		}
+	case "right", "l", "tab", "n":
+		if m.idx < len(m.tabs)-1 {
+			m.idx++
+		}
+	case "enter", " ":
+		m.done = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m helpModel) View() string {
+	if m.done {
+		return ""
+	}
+	if len(m.tabs) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(ui.Banner("", version) + "\n\n")
+	for i, tab := range m.tabs {
+		label := " " + tab.title + " "
+		if i == m.idx {
+			b.WriteString(ui.Key.Render("▸" + label))
+		} else {
+			b.WriteString(ui.Dim.Render(" " + label))
+		}
+		if i < len(m.tabs)-1 {
+			b.WriteString(" ")
+		}
+	}
+	b.WriteString("\n\n")
+
+	active := m.tabs[m.idx]
+	b.WriteString(ui.Key.Render(strings.ToUpper(active.title)) + "\n")
+	b.WriteString(helpTable(active.rows))
+	b.WriteString("\n")
+	b.WriteString(ui.Key.Render("<- Back to home") + "\n\n")
+	b.WriteString(ui.Dim.Render("←/→ tabs · tab next · enter back to home · q quit"))
+	return b.String()
+}
+
+func runHelp() error {
+	_, err := tea.NewProgram(newHelpModel()).Run()
+	return err
 }

@@ -38,8 +38,9 @@ type step struct {
 }
 
 const (
-	backLabel = "<- Back"
-	nextLabel = "Next ->"
+	backLabel     = "<- Back"
+	backHomeLabel = "<- Back to home"
+	nextLabel     = "Next ->"
 )
 
 // buildSteps returns the eight walkthrough steps, tailored by ctx. The count is
@@ -270,13 +271,17 @@ func (m teaModel) View() string {
 }
 
 func (m teaModel) controlRow() string {
-	next, back := ui.Dim.Render("  "+nextLabel), ui.Dim.Render("  "+backLabel)
+	back := backLabel
+	if m.i == 0 {
+		back = backHomeLabel
+	}
+	next, backRow := ui.Dim.Render("  "+nextLabel), ui.Dim.Render("  "+back)
 	if m.selectBack {
-		back = ui.Key.Render("▸ " + backLabel)
+		backRow = ui.Key.Render("▸ " + back)
 	} else {
 		next = ui.Key.Render("▸ " + nextLabel)
 	}
-	return next + "\n" + back
+	return next + "\n" + backRow
 }
 
 func (m teaModel) footer() string {
