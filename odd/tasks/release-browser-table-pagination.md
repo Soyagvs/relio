@@ -29,3 +29,4 @@ Keep orientation in `relio releases` when there are many releases by showing a l
 - Final navigation polish: `q` leaves no static list in scrollback; `l` enters details, `h`/Esc/Tab returns to versions, `n/p` pages the release table. Verification passed: `go test ./internal/releases ./internal/i18n` and `go test ./...`.
 - Follow-up fix: removed the post-releases wait/back picker so `q` returns straight to the menu, and changed split-pane joining to use `lipgloss.Width`-aware padding so styled table rows do not break alignment. Verification passed: `go test ./internal/releases ./cmd ./internal/i18n` and `go test ./...`.
 - Documentation updated in `docs/commands.md` and `docs/interactive-menu.md` for the split releases browser and plain image URL output.
+- Work-unit commit: `602c388` (`fix: polish release browser and image links`) on branch `fix/releases-image-ui`, pushed to `origin/fix/releases-image-ui`.
