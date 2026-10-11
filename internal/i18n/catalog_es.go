@@ -233,7 +233,8 @@ var es = map[MessageID]string{
 	HelpPostChangelogDesc: "La sección exacta que va en CHANGELOG.md",
 
 	HelpImageShapeDesc:    "horizontal (1200×630) | vertical (1080×1920) | cuadrado (1080×1080)",
-	HelpImageThemeDesc:    "naranja (por defecto) | verde | acento morado",
+	HelpImageDesignDesc:   "default | minimal | bold | neon",
+	HelpImageThemeDesc:    "tema de color para el diseño seleccionado",
 	HelpImageHashDesc:     "muestra el hash de commit en cada línea",
 	HelpImageUploadDesc:   "también sube a un host temporal (litterbox 72h) e imprime un enlace + QR",
 	HelpImageLinkOnlyDesc: "sube para obtener un enlace + QR sin escribir un archivo local",
@@ -423,7 +424,8 @@ var es = map[MessageID]string{
 		"sin flags, simplemente la guarda en el directorio actual.\n\n" +
 		"Los flags omiten las preguntas:\n" +
 		"  --version    etiqueta de lanzamiento     --shape   horizontal|vertical|square\n" +
-		"  --theme      orange|green|purple         --hash    muestra los hashes de commit\n" +
+		"  --design     default|minimal|bold|neon\n" +
+		"  --theme      tema de color del diseño      --hash    muestra los hashes de commit\n" +
 		"  --upload     también sube a un host temporal (litterbox, 72h): enlace + QR\n" +
 		"  --link-only  solo sube — no escribe un archivo en disco",
 
@@ -439,15 +441,26 @@ var es = map[MessageID]string{
 	ImageShapeSquareLabel:     "Cuadrado",
 	ImageShapeSquareDesc:      "1080×1080",
 
-	ImageThemeOrangeLabel: "Naranja",
-	ImageThemeOrangeDesc:  "El valor predeterminado de Relio",
-	ImageThemeGreenLabel:  "Verde",
-	ImageThemeGreenDesc:   "Acento verde azulado",
-	ImageThemePurpleLabel: "Morado",
-	ImageThemePurpleDesc:  "Acento morado",
+	ImageDesignDefaultLabel: "Predeterminado",
+	ImageDesignDefaultDesc:  "Tarjeta clásica de Relio con acentos naranja/verde/morado",
+	ImageDesignMinimalLabel: "Mínimo",
+	ImageDesignMinimalDesc:  "Limpio, claro y espacioso",
+	ImageDesignBoldLabel:    "Audaz",
+	ImageDesignBoldDesc:     "Bloques grandes y color de acento fuerte",
+	ImageDesignNeonLabel:    "Neón",
+	ImageDesignNeonDesc:     "Cuadrícula oscura con brillo de alto contraste",
+
+	ImageThemeOrangeLabel:        "Naranja",
+	ImageThemeOrangeDesc:         "El valor predeterminado de Relio",
+	ImageThemeGreenLabel:         "Verde",
+	ImageThemeGreenDesc:          "Acento verde azulado",
+	ImageThemePurpleLabel:        "Morado",
+	ImageThemePurpleDesc:         "Acento morado",
+	ImageThemeDesignSpecificDesc: "Paleta %s",
 
 	ImagePickReleaseTitle: "Elige un lanzamiento",
 	ImagePickShapeTitle:   "Elige una forma",
+	ImagePickDesignTitle:  "Elige un diseño",
 	ImagePickThemeTitle:   "Elige un color",
 	ImagePickDestTitle:    "¿Qué debería hacer Relio con la imagen?",
 

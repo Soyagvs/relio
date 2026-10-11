@@ -44,19 +44,38 @@ func TestParseShape(t *testing.T) {
 	}
 }
 
-func TestRenderDimensionsEveryShapeAndTheme(t *testing.T) {
+func TestParseDesignAndThemes(t *testing.T) {
+	for in, want := range map[string]Design{"default": Default, "classic": Default, "minimal": Minimal, "bold": Bold, "neon": Neon} {
+		got, ok := ParseDesign(in)
+		if !ok || got != want {
+			t.Errorf("ParseDesign(%q) = %v,%v want %v", in, got, ok, want)
+		}
+	}
+	for _, in := range []string{"", "loud"} {
+		if _, ok := ParseDesign(in); ok {
+			t.Errorf("ParseDesign(%q) ok = true, want false", in)
+		}
+	}
+	if !ThemeForDesign(Default, "orange") || ThemeForDesign(Minimal, "orange") {
+		t.Error("themes should be design-specific")
+	}
+}
+
+func TestRenderDimensionsEveryDesignShapeAndTheme(t *testing.T) {
 	cases := map[Shape][2]int{
 		Horizontal: {1200, 630},
 		Vertical:   {1080, 1920},
 		Square:     {1080, 1080},
 	}
 	for s, wh := range cases {
-		for _, th := range ThemeNames {
-			for _, hash := range []bool{false, true} {
-				img := Render(sample(), s, Options{Theme: th, ShowHash: hash})
-				b := img.Bounds()
-				if b.Dx() != wh[0] || b.Dy() != wh[1] {
-					t.Errorf("%v/%s hash=%v: %dx%d, want %dx%d", s, th, hash, b.Dx(), b.Dy(), wh[0], wh[1])
+		for _, d := range []Design{Default, Minimal, Bold, Neon} {
+			for _, th := range ThemesForDesign(d) {
+				for _, hash := range []bool{false, true} {
+					img := Render(sample(), s, Options{Design: d, Theme: th, ShowHash: hash})
+					b := img.Bounds()
+					if b.Dx() != wh[0] || b.Dy() != wh[1] {
+						t.Errorf("%v/%v/%s hash=%v: %dx%d, want %dx%d", d, s, th, hash, b.Dx(), b.Dy(), wh[0], wh[1])
+					}
 				}
 			}
 		}

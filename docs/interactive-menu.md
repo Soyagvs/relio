@@ -43,7 +43,7 @@ A few rows do more than run a flagless command:
   table. The table shows versions only; press `Enter` to open a release preview,
   then `b` / `Esc` to return to the table. List releases can preview and delete
   local releases with `d`. Create post/image move to the `✔ confirm` button and
-  press `Enter`, then continue to their format or image options.
+  press `Enter`, then continue to their format or image options. Image creation asks for shape first, then design, then that design's colour theme, then save/upload destination.
 - **Create image** can save the PNG, upload it, or both. Upload paths print a
   plain URL first, then a QR code, so mobile terminals and `mosh` sessions have
   a copyable link even when QR scanning is awkward.
@@ -64,7 +64,10 @@ terminal (CI, a pipe), or when you pass `-y` / `--yes`, or a forced bump
 open the menu; combine them with `--yes` to act without prompts.
 
 The banner shows the current version, and — when a newer Relio has been
-published — `▲ vX.Y.Z available` right below it. The check reads one cached value
-on disk and, at most once a day, refreshes it in the background; it never blocks
-the menu or sends anything about you. `relio version` shows the same hint. Set
-`RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.
+published — `▲ vX.Y.Z available` right below it. Development builds (`dev`) show
+the latest published version too, without comparing it to the non-SemVer dev
+version. The check reads one cached value on disk and, at most once a day,
+refreshes it in the background; it never blocks the menu or sends anything about
+you. `relio version` shows the same hint. Set `RELIO_UPDATE_CHECK_ALWAYS=1` to
+query GitHub for the latest release on every invocation instead of waiting for
+the cache TTL. Set `RELIO_NO_UPDATE_CHECK=1` (or run in CI) to turn it off.

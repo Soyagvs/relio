@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/soyagvs/relio/internal/card"
 	"github.com/soyagvs/relio/internal/config"
 	"github.com/soyagvs/relio/internal/i18n"
 )
@@ -125,7 +126,7 @@ func TestNewImageCmdShortLongLocalizeAtConstructionTime(t *testing.T) {
 			t.Errorf("--%s usage unchanged across languages: %q", name, fES.Usage)
 		}
 	}
-	for _, name := range []string{"shape", "theme"} {
+	for _, name := range []string{"shape", "design", "theme"} {
 		fEN := cmdEN.Flags().Lookup(name)
 		fES := cmdES.Flags().Lookup(name)
 		if fEN == nil || fES == nil {
@@ -158,7 +159,8 @@ func TestGoldenEnglishImageCmdUnchanged(t *testing.T) {
 		"it just saves to the current directory.\n\n" +
 		"Flags skip the prompts:\n" +
 		"  --version    release tag            --shape   horizontal|vertical|square\n" +
-		"  --theme      orange|green|purple    --hash    show commit hashes\n" +
+		"  --design     default|minimal|bold|neon\n" +
+		"  --theme      design colour theme     --hash    show commit hashes\n" +
 		"  --upload     also upload to a temp host (litterbox, 72h): link + QR\n" +
 		"  --link-only  upload only — do not write a file to disk"
 	if c.Long != wantLong {
@@ -168,7 +170,8 @@ func TestGoldenEnglishImageCmdUnchanged(t *testing.T) {
 	wantFlagUsage := map[string]string{
 		"version":   "release tag to render (default: latest)",
 		"shape":     "horizontal | vertical | square (default: horizontal)",
-		"theme":     "orange | green | purple (default: orange)",
+		"design":    "default | minimal | bold | neon (default: default)",
+		"theme":     "orange | green | purple (default design); design-specific values with --design",
 		"hash":      "show the commit hash on each line",
 		"upload":    "also upload to a temp host (litterbox 72h) and show a link + QR",
 		"link-only": "upload for a link + QR without writing a local file",
@@ -207,26 +210,63 @@ func TestShapeItemsLocalizeLabelsAtConstructionTime(t *testing.T) {
 }
 
 // TestThemeItemsLocalizeLabelsAtConstructionTime mirrors
-// TestShapeItemsLocalizeLabelsAtConstructionTime for themeItems().
+// TestShapeItemsLocalizeLabelsAtConstructionTime for themeItems(card.Default).
 func TestThemeItemsLocalizeLabelsAtConstructionTime(t *testing.T) {
 	prev := i18n.Current()
 	t.Cleanup(func() { i18n.SetLanguage(prev) })
 
 	i18n.SetLanguage("en")
-	itemsEN := themeItems()
+	itemsEN := themeItems(card.Default)
 	i18n.SetLanguage("es")
-	itemsES := themeItems()
+	itemsES := themeItems(card.Default)
 
 	if len(itemsEN) != len(itemsES) || len(itemsEN) != 3 {
-		t.Fatalf("themeItems() length mismatch: en=%d es=%d", len(itemsEN), len(itemsES))
+		t.Fatalf("themeItems(card.Default) length mismatch: en=%d es=%d", len(itemsEN), len(itemsES))
 	}
 	for i := range itemsEN {
 		if itemsEN[i].Value != itemsES[i].Value {
-			t.Errorf("themeItems()[%d].Value diverged across languages: en=%q es=%q", i, itemsEN[i].Value, itemsES[i].Value)
+			t.Errorf("themeItems(card.Default)[%d].Value diverged across languages: en=%q es=%q", i, itemsEN[i].Value, itemsES[i].Value)
 		}
 		if itemsEN[i].Label == itemsES[i].Label && itemsEN[i].Desc == itemsES[i].Desc {
-			t.Errorf("themeItems()[%d] Label/Desc unchanged across languages: %q / %q", i, itemsEN[i].Label, itemsEN[i].Desc)
+			t.Errorf("themeItems(card.Default)[%d] Label/Desc unchanged across languages: %q / %q", i, itemsEN[i].Label, itemsEN[i].Desc)
 		}
+	}
+}
+
+func TestDesignItemsAndDesignThemesLocalize(t *testing.T) {
+	prev := i18n.Current()
+	t.Cleanup(func() { i18n.SetLanguage(prev) })
+
+	i18n.SetLanguage("en")
+	designEN := designItems()
+	minimalEN := themeItems(card.Minimal)
+	i18n.SetLanguage("es")
+	designES := designItems()
+	minimalES := themeItems(card.Minimal)
+
+	if len(designEN) != 4 || len(designES) != 4 {
+		t.Fatalf("design items len en=%d es=%d", len(designEN), len(designES))
+	}
+	if designEN[0].Label == designES[0].Label || minimalEN[0].Desc == minimalES[0].Desc {
+		t.Fatal("design/theme labels should localize")
+	}
+}
+
+func TestPickImageThemeValidatesAgainstDesign(t *testing.T) {
+	if _, _, err := pickImageTheme(imageFlags{theme: "orange"}, card.Minimal, false); err == nil {
+		t.Fatal("expected orange to be rejected for minimal design")
+	}
+	if got, ok, err := pickImageTheme(imageFlags{}, card.Neon, false); err != nil || !ok || got != "cyan" {
+		t.Fatalf("default neon theme = %q ok=%v err=%v", got, ok, err)
+	}
+}
+
+func TestImageFileNameKeepsDefaultLegacyAndSeparatesDesignThemes(t *testing.T) {
+	if got := imageFileName("v1.2.3", card.Horizontal, card.Default, "orange"); got != "relio-v1.2.3-horizontal.png" {
+		t.Fatalf("default filename = %q", got)
+	}
+	if got := imageFileName("v1.2.3", card.Square, card.Neon, "magenta"); got != "relio-v1.2.3-square-neon-magenta.png" {
+		t.Fatalf("non-default filename = %q", got)
 	}
 }
 

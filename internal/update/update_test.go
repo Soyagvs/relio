@@ -61,6 +61,7 @@ func isolate(t *testing.T) {
 	cacheDir = t.TempDir()
 	asyncRefresh = false
 	t.Setenv(disableEnv, "")
+	t.Setenv(alwaysEnv, "")
 	t.Setenv("CI", "")
 	t.Cleanup(func() {
 		cacheDir = ""
@@ -104,12 +105,131 @@ func TestAvailableDisabled(t *testing.T) {
 	}
 }
 
-func TestAvailableDevBuildNeverChecks(t *testing.T) {
+func TestAvailableAlwaysBypassesFreshCache(t *testing.T) {
+	isolate(t)
+	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v1.1.0"})
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.2.0"})
+	}))
+	defer srv.Close()
+	APIBase = srv.URL
+	t.Setenv(alwaysEnv, "1")
+
+	if got := Available("v1.0.0"); got != "1.2.0" {
+		t.Fatalf("always refresh: got %q, want \"1.2.0\"", got)
+	}
+	if calls != 1 {
+		t.Fatalf("server calls = %d, want 1", calls)
+	}
+	got, ok := readCache()
+	if !ok || got.Latest != "v1.2.0" {
+		t.Fatalf("cache after always refresh = %+v,%v; want latest v1.2.0", got, ok)
+	}
+}
+
+func TestAvailableAlwaysDisabledStillWins(t *testing.T) {
 	isolate(t)
 	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v10.0.0"})
+	}))
+	defer srv.Close()
+	APIBase = srv.URL
+	t.Setenv(alwaysEnv, "1")
+	t.Setenv(disableEnv, "1")
 
-	if got := Available("dev"); got != "" {
-		t.Errorf("dev build: got %q, want \"\"", got)
+	if got := Available("v0.1.0"); got != "" {
+		t.Errorf("disabled always check: got %q, want \"\"", got)
+	}
+	if calls != 0 {
+		t.Fatalf("server calls = %d, want 0", calls)
+	}
+}
+
+func TestAvailableAlwaysCIStillWins(t *testing.T) {
+	isolate(t)
+	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v10.0.0"})
+	}))
+	defer srv.Close()
+	APIBase = srv.URL
+	t.Setenv(alwaysEnv, "1")
+	t.Setenv("CI", "1")
+
+	if got := Available("v0.1.0"); got != "" {
+		t.Errorf("CI always check: got %q, want \"\"", got)
+	}
+	if calls != 0 {
+		t.Fatalf("server calls = %d, want 0", calls)
+	}
+}
+
+func TestAvailableDevBuildFreshCacheReturnsLatest(t *testing.T) {
+	isolate(t)
+	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
+	APIBase = "http://127.0.0.1:0"
+
+	if got := Available("dev"); got != "9.9.9" {
+		t.Errorf("dev build cached latest: got %q, want \"9.9.9\"", got)
+	}
+}
+
+func TestAvailableDevBuildAlwaysRefreshes(t *testing.T) {
+	isolate(t)
+	seedCache(t, cache{CheckedAt: time.Now(), Latest: "v1.1.0"})
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v10.0.0"})
+	}))
+	defer srv.Close()
+	APIBase = srv.URL
+	t.Setenv(alwaysEnv, "1")
+
+	if got := Available("dev"); got != "10.0.0" {
+		t.Fatalf("dev build always refresh: got %q, want \"10.0.0\"", got)
+	}
+	if calls != 1 {
+		t.Fatalf("server calls = %d, want 1", calls)
+	}
+}
+
+func TestAvailableDevBuildKillSwitchesDoNotRefresh(t *testing.T) {
+	cases := []struct {
+		name string
+		env  string
+	}{
+		{"no update check", disableEnv},
+		{"ci", "CI"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isolate(t)
+			seedCache(t, cache{CheckedAt: time.Now(), Latest: "v9.9.9"})
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v10.0.0"})
+			}))
+			defer srv.Close()
+			APIBase = srv.URL
+			t.Setenv(alwaysEnv, "1")
+			t.Setenv(tc.env, "1")
+
+			if got := Available("dev"); got != "" {
+				t.Errorf("dev build with %s: got %q, want \"\"", tc.env, got)
+			}
+			if calls != 0 {
+				t.Fatalf("server calls = %d, want 0", calls)
+			}
+		})
 	}
 }
 

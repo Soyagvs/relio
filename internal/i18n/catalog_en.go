@@ -231,7 +231,8 @@ var en = map[MessageID]string{
 	HelpPostChangelogDesc: "The exact section that goes into CHANGELOG.md",
 
 	HelpImageShapeDesc:    "horizontal (1200×630) | vertical (1080×1920) | square (1080×1080)",
-	HelpImageThemeDesc:    "orange (default) | green | purple accent",
+	HelpImageDesignDesc:   "default | minimal | bold | neon",
+	HelpImageThemeDesc:    "colour theme for the selected design",
 	HelpImageHashDesc:     "show the commit hash on each line",
 	HelpImageUploadDesc:   "also upload to a temp host (litterbox 72h) and print a link + QR",
 	HelpImageLinkOnlyDesc: "upload for a link + QR without writing a local file",
@@ -418,7 +419,8 @@ var en = map[MessageID]string{
 		"it just saves to the current directory.\n\n" +
 		"Flags skip the prompts:\n" +
 		"  --version    release tag            --shape   horizontal|vertical|square\n" +
-		"  --theme      orange|green|purple    --hash    show commit hashes\n" +
+		"  --design     default|minimal|bold|neon\n" +
+		"  --theme      design colour theme     --hash    show commit hashes\n" +
 		"  --upload     also upload to a temp host (litterbox, 72h): link + QR\n" +
 		"  --link-only  upload only — do not write a file to disk",
 
@@ -434,15 +436,26 @@ var en = map[MessageID]string{
 	ImageShapeSquareLabel:     "Square",
 	ImageShapeSquareDesc:      "1080×1080",
 
-	ImageThemeOrangeLabel: "Orange",
-	ImageThemeOrangeDesc:  "The Relio default",
-	ImageThemeGreenLabel:  "Green",
-	ImageThemeGreenDesc:   "Teal-green accent",
-	ImageThemePurpleLabel: "Purple",
-	ImageThemePurpleDesc:  "Purple accent",
+	ImageDesignDefaultLabel: "Default",
+	ImageDesignDefaultDesc:  "Classic Relio card with orange/green/purple accents",
+	ImageDesignMinimalLabel: "Minimal",
+	ImageDesignMinimalDesc:  "Clean, light, and spacious",
+	ImageDesignBoldLabel:    "Bold",
+	ImageDesignBoldDesc:     "Big blocks and strong accent colour",
+	ImageDesignNeonLabel:    "Neon",
+	ImageDesignNeonDesc:     "Dark grid with high-contrast glow",
+
+	ImageThemeOrangeLabel:        "Orange",
+	ImageThemeOrangeDesc:         "The Relio default",
+	ImageThemeGreenLabel:         "Green",
+	ImageThemeGreenDesc:          "Teal-green accent",
+	ImageThemePurpleLabel:        "Purple",
+	ImageThemePurpleDesc:         "Purple accent",
+	ImageThemeDesignSpecificDesc: "%s palette",
 
 	ImagePickReleaseTitle: "Pick a release",
 	ImagePickShapeTitle:   "Pick a shape",
+	ImagePickDesignTitle:  "Pick a design",
 	ImagePickThemeTitle:   "Pick a colour",
 	ImagePickDestTitle:    "What should Relio do with the image?",
 

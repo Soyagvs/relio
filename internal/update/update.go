@@ -13,6 +13,7 @@
 //     this stays true to Relio's no-telemetry stance.
 //
 // Set RELIO_NO_UPDATE_CHECK to any value (or run in CI) to turn it off.
+// Set RELIO_UPDATE_CHECK_ALWAYS to any value to query GitHub on every check.
 package update
 
 import (
@@ -38,6 +39,7 @@ const (
 	ttl        = 24 * time.Hour
 	fetchLimit = 3 * time.Second
 	disableEnv = "RELIO_NO_UPDATE_CHECK"
+	alwaysEnv  = "RELIO_UPDATE_CHECK_ALWAYS"
 )
 
 // cacheDir is the parent of the cache file. Empty means os.UserCacheDir(); tests
@@ -55,33 +57,50 @@ type cache struct {
 
 // Available returns the latest published version as a bare "1.2.3" (no "v") when
 // it is newer than current, or "" when the build is current, the check is
-// disabled, or nothing is cached yet. It never makes a blocking network call; a
-// stale or missing cache is refreshed in the background so the result appears on
-// the following run.
+// disabled, or nothing is cached yet. Development builds (current == "dev") are
+// not comparable to SemVer, so they return the latest valid published version
+// whenever one is available. By default it never makes a blocking network call;
+// a stale or missing cache is refreshed in the background so the result appears
+// on the following run. When RELIO_UPDATE_CHECK_ALWAYS is set, it refreshes
+// inline so the notice reflects the latest query from this run.
 func Available(current string) string {
 	if !enabled(current) {
 		return ""
 	}
 
-	c, ok := readCache()
-	if !ok || time.Since(c.CheckedAt) > ttl {
-		if asyncRefresh {
-			go backgroundRefresh()
-		} else {
-			backgroundRefresh()
-			c, ok = readCache()
+	var c cache
+	var ok bool
+	if os.Getenv(alwaysEnv) != "" {
+		c, ok = refresh()
+	} else {
+		c, ok = readCache()
+		if !ok || time.Since(c.CheckedAt) > ttl {
+			if asyncRefresh {
+				go backgroundRefresh()
+			} else {
+				backgroundRefresh()
+				c, ok = readCache()
+			}
 		}
 	}
 	if !ok || c.Latest == "" {
 		return ""
 	}
 
-	cur, curOK := parse(current)
 	lat, latOK := parse(c.Latest)
-	if !curOK || !latOK || !less(cur, lat) {
+	if !latOK {
 		return ""
 	}
-	return strings.TrimPrefix(strings.TrimSpace(c.Latest), "v")
+	latest := strings.TrimPrefix(strings.TrimSpace(c.Latest), "v")
+	if isDev(current) {
+		return latest
+	}
+
+	cur, curOK := parse(current)
+	if !curOK || !less(cur, lat) {
+		return ""
+	}
+	return latest
 }
 
 // enabled reports whether the check should run for this build at all.
@@ -89,19 +108,32 @@ func enabled(current string) bool {
 	if os.Getenv(disableEnv) != "" || os.Getenv("CI") != "" {
 		return false
 	}
-	_, ok := parse(current) // "dev" / "" / anything unparseable -> skip
+	if isDev(current) {
+		return true
+	}
+	_, ok := parse(current) // "" / anything unparseable -> skip
 	return ok
 }
 
+func isDev(current string) bool {
+	return strings.TrimSpace(current) == "dev"
+}
+
 func backgroundRefresh() {
+	_, _ = refresh()
+}
+
+func refresh() (cache, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), fetchLimit)
 	defer cancel()
 
 	tag, err := fetchLatest(ctx, http.DefaultClient)
 	if err != nil || tag == "" {
-		return
+		return cache{}, false
 	}
-	writeCache(cache{CheckedAt: time.Now(), Latest: tag})
+	c := cache{CheckedAt: time.Now(), Latest: tag}
+	writeCache(c)
+	return c, true
 }
 
 // fetchLatest asks GitHub for the newest published (non-prerelease) release tag.

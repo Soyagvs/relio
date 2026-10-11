@@ -57,6 +57,7 @@ func helpTables() (commands, releaseFlags, postFlags, imageFlags, menu []refRow)
 	}
 	imageFlags = []refRow{
 		{"--shape", i18n.T(i18n.HelpImageShapeDesc)},
+		{"--design", i18n.T(i18n.HelpImageDesignDesc)},
 		{"--theme", i18n.T(i18n.HelpImageThemeDesc)},
 		{"--hash", i18n.T(i18n.HelpImageHashDesc)},
 		{"--upload", i18n.T(i18n.HelpImageUploadDesc)},

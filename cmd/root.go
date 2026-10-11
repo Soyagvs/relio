@@ -345,7 +345,10 @@ func waitMenuBack(cmd *cobra.Command) error {
 }
 
 func clearScreen(out io.Writer) error {
-	_, err := fmt.Fprint(out, "\x1b[2J\x1b[H")
+	// Clear the visible frame and scrollback before returning to the home menu,
+	// so generated artifacts like release images or QR blocks are not left
+	// printed above the freshly rendered menu.
+	_, err := fmt.Fprint(out, "\x1b[2J\x1b[3J\x1b[H")
 	return err
 }
 

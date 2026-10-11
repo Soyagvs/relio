@@ -65,8 +65,8 @@ func TestWaitMenuBackPrintsSeparatorClearsAndRunsBackPicker(t *testing.T) {
 	if err := waitMenuBack(cmd); err != nil {
 		t.Fatalf("waitMenuBack: %v", err)
 	}
-	if buf.String() != "\n\x1b[2J\x1b[H" {
-		t.Fatalf("waitMenuBack output = %q, want blank line then clear screen", buf.String())
+	if buf.String() != "\n\x1b[2J\x1b[3J\x1b[H" {
+		t.Fatalf("waitMenuBack output = %q, want blank line then clear screen and scrollback", buf.String())
 	}
 	if gotTitle != "" || gotItems != nil {
 		t.Fatalf("runPicker got title %q items %#v, want empty back picker", gotTitle, gotItems)

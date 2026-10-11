@@ -28,6 +28,7 @@ import (
 type imageFlags struct {
 	version  string
 	shape    string
+	design   string
 	theme    string
 	hash     bool
 	upload   bool
@@ -58,7 +59,8 @@ func newImageCmd(f *releaseFlags) *cobra.Command {
 	// themeItems() below for the translated display labels shown in the
 	// interactive pickers, matching cmd/post.go's --format convention.
 	c.Flags().StringVar(&im.shape, "shape", "", "horizontal | vertical | square (default: horizontal)")
-	c.Flags().StringVar(&im.theme, "theme", "", "orange | green | purple (default: orange)")
+	c.Flags().StringVar(&im.design, "design", "", "default | minimal | bold | neon (default: default)")
+	c.Flags().StringVar(&im.theme, "theme", "", "orange | green | purple (default design); design-specific values with --design")
 	c.Flags().BoolVar(&im.hash, "hash", false, i18n.T(i18n.ImageFlagHashUsage))
 	c.Flags().BoolVar(&im.upload, "upload", false, i18n.T(i18n.ImageFlagUploadUsage))
 	c.Flags().BoolVar(&im.linkOnly, "link-only", false, i18n.T(i18n.ImageFlagLinkOnlyUsage))
@@ -78,12 +80,30 @@ func shapeItems() []pick.Item {
 	}
 }
 
-func themeItems() []pick.Item {
+func designItems() []pick.Item {
 	return []pick.Item{
-		{Label: i18n.T(i18n.ImageThemeOrangeLabel), Desc: i18n.T(i18n.ImageThemeOrangeDesc), Value: "orange"},
-		{Label: i18n.T(i18n.ImageThemeGreenLabel), Desc: i18n.T(i18n.ImageThemeGreenDesc), Value: "green"},
-		{Label: i18n.T(i18n.ImageThemePurpleLabel), Desc: i18n.T(i18n.ImageThemePurpleDesc), Value: "purple"},
+		{Label: i18n.T(i18n.ImageDesignDefaultLabel), Desc: i18n.T(i18n.ImageDesignDefaultDesc), Value: "default"},
+		{Label: i18n.T(i18n.ImageDesignMinimalLabel), Desc: i18n.T(i18n.ImageDesignMinimalDesc), Value: "minimal"},
+		{Label: i18n.T(i18n.ImageDesignBoldLabel), Desc: i18n.T(i18n.ImageDesignBoldDesc), Value: "bold"},
+		{Label: i18n.T(i18n.ImageDesignNeonLabel), Desc: i18n.T(i18n.ImageDesignNeonDesc), Value: "neon"},
 	}
+}
+
+func themeItems(design card.Design) []pick.Item {
+	labels := map[string]pick.Item{
+		"orange": {Label: i18n.T(i18n.ImageThemeOrangeLabel), Desc: i18n.T(i18n.ImageThemeOrangeDesc), Value: "orange"},
+		"green":  {Label: i18n.T(i18n.ImageThemeGreenLabel), Desc: i18n.T(i18n.ImageThemeGreenDesc), Value: "green"},
+		"purple": {Label: i18n.T(i18n.ImageThemePurpleLabel), Desc: i18n.T(i18n.ImageThemePurpleDesc), Value: "purple"},
+	}
+	var out []pick.Item
+	for _, name := range card.ThemesForDesign(design) {
+		if it, ok := labels[name]; ok {
+			out = append(out, it)
+		} else {
+			out = append(out, pick.Item{Label: titleCase(name), Desc: i18n.T(i18n.ImageThemeDesignSpecificDesc, name), Value: name})
+		}
+	}
+	return out
 }
 
 func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags) (bool, error) {
@@ -115,7 +135,15 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			}
 
 			for {
-				theme, ok, err := pickImageTheme(im, interactive)
+				design, ok, err := pickImageDesign(im, interactive)
+				if err != nil {
+					return false, err
+				}
+				if !ok {
+					continue
+				}
+
+				theme, ok, err := pickImageTheme(im, design, interactive)
 				if err != nil {
 					return false, err
 				}
@@ -123,7 +151,7 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 					break
 				}
 
-				ok, err = renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, theme, interactive)
+				ok, err = renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, design, theme, interactive)
 				if err != nil {
 					return false, err
 				}
@@ -143,11 +171,15 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 	if err != nil || !ok {
 		return false, err
 	}
-	theme, ok, err := pickImageTheme(im, interactive)
+	design, ok, err := pickImageDesign(im, interactive)
 	if err != nil || !ok {
 		return false, err
 	}
-	return renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, theme, interactive)
+	theme, ok, err := pickImageTheme(im, design, interactive)
+	if err != nil || !ok {
+		return false, err
+	}
+	return renderAndDeliverReleaseImage(cmd, repo, cfg, im, tags, version, shape, design, theme, interactive)
 }
 
 func pickImageShape(im imageFlags, interactive bool) (card.Shape, bool, error) {
@@ -166,22 +198,44 @@ func pickImageShape(im imageFlags, interactive bool) (card.Shape, bool, error) {
 	return shape, true, nil
 }
 
-func pickImageTheme(im imageFlags, interactive bool) (string, bool, error) {
-	theme := strings.ToLower(im.theme)
-	if validTheme(theme) {
-		return theme, true, nil
+func pickImageDesign(im imageFlags, interactive bool) (card.Design, bool, error) {
+	design, valid := card.ParseDesign(im.design)
+	if valid {
+		return design, true, nil
+	}
+	if im.design != "" {
+		return card.Default, false, fmt.Errorf("unknown design %q (default|minimal|bold|neon)", im.design)
 	}
 	if !interactive {
-		return "orange", true, nil
+		return card.Default, true, nil
 	}
-	name, ok, err := pick.Run(i18n.T(i18n.ImagePickThemeTitle), themeItems())
+	name, ok, err := pick.Run(i18n.T(i18n.ImagePickDesignTitle), designItems())
+	if err != nil || !ok {
+		return card.Default, ok, err
+	}
+	design, _ = card.ParseDesign(name)
+	return design, true, nil
+}
+
+func pickImageTheme(im imageFlags, design card.Design, interactive bool) (string, bool, error) {
+	theme := strings.ToLower(strings.TrimSpace(im.theme))
+	if theme != "" {
+		if card.ThemeForDesign(design, theme) {
+			return theme, true, nil
+		}
+		return "", false, fmt.Errorf("unknown theme %q for design %q (%s)", im.theme, design, strings.Join(card.ThemesForDesign(design), "|"))
+	}
+	if !interactive {
+		return card.DefaultTheme(design), true, nil
+	}
+	name, ok, err := pick.Run(i18n.T(i18n.ImagePickThemeTitle), themeItems(design))
 	if err != nil || !ok {
 		return "", ok, err
 	}
 	return name, true, nil
 }
 
-func renderAndDeliverReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags, tags []gitrepo.TagInfo, version string, shape card.Shape, theme string, interactive bool) (bool, error) {
+func renderAndDeliverReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, im imageFlags, tags []gitrepo.TagInfo, version string, shape card.Shape, design card.Design, theme string, interactive bool) (bool, error) {
 	out := cmd.OutOrStdout()
 
 	idx := -1
@@ -211,10 +265,10 @@ func renderAndDeliverReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg co
 		Meta:    imageMeta(tags[idx].DateTime, tags[idx].Date, len(raw)),
 		Groups:  cardGroups(notes),
 	}
-	opt := card.Options{Theme: theme, ShowHash: im.hash}
+	opt := card.Options{Design: design, Theme: theme, ShowHash: im.hash}
 
 	img := card.Render(c, shape, opt)
-	localPath := filepath.Join(".", fmt.Sprintf("relio-%s-%s.png", version, shape))
+	localPath := filepath.Join(".", imageFileName(version, shape, design, theme))
 	destDir := "."
 	if a, aerr := filepath.Abs(localPath); aerr == nil {
 		destDir = filepath.Dir(a)
@@ -345,13 +399,11 @@ func qrBlock(s string) string {
 	return b.String()
 }
 
-func validTheme(s string) bool {
-	for _, t := range card.ThemeNames {
-		if s == t {
-			return true
-		}
+func imageFileName(version string, shape card.Shape, design card.Design, theme string) string {
+	if design == card.Default {
+		return fmt.Sprintf("relio-%s-%s.png", version, shape)
 	}
-	return false
+	return fmt.Sprintf("relio-%s-%s-%s-%s.png", version, shape, design, theme)
 }
 
 // cardGroups turns changelog notes into the card's Added / Changed / Fixed

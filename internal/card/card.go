@@ -108,12 +108,78 @@ type Card struct {
 	Groups  []Group
 }
 
-// ThemeNames are the accent colours the user can pick, default first.
+// Design selects the visual style of the output image.
+type Design int
+
+const (
+	Default Design = iota
+	Minimal
+	Bold
+	Neon
+)
+
+var DesignNames = []string{"default", "minimal", "bold", "neon"}
+
+func ParseDesign(s string) (Design, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "default", "classic":
+		return Default, true
+	case "minimal", "min":
+		return Minimal, true
+	case "bold":
+		return Bold, true
+	case "neon":
+		return Neon, true
+	default:
+		return Default, false
+	}
+}
+
+func (d Design) String() string {
+	switch d {
+	case Minimal:
+		return "minimal"
+	case Bold:
+		return "bold"
+	case Neon:
+		return "neon"
+	default:
+		return "default"
+	}
+}
+
+// ThemeNames are the legacy/default design accent colours, default first.
 var ThemeNames = []string{"orange", "green", "purple"}
+
+var themesByDesign = map[Design][]string{
+	Default: ThemeNames,
+	Minimal: {"slate", "sand", "mint"},
+	Bold:    {"red", "blue", "gold"},
+	Neon:    {"cyan", "magenta", "lime"},
+}
+
+func ThemesForDesign(d Design) []string {
+	if names, ok := themesByDesign[d]; ok {
+		return append([]string(nil), names...)
+	}
+	return append([]string(nil), ThemeNames...)
+}
+
+func ThemeForDesign(d Design, theme string) bool {
+	for _, name := range ThemesForDesign(d) {
+		if strings.EqualFold(theme, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func DefaultTheme(d Design) string { return ThemesForDesign(d)[0] }
 
 // Options tune the render.
 type Options struct {
-	Theme    string // one of ThemeNames; empty = "orange"
+	Design   Design
+	Theme    string
 	ShowHash bool
 }
 
@@ -158,16 +224,48 @@ var (
 	}
 )
 
-func accentOf(name string) color.NRGBA {
-	switch strings.ToLower(name) {
-	case "green":
-		return hexc("#2DD4BF") // teal-green, distinct from the Added green
-	case "purple":
-		return hexc("#A855F7")
+func accentOfDesign(d Design, name string) color.NRGBA {
+	switch d {
+	case Minimal:
+		switch strings.ToLower(name) {
+		case "sand":
+			return hexc("#D7B98E")
+		case "mint":
+			return hexc("#7BCFB5")
+		default:
+			return hexc("#94A3B8")
+		}
+	case Bold:
+		switch strings.ToLower(name) {
+		case "blue":
+			return hexc("#2563EB")
+		case "gold":
+			return hexc("#F59E0B")
+		default:
+			return hexc("#EF4444")
+		}
+	case Neon:
+		switch strings.ToLower(name) {
+		case "magenta":
+			return hexc("#FF3DF2")
+		case "lime":
+			return hexc("#B6FF2E")
+		default:
+			return hexc("#22D3EE")
+		}
 	default:
-		return hexc("#FF7A1A") // intense orange (default)
+		switch strings.ToLower(name) {
+		case "green":
+			return hexc("#2DD4BF") // teal-green, distinct from the Added green
+		case "purple":
+			return hexc("#A855F7")
+		default:
+			return hexc("#FF7A1A") // intense orange (default)
+		}
 	}
 }
+
+func accentOf(name string) color.NRGBA { return accentOfDesign(Default, name) }
 
 // ---------- fonts ----------
 
@@ -209,7 +307,7 @@ func newRenderer(c Card, s Shape, opt Options) *renderer {
 	w, h := s.size()
 	// Everything below is derived from r.W / r.H / r.u, so drawing at ssaa× just
 	// works — only a few absolute pixel constants need the same factor applied.
-	r := &renderer{c: c, s: s, opt: opt, W: float64(w * ssaa), H: float64(h * ssaa), accent: accentOf(opt.Theme)}
+	r := &renderer{c: c, s: s, opt: opt, W: float64(w * ssaa), H: float64(h * ssaa), accent: accentOfDesign(opt.Design, opt.Theme)}
 	r.dc = gg.NewContext(w*ssaa, h*ssaa)
 
 	switch s {
@@ -243,14 +341,31 @@ func (r *renderer) background() {
 	dc := r.dc
 
 	g := gg.NewLinearGradient(0, 0, 0, r.H)
-	g.AddColorStop(0, colBGTop)
-	g.AddColorStop(1, colBGBot)
+	top, bot := colBGTop, colBGBot
+	if r.opt.Design == Minimal {
+		top, bot = hexc("#F8FAFC"), hexc("#EEF2F7")
+	}
+	if r.opt.Design == Bold {
+		top, bot = hexc("#17120F"), hexc("#050505")
+	}
+	if r.opt.Design == Neon {
+		top, bot = hexc("#020617"), hexc("#09001A")
+	}
+	g.AddColorStop(0, top)
+	g.AddColorStop(1, bot)
 	dc.SetFillStyle(g)
 	dc.DrawRectangle(0, 0, r.W, r.H)
 	dc.Fill()
 
 	// Extremely discreet dot grid.
-	dc.SetColor(colGrid)
+	grid := colGrid
+	if r.opt.Design == Minimal {
+		grid = color.NRGBA{0x0F, 0x17, 0x2A, 10}
+	}
+	if r.opt.Design == Neon {
+		grid = alpha(r.accent, 48)
+	}
+	dc.SetColor(grid)
 	gap := r.H / 18
 	for y := gap; y < r.H; y += gap {
 		for x := gap; x < r.W; x += gap {
@@ -261,14 +376,28 @@ func (r *renderer) background() {
 
 	// Very subtle warm glow toward the right edge.
 	glow := gg.NewRadialGradient(r.W*1.02, r.H*0.42, 0, r.W*1.02, r.H*0.42, r.H*0.95)
-	glow.AddColorStop(0, alpha(r.accent, 26))
+	a := uint8(26)
+	if r.opt.Design == Bold {
+		a = 56
+	}
+	if r.opt.Design == Neon {
+		a = 92
+	}
+	glow.AddColorStop(0, alpha(r.accent, a))
 	glow.AddColorStop(1, alpha(r.accent, 0))
 	dc.SetFillStyle(glow)
 	dc.DrawRectangle(0, 0, r.W, r.H)
 	dc.Fill()
 
 	// Thin rounded border around the whole card.
-	dc.SetColor(colBorder)
+	border := colBorder
+	if r.opt.Design == Minimal {
+		border = hexc("#CBD5E1")
+	}
+	if r.opt.Design == Neon {
+		border = alpha(r.accent, 180)
+	}
+	dc.SetColor(border)
 	dc.SetLineWidth(2 * ssaa)
 	m := r.pad * 0.42
 	dc.DrawRoundedRectangle(m, m, r.W-2*m, r.H-2*m, r.u*0.9)
@@ -321,6 +450,10 @@ func (r *renderer) contentHeight(u float64) float64 {
 
 func (r *renderer) content() {
 	dc := r.dc
+	textCol, dimCol := colText, colDim
+	if r.opt.Design == Minimal {
+		textCol, dimCol = hexc("#0F172A"), hexc("#64748B")
+	}
 	x := r.pad
 	y := r.pad + r.u*0.6
 
@@ -330,10 +463,16 @@ func (r *renderer) content() {
 		y += slack * 0.42
 	}
 
+	if r.opt.Design == Bold {
+		dc.SetColor(alpha(r.accent, 230))
+		dc.DrawRoundedRectangle(x-r.u*0.4, y-r.u*0.1, r.contentR-x+r.u*0.8, r.u*3.0, r.u*0.25)
+		dc.Fill()
+	}
+
 	// --- header: Project  Version ---
 	projFace := face(fSansBold, r.u*2.15)
 	dc.SetFontFace(projFace)
-	dc.SetColor(colText)
+	dc.SetColor(textCol)
 	dc.DrawString(r.c.Project, x, y+r.u*1.6)
 	pw, _ := dc.MeasureString(r.c.Project)
 
@@ -353,7 +492,7 @@ func (r *renderer) content() {
 
 	// --- meta ---
 	dc.SetFontFace(face(fMono, r.u*0.82))
-	dc.SetColor(colDim)
+	dc.SetColor(dimCol)
 	dc.DrawString(r.c.Meta, x, y+r.u*0.6)
 	y += r.u * 1.4
 
@@ -440,7 +579,7 @@ func (r *renderer) content() {
 				dc.DrawString(it.Hash, itemX, y+r.u*0.72)
 			}
 			dc.SetFontFace(face(fMono, r.u*0.95))
-			dc.SetColor(colText)
+			dc.SetColor(textCol)
 			for _, ln := range lines {
 				dc.DrawString(ln, itemX+hashW, y+r.u*0.72)
 				y += itemH
@@ -460,7 +599,7 @@ func (r *renderer) content() {
 
 	// --- footer ---
 	dc.SetFontFace(face(fMono, r.u*0.8))
-	dc.SetColor(colDim)
+	dc.SetColor(dimCol)
 	dc.DrawString("generated with ", x, footerY)
 	gw, _ := dc.MeasureString("generated with ")
 	dc.SetFontFace(face(fMonoBold, r.u*0.8))

@@ -384,7 +384,7 @@ format.
 
 Renders a dark, developer-styled **release card**. Everything on it comes from
 the real release. In a terminal it prompts for the release, the shape, the
-colour, and then **what to do with the image**:
+design, that design's colour theme, and then **what to do with the image**:
 
 - **Save + download link** — write `relio-<version>-<shape>.png` to the current
   directory *and* upload it for a link + QR.
@@ -392,13 +392,14 @@ colour, and then **what to do with the image**:
 - **Download link only** — upload it for a link + QR, write nothing to disk.
 
 The flags below skip those prompts. With no TTY and no flags it just saves the
-PNG to the current directory (latest tag / horizontal / orange).
+PNG to the current directory (latest tag / horizontal / default design / orange). Non-default designs use `relio-<version>-<shape>-<design>-<theme>.png` so trying new designs and colour themes does not overwrite the classic card or each other.
 
 | Flag | Values |
 | ---- | ------ |
 | `--version` | Release tag to render. Default: the latest tag. |
 | `--shape` | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
-| `--theme` | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added / Changed / Fixed) are fixed. |
+| `--design` | `default` *(classic renderer)* · `minimal` · `bold` · `neon`. |
+| `--theme` | Design-specific colour. `default` keeps `orange` *(default)* · `green` · `purple`; `minimal` has `slate`/`sand`/`mint`; `bold` has `red`/`blue`/`gold`; `neon` has `cyan`/`magenta`/`lime`. The section colours (Added / Changed / Fixed) are fixed. |
 | `--hash` | Prefix each line with its short commit hash. Off by default. |
 | `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing a plain URL first and then a QR code. A flaky host is retried a few times with backoff (with a progress line per retry) before falling back to the next one. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
 | `--link-only` | Upload for the plain URL + QR **without** writing a file to disk. |
@@ -406,6 +407,7 @@ PNG to the current directory (latest tag / horizontal / orange).
 ```bash
 relio image                                   # prompts for everything
 relio image --shape square --theme green
+relio image --design neon --theme magenta
 relio image --version v1.4.0 --shape vertical --upload
 relio image --link-only                        # just give me the link
 ```
@@ -484,9 +486,12 @@ release build does). It also carries the same `▲ vX.Y.Z available` hint as the
 menu — when a newer version exists, it adds a second line telling you the
 right way to update: `Run \`brew upgrade relio\` to update.` if the running
 binary resolves into a Homebrew Cellar path, or a pointer at
-[docs/install.md](install.md) otherwise. Relio never replaces its own binary —
-this is a hint, not an auto-updater. Set `RELIO_NO_UPDATE_CHECK` to any value
-(or run in CI) to skip the check entirely.
+[docs/install.md](install.md) otherwise. For `dev` builds, Relio shows the latest
+published version without trying to compare it to the non-SemVer `dev` value.
+Relio never replaces its own binary — this is a hint, not an auto-updater. By
+default the check uses a 24-hour cache; set `RELIO_UPDATE_CHECK_ALWAYS=1` to
+query GitHub for the latest release on every invocation. Set
+`RELIO_NO_UPDATE_CHECK` to any value (or run in CI) to skip the check entirely.
 
 ## Global flags
 

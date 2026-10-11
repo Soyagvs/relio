@@ -5,15 +5,48 @@ the same `relio` binary.
 
 > Every version and its binaries: **[github.com/soyagvs/relio/releases](https://github.com/soyagvs/relio/releases)**
 
-## Homebrew (macOS / Linux) — recommended
+## Which install should I use?
+
+If the Homebrew tap is published and available to you, use Homebrew. If it is not
+available yet, use `go install` or download the release binary manually.
+
+Check what your shell is running with:
 
 ```bash
-brew install soyagvs/tap/relio
+which relio
+relio version
 ```
 
-`brew upgrade relio` picks up new releases. The formula downloads the official
-prebuilt binaries from this repo's [GitHub Releases](https://github.com/soyagvs/relio/releases)
-— it does not build from source.
+## Homebrew (macOS / Linux) — recommended when the tap is available
+
+Install:
+
+```bash
+brew tap soyagvs/tap
+brew install relio
+```
+
+Update:
+
+```bash
+brew update
+brew upgrade relio
+```
+
+The formula downloads the official prebuilt binaries from this repo's
+[GitHub Releases](https://github.com/soyagvs/relio/releases) — it does not build
+from source.
+
+## With Go — current fallback when Homebrew is not available
+
+Install or update to the latest published version:
+
+```bash
+go install github.com/soyagvs/relio@latest
+```
+
+Go installs the binary into `$GOBIN` when set, otherwise into `$GOPATH/bin`
+(usually `~/go/bin`). Make sure that directory is on your `PATH`.
 
 ## Manual — from GitHub Releases
 
@@ -33,12 +66,6 @@ sudo mv relio /usr/local/bin/
 
 Windows: download `relio_<ver>_windows_amd64.zip` and put `relio.exe` on your
 `PATH`.
-
-## With Go
-
-```bash
-go install github.com/soyagvs/relio@latest   # -> $GOBIN / $GOPATH/bin
-```
 
 ## From source
 
