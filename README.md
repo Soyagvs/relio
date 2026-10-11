@@ -110,39 +110,39 @@ Pushing and creating the GitHub Release is opt-in — `--publish`.
 
 | Doc | What's in it |
 | --- | ------------ |
-| [Install](docs/install.md) | Homebrew, manual download, `go install`, from source, shell completion |
+| [Install](https://github.com/Soyagvs/relio/blob/main/docs/install.md) | Homebrew, manual download, `go install`, from source, shell completion |
 | [Quick start](#quick-start) | The fastest path to your first release (below) |
-| [The interactive menu](docs/interactive-menu.md) | What `relio` with no arguments does |
+| [The interactive menu](https://github.com/Soyagvs/relio/blob/main/docs/interactive-menu.md) | What `relio` with no arguments does |
 
 **Commands & usage**
 
 | Doc | What's in it |
 | --- | ------------ |
-| [Commands](docs/commands.md) | Every subcommand (`status`, `check`, `undo`, `guide`, `stats`, `init`, `post`, `image`, `auth`, `version`, …) and the global flags |
-| [Non-interactive / CI usage](docs/ci-usage.md) | Running Relio in scripts and CI, and publishing Relio itself |
+| [Commands](https://github.com/Soyagvs/relio/blob/main/docs/commands.md) | Every subcommand (`status`, `check`, `undo`, `guide`, `stats`, `init`, `post`, `image`, `auth`, `version`, …) and the global flags |
+| [Non-interactive / CI usage](https://github.com/Soyagvs/relio/blob/main/docs/ci-usage.md) | Running Relio in scripts and CI, and publishing Relio itself |
 
 **How it works**
 
 | Doc | What's in it |
 | --- | ------------ |
-| [How the version is chosen](docs/versioning.md) | SemVer inference and pre-releases (`--rc`) |
-| [How the changelog is built](docs/changelog-generation.md) | Commit-type mapping, contributors line, compare link |
-| [Publishing to GitHub](docs/publishing.md) | `--publish`, tokens, and the GitHub Release flow |
-| [Syncing the version into project files](docs/version-sync.md) | Keeping `package.json`, `VERSION`, etc. in step |
-| [Release hooks](docs/release-hooks.md) | `validate` / `before` / `after` shell hooks |
+| [How the version is chosen](https://github.com/Soyagvs/relio/blob/main/docs/versioning.md) | SemVer inference and pre-releases (`--rc`) |
+| [How the changelog is built](https://github.com/Soyagvs/relio/blob/main/docs/changelog-generation.md) | Commit-type mapping, contributors line, compare link |
+| [Publishing to GitHub](https://github.com/Soyagvs/relio/blob/main/docs/publishing.md) | `--publish`, tokens, and the GitHub Release flow |
+| [Syncing the version into project files](https://github.com/Soyagvs/relio/blob/main/docs/version-sync.md) | Keeping `package.json`, `VERSION`, etc. in step |
+| [Release hooks](https://github.com/Soyagvs/relio/blob/main/docs/release-hooks.md) | `validate` / `before` / `after` shell hooks |
 
 **Configuration**
 
 | Doc | What's in it |
 | --- | ------------ |
-| [Configuration — `.release.yaml`](docs/configuration.md) | Every field, with defaults |
-| [Language](docs/language.md) | English / Español, and how it's resolved |
+| [Configuration — `.release.yaml`](https://github.com/Soyagvs/relio/blob/main/docs/configuration.md) | Every field, with defaults |
+| [Language](https://github.com/Soyagvs/relio/blob/main/docs/language.md) | English / Español, and how it's resolved |
 
 **Contributing**
 
 | Doc | What's in it |
 | --- | ------------ |
-| [Project layout](docs/project-layout.md) | Map of the codebase |
+| [Project layout](https://github.com/Soyagvs/relio/blob/main/docs/project-layout.md) | Map of the codebase |
 | [Contributing](#contributing) | How to submit a change (below) |
 
 <p align="center">
