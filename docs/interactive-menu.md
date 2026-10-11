@@ -40,6 +40,13 @@ A few rows do more than run a flagless command:
   normal preview + wizard.
 - **Auth** shows which GitHub token Relio found and who it belongs to, or
   explains how to connect one.
+- **Releases** opens a split browser: versions on the left, the selected
+  release summary on the right. Use `l` / `→` to focus the summary, `h` / `←` to
+  return to the versions table, `n` / `p` to page the versions, `d` to delete a
+  local release, and `q` to return to the menu.
+- **Release image** can save the PNG, upload it, or both. Upload paths print a
+  plain URL first, then a QR code, so mobile terminals and `mosh` sessions have
+  a copyable link even when QR scanning is awkward.
 - **Setup** runs `relio init` (or tells you the config already exists).
 - **Settings** switches the UI language (English / Español) and toggles the
   changelog-footer preferences (contributors line, compare link) — see

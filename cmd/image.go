@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,12 +242,22 @@ func runReleaseImage(cmd *cobra.Command, repo *gitrepo.Repo, cfg config.Config, 
 			}
 			return nil
 		}
-		if _, err := fmt.Fprint(out, qrBlock(url)); err != nil {
+		if err := printImageLink(out, url); err != nil {
 			return err
 		}
-		if _, err := fmt.Fprintln(out, "  "+ui.Key.Render(url)); err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func printImageLink(out io.Writer, url string) error {
+	// Print the URL as plain text before the QR. Mobile terminals and some
+	// multiplexers do not always recognize ANSI-styled URLs as tappable links,
+	// and the QR can push the actual URL out of view.
+	if _, err := fmt.Fprintln(out, "  "+url); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprint(out, qrBlock(url)); err != nil {
+		return err
 	}
 	return nil
 }

@@ -30,6 +30,24 @@ func TestQRBlockRendersAndIndents(t *testing.T) {
 	}
 }
 
+func TestPrintImageLinkPrintsPlainURLBeforeQR(t *testing.T) {
+	var buf bytes.Buffer
+	url := "https://litter.catbox.moe/card.png"
+	if err := printImageLink(&buf, url); err != nil {
+		t.Fatalf("printImageLink: %v", err)
+	}
+	out := buf.String()
+	if !strings.HasPrefix(out, "  "+url+"\n") {
+		t.Fatalf("link output should start with a plain tappable URL, got:\n%q", out[:min(len(out), 120)])
+	}
+	if strings.Contains(strings.SplitN(out, "\n", 2)[0], "\x1b[") {
+		t.Fatalf("first URL line should not contain ANSI styling: %q", strings.SplitN(out, "\n", 2)[0])
+	}
+	if !strings.Contains(out, "\x1b[4") {
+		t.Fatalf("link output should still include the QR block, got:\n%q", out[:min(len(out), 120)])
+	}
+}
+
 func TestImageDest(t *testing.T) {
 	cases := []struct {
 		name            string

@@ -106,6 +106,42 @@ func TestListsAllVersions(t *testing.T) {
 	}
 }
 
+func TestPaginatedTableShowsReleaseMetadata(t *testing.T) {
+	fr, path := setup(t)
+	m := newModel(fr, "demo", path)
+
+	v := m.View()
+	for _, want := range []string{"Commits", "Version", "Date", "1", "v0.2.0", "2026-09-06", "Page 1/1", "Summary", "Second thing"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("view missing %q:\n%s", want, v)
+		}
+	}
+}
+
+func TestPageNavigationKeepsPositionManageable(t *testing.T) {
+	fr, path := setup(t)
+	for i := 3; i <= 12; i++ {
+		name := fmt.Sprintf("v0.%d.0", i)
+		fr.tags = append(fr.tags, gitrepo.TagInfo{Name: name, Date: "2026-09-01", Subject: "release " + name})
+		fr.commits[name] = []conventional.Raw{{Hash: "ccccccc0000000", Subject: "fix: item"}}
+	}
+	m := newModel(fr, "demo", path)
+
+	m = send(m, "n")
+	if m.cursor != releasesPageSize {
+		t.Fatalf("n should move to next page first row, cursor=%d", m.cursor)
+	}
+	v := m.View()
+	if !strings.Contains(v, "Page 2/2") || strings.Contains(v, "v0.2.0") {
+		t.Fatalf("view should show only page 2 releases:\n%s", v)
+	}
+
+	m = send(m, "p")
+	if m.cursor != 0 || !strings.Contains(m.View(), "Page 1/2") {
+		t.Fatalf("p should return to first page, cursor=%d view=\n%s", m.cursor, m.View())
+	}
+}
+
 func TestDetailShowsNotesWithCommitHashForSelection(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
@@ -155,16 +191,15 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	}
 }
 
-func TestQuitProducesStaticView(t *testing.T) {
+func TestQuitLeavesNoStaticReleaseList(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
 	m = send(m, "q")
 	if !m.quit {
 		t.Fatal("q should quit")
 	}
-	sv := m.View()
-	if !strings.Contains(sv, "v0.2.0") || !strings.Contains(sv, "v0.1.0") {
-		t.Errorf("static view should keep the list:\n%s", sv)
+	if sv := m.View(); sv != "" {
+		t.Errorf("q should return to menu without leaving release list behind, got:\n%s", sv)
 	}
 }
 
@@ -209,9 +244,9 @@ func TestBackRowNavigationReturnsToLastRelease(t *testing.T) {
 		t.Fatalf("up from back row should return to last release, got cursor=%d", m.cursor)
 	}
 
-	m = send(m, "enter")
-	if !m.quit || m.picked != len(m.tags)-1 {
-		t.Fatalf("enter on release should still pick it, got quit=%v picked=%d", m.quit, m.picked)
+	m = send(m, "l")
+	if m.quit || m.focus != focusDetail {
+		t.Fatalf("l on release should focus detail, got quit=%v focus=%v", m.quit, m.focus)
 	}
 }
 
@@ -309,23 +344,45 @@ func TestCtrlCKillsFromConfirmDelete(t *testing.T) {
 	}
 }
 
-func TestEnterPrintsSelectedVersionAndExits(t *testing.T) {
+func TestLFocusesSummaryPaneAndHReturnsToTable(t *testing.T) {
 	fr, path := setup(t)
 	m := newModel(fr, "demo", path)
 
-	m = send(m, "down", "enter") // pick v0.1.0
-	if !m.quit || m.picked != 1 {
-		t.Fatalf("enter should quit with picked=1, got quit=%v picked=%d", m.quit, m.picked)
+	m = send(m, "down", "l")
+	if m.quit || m.focus != focusDetail || m.detailOffset != 0 {
+		t.Fatalf("l should focus detail without quitting, got quit=%v focus=%v offset=%d", m.quit, m.focus, m.detailOffset)
+	}
+	if v := m.View(); !strings.Contains(v, "Summary") || !strings.Contains(v, "First thing") || !strings.Contains(v, "│") {
+		t.Fatalf("split pane should show selected summary:\n%s", v)
 	}
 
-	out := m.View() // this is what stays in the terminal
-	for _, want := range []string{"relio -- release", "demo · v0.1.0", "2026-08-01 · 09:15 · 1 commits", "First thing", "bbbbbbb"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("exit output missing %q:\n%s", want, out)
-		}
+	m = send(m, "h")
+	if m.quit || m.focus != focusTable {
+		t.Fatalf("h from detail should return to table, got quit=%v focus=%v", m.quit, m.focus)
 	}
-	if strings.Contains(out, "move") || strings.Contains(out, "delete") {
-		t.Errorf("exit output should not carry the interactive footer:\n%s", out)
+}
+
+func TestDetailPaneScrollsLongNotes(t *testing.T) {
+	fr, path := setup(t)
+	many := make([]conventional.Raw, 0, detailPaneLines+4)
+	for i := 0; i < detailPaneLines+4; i++ {
+		many = append(many, conventional.Raw{Hash: fmt.Sprintf("%07d0000000", i), Subject: fmt.Sprintf("fix: scroll item %02d", i)})
+	}
+	fr.commits["v0.2.0"] = many
+	m := newModel(fr, "demo", path)
+	m = send(m, "l")
+	before := m.View()
+	if !strings.Contains(before, "Scroll item 00") || !strings.Contains(before, "↓ more") {
+		t.Fatalf("detail pane should start at top with more indicator:\n%s", before)
+	}
+
+	m = send(m, "down", "down", "down")
+	if m.detailOffset != 3 {
+		t.Fatalf("detail offset = %d, want 3", m.detailOffset)
+	}
+	after := m.View()
+	if !strings.Contains(after, "↑ more") || strings.Contains(after, "relio -- release") {
+		t.Fatalf("detail pane should scroll down and show up indicator:\n%s", after)
 	}
 }
 
@@ -364,17 +421,9 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 		t.Errorf("View() title = %q, want prefix %q", v, wantTitle)
 	}
 
-	// Footer hints, byte-identical to the historical hardcoded strings.
-	wantEnterHint := ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit")
-	if !strings.Contains(v, wantEnterHint) {
-		t.Errorf("View() missing enter hint %q:\n%s", wantEnterHint, v)
-	}
-	wantDeleteHint := ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release")
-	if !strings.Contains(v, wantDeleteHint) {
-		t.Errorf("View() missing delete hint %q:\n%s", wantDeleteHint, v)
-	}
-	wantFooter := keyHint("↑/↓", "move") + keyHint("enter", "show & exit") +
-		keyHint("d", "delete")
+	// Footer hints, byte-identical to the current English catalog strings.
+	wantFooter := keyHint("↑/↓", "move") + keyHint("l", "details") + keyHint("n/p", "page") +
+		keyHint("d", "delete") + keyHint("q", "back")
 	if !strings.HasSuffix(v, wantFooter) {
 		t.Errorf("View() does not end with the expected footer:\n%s", v)
 	}
@@ -411,18 +460,14 @@ func TestGoldenEnglishDefaultUnchanged(t *testing.T) {
 	em := newModel(empty, "demo", filepath.Join(t.TempDir(), "CHANGELOG.md"))
 	wantEmpty := wantTitle + ui.Dim.Render("No releases yet. Create one from the menu.") + "\n\n" +
 		"▸ " + ui.Key.Render(backLabel) + "\n\n" +
-		ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render("print notes & exit") + "\n" +
-		ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render("delete release") + "\n\n" +
-		keyHint("↑/↓", "move") + keyHint("enter", "show & exit") + keyHint("d", "delete")
+		keyHint("↑/↓", "move") + keyHint("l", "details") + keyHint("n/p", "page") + keyHint("d", "delete") + keyHint("q", "back")
 	if ev := em.View(); ev != wantEmpty {
 		t.Errorf("empty View() = %q, want %q", ev, wantEmpty)
 	}
 
-	// staticView "(none)" placeholder, byte-identical.
 	quitEmpty := send(em, "q")
-	wantNone := ui.Title.Render("⬢ Releases") + "\n" + ui.Dim.Render("  (none)") + "\n"
-	if sv := quitEmpty.View(); sv != wantNone {
-		t.Errorf("empty staticView() = %q, want %q", sv, wantNone)
+	if sv := quitEmpty.View(); sv != "" {
+		t.Errorf("empty staticView() = %q, want blank", sv)
 	}
 
 	// notesFor's "(no notes for this version)" fallback, byte-identical —
@@ -456,15 +501,15 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 	if !strings.Contains(v, "Lanzamientos") {
 		t.Errorf("es View() missing localized title, got:\n%s", v)
 	}
-	if strings.Contains(v, "print notes & exit") || strings.Contains(v, "delete release") {
+	if strings.Contains(v, "print notes & exit") || strings.Contains(v, "delete release") || strings.Contains(v, "enter details") {
 		t.Errorf("es View() still contains English footer hints:\n%s", v)
 	}
-	for _, spanish := range []string{"mostrar notas y salir", "eliminar lanzamiento", "mover", "mostrar y salir", "eliminar"} {
+	for _, spanish := range []string{"mover", "detalles", "eliminar"} {
 		if !strings.Contains(v, spanish) {
 			t.Errorf("es View() missing localized hint %q, got:\n%s", spanish, v)
 		}
 	}
-	if !strings.Contains(v, backLabel) || strings.Contains(v, "q volver") {
+	if !strings.Contains(v, backLabel) || !strings.Contains(v, "q volver") {
 		t.Errorf("es View() should show the explicit back row instead of q-back hint, got:\n%s", v)
 	}
 
@@ -497,13 +542,13 @@ func TestChromeLocalizesUnderSpanish(t *testing.T) {
 	if !strings.Contains(ev, "Aún no hay lanzamientos. Crea uno desde el menú.") || strings.Contains(ev, "No releases yet") {
 		t.Errorf("es empty View() = %q, want localized empty state", ev)
 	}
-	if !strings.Contains(ev, backLabel) || strings.Contains(ev, "q volver") {
+	if !strings.Contains(ev, backLabel) || !strings.Contains(ev, "q volver") {
 		t.Errorf("es empty View() should show the explicit back row instead of q-back hint, got:\n%s", ev)
 	}
 
 	quitEmpty := send(em, "q")
-	if sv := quitEmpty.View(); !strings.Contains(sv, "(ninguno)") || strings.Contains(sv, "(none)") {
-		t.Errorf("es staticView() = %q, want localized none placeholder", sv)
+	if sv := quitEmpty.View(); sv != "" {
+		t.Errorf("es staticView() = %q, want blank", sv)
 	}
 
 	noNotes := &fakeRepo{tags: []gitrepo.TagInfo{{Name: "v0.1.0", Date: "2026-08-01"}}}

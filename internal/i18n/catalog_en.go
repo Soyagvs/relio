@@ -89,10 +89,17 @@ var en = map[MessageID]string{
 	ReleasesRemovedTagAndChangelog: "tag + changelog section",
 	ReleasesChangelogWriteError:    "tag deleted, but changelog: %v",
 
+	ReleasesColumnCommits:      "Commits",
+	ReleasesColumnVersion:      "Version",
+	ReleasesColumnContributors: "Contributors",
+	ReleasesColumnDate:         "Date",
+	ReleasesPageLabel:          "Page",
+
 	ReleasesHintPrintNotesExit: "print notes & exit",
 	ReleasesHintDeleteRelease:  "delete release",
 	ReleasesHintMove:           "move",
-	ReleasesHintShowExit:       "show & exit",
+	ReleasesHintPage:           "page",
+	ReleasesHintShowExit:       "details",
 	ReleasesHintDelete:         "delete",
 	ReleasesHintBack:           "back",
 

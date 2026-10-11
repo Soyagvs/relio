@@ -392,8 +392,8 @@ PNG to the current directory (latest tag / horizontal / orange).
 | `--shape` | `horizontal` (1200×630, Twitter/OG) · `vertical` (1080×1920, Instagram story) · `square` (1080×1080). Each has its **own** responsive layout, not a crop. |
 | `--theme` | Accent colour: `orange` *(default)* · `green` · `purple`. The section colours (Added / Changed / Fixed) are fixed. |
 | `--hash` | Prefix each line with its short commit hash. Off by default. |
-| `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing the URL **plus a QR code**. A flaky host is retried a few times with backoff (with a progress line per retry) before falling back to the next one. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
-| `--link-only` | Upload for the URL + QR **without** writing a file to disk. |
+| `--upload` | Save the PNG **and** upload it to a temporary public host (litterbox, 72h; catbox as fallback), printing a plain URL first and then a QR code. A flaky host is retried a few times with backoff (with a progress line per retry) before falling back to the next one. Handy for getting it onto a phone over `mosh` — only text crosses the wire. |
+| `--link-only` | Upload for the plain URL + QR **without** writing a file to disk. |
 
 ```bash
 relio image                                   # prompts for everything
@@ -406,13 +406,16 @@ If a changelog line is long it wraps onto the next line; if there are too many
 commits for the card, each section is capped and a `+ N more` line is added — it
 never spills outside the card, on any shape.
 
-The **Releases** menu entry opens a browser of every tag:
+The **Releases** menu entry opens a split browser: versions on the left, the
+selected release summary on the right.
 
 ```
-↑/↓  move between versions        (the pane shows that version's notes)
-enter  print the selected version's notes to the terminal and exit
-d      delete the version — removes the git tag AND its CHANGELOG.md section (y/N)
-q      back
+↑/↓      move between versions, or scroll the summary when it is focused
+l / →    focus the summary for the selected version
+h / ←    return focus to the versions table
+n / p    next / previous page in the versions table
+d        delete the version — removes the git tag AND its CHANGELOG.md section (y/N)
+q        back to the main menu
 ```
 
 ---

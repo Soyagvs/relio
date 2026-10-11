@@ -40,23 +40,33 @@ const (
 	confirmDelete
 )
 
+type focus int
+
+const (
+	focusTable focus = iota
+	focusDetail
+)
+
 type model struct {
 	repo          repoPort
 	project       string
 	changelogPath string
 	changelog     string
 
-	tags   []gitrepo.TagInfo
-	cursor int
-	mode   mode
-	status string
-	err    string
-	quit   bool
-	killed bool // hard-quit with ctrl+c
-	picked int  // index chosen with Enter to print on exit; -1 = none
+	tags         []gitrepo.TagInfo
+	cursor       int
+	mode         mode
+	status       string
+	err          string
+	quit         bool
+	killed       bool // hard-quit with ctrl+c
+	picked       int  // retained for older static output paths; -1 = none
+	focus        focus
+	detailOffset int
 }
 
 const backLabel = "<- Back"
+const releasesPageSize = 10
 
 func newModel(repo repoPort, project, changelogPath string) model {
 	m := model{repo: repo, project: project, changelogPath: changelogPath, picked: -1}
@@ -91,6 +101,63 @@ func (m model) selected() (gitrepo.TagInfo, bool) {
 
 func (m model) onBack() bool { return m.cursor == len(m.tags) }
 
+func (m model) page() int {
+	if m.cursor >= len(m.tags) {
+		if len(m.tags) == 0 {
+			return 0
+		}
+		return (len(m.tags) - 1) / releasesPageSize
+	}
+	return m.cursor / releasesPageSize
+}
+
+func (m model) pageBounds() (int, int) {
+	start := m.page() * releasesPageSize
+	end := min(start+releasesPageSize, len(m.tags))
+	return start, end
+}
+
+func (m model) pageCount() int {
+	if len(m.tags) == 0 {
+		return 1
+	}
+	return (len(m.tags)-1)/releasesPageSize + 1
+}
+
+func (m model) movePage(delta int) model {
+	if len(m.tags) == 0 {
+		return m
+	}
+	page := m.page() + delta
+	if page < 0 || page >= m.pageCount() {
+		return m
+	}
+	m.cursor = page * releasesPageSize
+	m.detailOffset = 0
+	m.status = ""
+	return m
+}
+
+func (m model) detailLines() []string {
+	if _, ok := m.selected(); !ok {
+		return nil
+	}
+	return strings.Split(m.notesFor(m.cursor), "\n")
+}
+
+func (m model) maxDetailOffset() int {
+	lines := m.detailLines()
+	if len(lines) <= detailPaneLines {
+		return 0
+	}
+	return len(lines) - detailPaneLines
+}
+
+func (m model) moveDetail(delta int) model {
+	m.detailOffset = max(0, min(m.detailOffset+delta, m.maxDetailOffset()))
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -117,26 +184,58 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.quit = true
 		m.killed = true
 		return m, tea.Quit
-	case "q", "esc":
+	case "q":
 		m.quit = true
 		return m, tea.Quit
+	case "esc", "tab":
+		if m.focus == focusDetail {
+			m.focus = focusTable
+			return m, nil
+		}
+		m.quit = true
+		return m, tea.Quit
+	}
+
+	if m.focus == focusDetail {
+		switch key.String() {
+		case "h", "left":
+			m.focus = focusTable
+		case "up", "k":
+			m = m.moveDetail(-1)
+		case "down", "j":
+			m = m.moveDetail(1)
+		case "pgup", "p":
+			m = m.moveDetail(-detailPaneLines)
+		case "pgdown", "n", " ":
+			m = m.moveDetail(detailPaneLines)
+		}
+		return m, nil
+	}
+
+	switch key.String() {
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
+			m.detailOffset = 0
 			m.status = ""
 		}
 	case "down", "j":
 		if m.cursor < len(m.tags) {
 			m.cursor++
+			m.detailOffset = 0
 			m.status = ""
 		}
+	case "l", "right":
+		if _, ok := m.selected(); ok {
+			m.focus = focusDetail
+			m.detailOffset = 0
+		}
+	case "n", "pgdown":
+		m = m.movePage(1)
+	case "p", "pgup":
+		m = m.movePage(-1)
 	case "enter", " ":
 		if m.onBack() {
-			m.quit = true
-			return m, tea.Quit
-		}
-		if _, ok := m.selected(); ok {
-			m.picked = m.cursor // printed by staticView on the way out
 			m.quit = true
 			return m, tea.Quit
 		}
@@ -173,6 +272,7 @@ func (m model) doDelete() model {
 		removed = i18n.T(i18n.ReleasesRemovedTagAndChangelog)
 	}
 	m.reload()
+	m.detailOffset = 0
 	m.status = i18n.T(i18n.ReleasesDeleted, tag.Name, removed)
 	return m
 }
@@ -189,14 +289,31 @@ func metaFor(tag gitrepo.TagInfo, commits int) string {
 // notesFor returns the text shown in the detail pane for the tag at idx. It
 // rebuilds the notes from the commits that landed in that version so each line
 // carries its commit hash; the changelog section and tag message are fallbacks.
-func (m model) notesFor(idx int) string {
-	tag := m.tags[idx]
-
+func (m model) commitsFor(idx int) int {
 	from := ""
+	if idx+1 < len(m.tags) {
+		from = m.tags[idx+1].Name
+	}
+	raw, err := m.repo.CommitsBetween(from, m.tags[idx].Name)
+	if err != nil {
+		return 0
+	}
+	return len(raw)
+}
+
+func (m model) rangeFor(idx int) (from, to string) {
+	to = m.tags[idx].Name
 	if idx+1 < len(m.tags) {
 		from = m.tags[idx+1].Name // next entry is the previous (lower) version
 	}
-	if raw, err := m.repo.CommitsBetween(from, tag.Name); err == nil && len(raw) > 0 {
+	return from, to
+}
+
+func (m model) notesFor(idx int) string {
+	tag := m.tags[idx]
+
+	from, to := m.rangeFor(idx)
+	if raw, err := m.repo.CommitsBetween(from, to); err == nil && len(raw) > 0 {
 		notes := changelog.Build(conventional.ParseMany(raw))
 		return ui.ReleaseText(m.project, tag.Name, metaFor(tag, len(raw)), notes)
 	}
@@ -210,11 +327,11 @@ func (m model) notesFor(idx int) string {
 	return ui.Dim.Render(i18n.T(i18n.ReleasesNoNotes))
 }
 
+const detailPaneLines = 18
+
 var (
-	// A plain indent, not a box-drawing border, so the pane stays readable on
-	// terminals with a non-UTF-8 code page.
-	paneStyle = lipgloss.NewStyle().PaddingLeft(3).MarginTop(1)
-	rowSel    = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
+	rowSel      = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
+	detailFocus = lipgloss.NewStyle().Foreground(ui.Orange).Bold(true)
 )
 
 func (m model) View() string {
@@ -231,20 +348,7 @@ func (m model) View() string {
 	if len(m.tags) == 0 {
 		b.WriteString(ui.Dim.Render(i18n.T(i18n.ReleasesEmpty)))
 	} else {
-		for i, t := range m.tags {
-			line := fmt.Sprintf("%-12s  %s  %s", t.Name, t.Date, ui.Dim.Render(t.Subject))
-			if i == m.cursor {
-				b.WriteString(ui.Key.Render("▸ ") + rowSel.Render(fmt.Sprintf("%-12s", t.Name)) +
-					ui.Dim.Render("  "+t.Date+"  ") + t.Subject + "\n")
-			} else {
-				b.WriteString("  " + line + "\n")
-			}
-		}
-	}
-
-	if _, ok := m.selected(); ok {
-		b.WriteString(paneStyle.Render(m.notesFor(m.cursor)))
-		b.WriteString("\n")
+		b.WriteString(m.splitView())
 	}
 
 	if m.mode == confirmDelete {
@@ -265,12 +369,83 @@ func (m model) View() string {
 			sep = "\n"
 		}
 		b.WriteString(sep + marker + label)
-		b.WriteString("\n\n" + ui.Key.Render(fmt.Sprintf("%-7s", "enter")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintPrintNotesExit)))
-		b.WriteString("\n" + ui.Key.Render(fmt.Sprintf("%-7s", "d")) + ui.Dim.Render(i18n.T(i18n.ReleasesHintDeleteRelease)))
-		b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("enter", i18n.T(i18n.ReleasesHintShowExit)) +
-			keyHint("d", i18n.T(i18n.ReleasesHintDelete)))
+		if m.focus == focusDetail {
+			b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("h/esc", i18n.T(i18n.ReleasesHintBack)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
+		} else {
+			b.WriteString("\n\n" + keyHint("↑/↓", i18n.T(i18n.ReleasesHintMove)) + keyHint("l", i18n.T(i18n.ReleasesHintShowExit)) + keyHint("n/p", i18n.T(i18n.ReleasesHintPage)) +
+				keyHint("d", i18n.T(i18n.ReleasesHintDelete)) + keyHint("q", i18n.T(i18n.ReleasesHintBack)))
+		}
 	}
 	return b.String()
+}
+
+func (m model) splitView() string {
+	start, end := m.pageBounds()
+	leftTitle := "Releases"
+	if m.focus == focusTable {
+		leftTitle = rowSel.Render(leftTitle)
+	}
+	left := []string{
+		fmt.Sprintf("╭─ %s %s", leftTitle, strings.Repeat("─", 26)),
+		fmt.Sprintf("│ %-10s %-10s %7s", i18n.T(i18n.ReleasesColumnVersion), i18n.T(i18n.ReleasesColumnDate), i18n.T(i18n.ReleasesColumnCommits)),
+		ui.Dim.Render("│ ────────── ────────── ───────"),
+	}
+	for i := start; i < end; i++ {
+		t := m.tags[i]
+		mark := " "
+		if i == m.cursor {
+			mark = "›"
+		}
+		row := fmt.Sprintf("│ %s %-10s %-10s %7d", mark, t.Name, t.Date, m.commitsFor(i))
+		if i == m.cursor && m.focus == focusTable {
+			row = rowSel.Render(row)
+		}
+		left = append(left, row)
+	}
+	left = append(left, ui.Dim.Render(fmt.Sprintf("│ %s %d/%d", i18n.T(i18n.ReleasesPageLabel), m.page()+1, m.pageCount())))
+	left = append(left, "╰"+strings.Repeat("─", 36))
+
+	rightTitle := "Summary"
+	if m.focus == focusDetail {
+		rightTitle = detailFocus.Render(rightTitle)
+	}
+	right := []string{fmt.Sprintf("╭─ %s %s", rightTitle, strings.Repeat("─", 54))}
+	lines := m.detailLines()
+	if m.detailOffset > m.maxDetailOffset() {
+		m.detailOffset = m.maxDetailOffset()
+	}
+	endLine := min(len(lines), m.detailOffset+detailPaneLines)
+	if m.detailOffset > 0 {
+		right = append(right, ui.Dim.Render("│ ↑ more"))
+	}
+	for _, line := range lines[m.detailOffset:endLine] {
+		right = append(right, "│ "+line)
+	}
+	if endLine < len(lines) {
+		right = append(right, ui.Dim.Render("│ ↓ more"))
+	}
+	right = append(right, "╰"+strings.Repeat("─", 64))
+
+	rows := max(len(left), len(right))
+	var b strings.Builder
+	for i := 0; i < rows; i++ {
+		l, r := "", ""
+		if i < len(left) {
+			l = left[i]
+		}
+		if i < len(right) {
+			r = right[i]
+		}
+		b.WriteString(padRight(l, 38) + "  " + r + "\n")
+	}
+	return b.String()
+}
+
+func padRight(s string, width int) string {
+	if n := lipgloss.Width(s); n < width {
+		return s + strings.Repeat(" ", width-n)
+	}
+	return s
 }
 
 // keyHint renders "<key> label" with the key highlighted, padded for a footer row.
@@ -278,26 +453,10 @@ func keyHint(key, label string) string {
 	return ui.Key.Render(key) + ui.Dim.Render(" "+label+"   ")
 }
 
-// staticView is what remains in the scrollback after quitting. When a version
-// was picked with Enter, its notes are printed; otherwise a short list summary.
-func (m model) staticView() string {
-	if m.picked >= 0 && m.picked < len(m.tags) {
-		return "\n" + m.notesFor(m.picked) + "\n"
-	}
-
-	var b strings.Builder
-	b.WriteString(ui.Title.Render("⬢ "+i18n.T(i18n.ReleasesTitle)) + "\n")
-	if len(m.tags) == 0 {
-		b.WriteString(ui.Dim.Render("  "+i18n.T(i18n.ReleasesNonePlaceholder)) + "\n")
-	}
-	for _, t := range m.tags {
-		b.WriteString(fmt.Sprintf("  %-12s  %s  %s\n", t.Name, t.Date, ui.Dim.Render(t.Subject)))
-	}
-	if m.status != "" {
-		b.WriteString(ui.Dim.Render("  "+m.status) + "\n")
-	}
-	return b.String()
-}
+// staticView is what remains in the scrollback after quitting. A soft q/esc
+// back-out leaves no release list behind, so returning to the menu does not
+// duplicate every version in the terminal history.
+func (m model) staticView() string { return "" }
 
 // Run opens the browser against repo and blocks until the user goes back.
 func Run(repo *gitrepo.Repo, cfg config.Config) error {

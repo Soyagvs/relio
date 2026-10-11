@@ -260,7 +260,6 @@ func runMenu(cmd *cobra.Command, f *releaseFlags) error {
 				}
 				return err
 			}
-			waitForBack = true
 
 		case menu.ReleaseText:
 			repo, cfg, oerr := openRepoAndConfig(f.dir)

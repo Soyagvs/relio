@@ -125,9 +125,16 @@ const (
 	ReleasesRemovedTagAndChangelog MessageID = "releases.removed_tag_and_changelog"
 	ReleasesChangelogWriteError    MessageID = "releases.changelog_write_error" // "tag deleted, but changelog: %v"
 
+	ReleasesColumnCommits      MessageID = "releases.column_commits"
+	ReleasesColumnVersion      MessageID = "releases.column_version"
+	ReleasesColumnContributors MessageID = "releases.column_contributors"
+	ReleasesColumnDate         MessageID = "releases.column_date"
+	ReleasesPageLabel          MessageID = "releases.page_label"
+
 	ReleasesHintPrintNotesExit MessageID = "releases.hint_print_notes_exit"
 	ReleasesHintDeleteRelease  MessageID = "releases.hint_delete_release"
 	ReleasesHintMove           MessageID = "releases.hint_move"
+	ReleasesHintPage           MessageID = "releases.hint_page"
 	ReleasesHintShowExit       MessageID = "releases.hint_show_exit"
 	ReleasesHintDelete         MessageID = "releases.hint_delete"
 	ReleasesHintBack           MessageID = "releases.hint_back"

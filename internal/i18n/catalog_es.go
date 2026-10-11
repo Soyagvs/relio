@@ -88,10 +88,17 @@ var es = map[MessageID]string{
 	ReleasesRemovedTagAndChangelog: "etiqueta + sección del historial de cambios",
 	ReleasesChangelogWriteError:    "etiqueta eliminada, pero historial de cambios: %v",
 
+	ReleasesColumnCommits:      "Commits",
+	ReleasesColumnVersion:      "Versión",
+	ReleasesColumnContributors: "Contribuidores",
+	ReleasesColumnDate:         "Fecha",
+	ReleasesPageLabel:          "Página",
+
 	ReleasesHintPrintNotesExit: "mostrar notas y salir",
 	ReleasesHintDeleteRelease:  "eliminar lanzamiento",
 	ReleasesHintMove:           "mover",
-	ReleasesHintShowExit:       "mostrar y salir",
+	ReleasesHintPage:           "página",
+	ReleasesHintShowExit:       "detalles",
 	ReleasesHintDelete:         "eliminar",
 	ReleasesHintBack:           "volver",
 
