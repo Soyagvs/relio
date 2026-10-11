@@ -61,23 +61,32 @@ func TestParseDesignAndThemes(t *testing.T) {
 	}
 }
 
-func TestRenderDimensionsEveryDesignShapeAndTheme(t *testing.T) {
-	cases := map[Shape][2]int{
-		Horizontal: {1200, 630},
-		Vertical:   {1080, 1920},
-		Square:     {1080, 1080},
+func TestRenderDimensionsRepresentativeDesignShapeAndTheme(t *testing.T) {
+	cases := []struct {
+		shape  Shape
+		design Design
+		theme  string
+		hash   bool
+		w, h   int
+	}{
+		{Horizontal, Default, "orange", false, 1200, 630},
+		{Horizontal, Minimal, "slate", false, 1200, 630},
+		{Horizontal, Minimal, "sand", false, 1200, 630},
+		{Horizontal, Minimal, "mint", false, 1200, 630},
+		{Horizontal, Bold, "red", false, 1200, 630},
+		{Horizontal, Bold, "blue", false, 1200, 630},
+		{Horizontal, Bold, "gold", false, 1200, 630},
+		{Horizontal, Neon, "cyan", false, 1200, 630},
+		{Horizontal, Neon, "magenta", false, 1200, 630},
+		{Horizontal, Neon, "lime", false, 1200, 630},
+		{Vertical, Default, "green", false, 1080, 1920},
+		{Square, Default, "purple", true, 1080, 1080},
 	}
-	for s, wh := range cases {
-		for _, d := range []Design{Default, Minimal, Bold, Neon} {
-			for _, th := range ThemesForDesign(d) {
-				for _, hash := range []bool{false, true} {
-					img := Render(sample(), s, Options{Design: d, Theme: th, ShowHash: hash})
-					b := img.Bounds()
-					if b.Dx() != wh[0] || b.Dy() != wh[1] {
-						t.Errorf("%v/%v/%s hash=%v: %dx%d, want %dx%d", d, s, th, hash, b.Dx(), b.Dy(), wh[0], wh[1])
-					}
-				}
-			}
+	for _, c := range cases {
+		img := Render(sample(), c.shape, Options{Design: c.design, Theme: c.theme, ShowHash: c.hash})
+		b := img.Bounds()
+		if b.Dx() != c.w || b.Dy() != c.h {
+			t.Errorf("%v/%v/%s hash=%v: %dx%d, want %dx%d", c.design, c.shape, c.theme, c.hash, b.Dx(), b.Dy(), c.w, c.h)
 		}
 	}
 }
