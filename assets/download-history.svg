@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 50 on 2026-10-20">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 50 on 2026-10-21">
 <style>text{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;fill:#8b8b8b}</style>
 <text x="56" y="18" font-size="12">Relio downloads</text>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.18"/>
@@ -7,11 +7,11 @@
 <text x="48" y="141" text-anchor="end">25</text>
 <line x1="56" y1="28" x2="856" y2="28" stroke="#8b8b8b" stroke-opacity="0.18"/>
 <text x="48" y="32" text-anchor="end">50</text>
-<path d="M 56,246 L 56,181 74,181 93,181 111,177 130,133 149,111 167,107 186,107 204,98 223,94 242,94 260,94 279,94 297,94 316,94 335,94 353,94 372,94 390,94 409,94 428,94 446,94 465,94 483,94 502,94 521,94 539,94 558,94 576,94 595,94 614,94 632,94 651,90 669,81 688,63 707,50 725,50 744,50 762,42 781,42 800,42 818,37 837,37 856,28 L 856,246 Z" fill="#F5872B" fill-opacity="0.08"/>
-<polyline points="56,181 74,181 93,181 111,177 130,133 149,111 167,107 186,107 204,98 223,94 242,94 260,94 279,94 297,94 316,94 335,94 353,94 372,94 390,94 409,94 428,94 446,94 465,94 483,94 502,94 521,94 539,94 558,94 576,94 595,94 614,94 632,94 651,90 669,81 688,63 707,50 725,50 744,50 762,42 781,42 800,42 818,37 837,37 856,28" fill="none" stroke="#F5872B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 56,246 L 56,181 74,181 92,181 110,177 128,133 146,111 165,107 183,107 201,98 219,94 237,94 256,94 274,94 292,94 310,94 328,94 346,94 365,94 383,94 401,94 419,94 437,94 456,94 474,94 492,94 510,94 528,94 546,94 565,94 583,94 601,94 619,94 637,90 656,81 674,63 692,50 710,50 728,50 746,42 765,42 783,42 801,37 819,37 837,28 856,28 L 856,246 Z" fill="#F5872B" fill-opacity="0.08"/>
+<polyline points="56,181 74,181 92,181 110,177 128,133 146,111 165,107 183,107 201,98 219,94 237,94 256,94 274,94 292,94 310,94 328,94 346,94 365,94 383,94 401,94 419,94 437,94 456,94 474,94 492,94 510,94 528,94 546,94 565,94 583,94 601,94 619,94 637,90 656,81 674,63 692,50 710,50 728,50 746,42 765,42 783,42 801,37 819,37 837,28 856,28" fill="none" stroke="#F5872B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.4"/>
 <text x="56" y="264" text-anchor="start">Sep 7</text>
-<text x="465" y="264" text-anchor="middle">Sep 29</text>
-<text x="856" y="264" text-anchor="end">Oct 20</text>
+<text x="456" y="264" text-anchor="middle">Sep 29</text>
+<text x="856" y="264" text-anchor="end">Oct 21</text>
 <text x="856" y="14" text-anchor="end" fill="#F5872B" fill-opacity="0.55" font-size="10">relio</text>
 </svg>
