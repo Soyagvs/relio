@@ -1,17 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 50 on 2026-10-23">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Relio downloads — 52 on 2026-10-24">
 <style>text{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;fill:#8b8b8b}</style>
 <text x="56" y="18" font-size="12">Relio downloads</text>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.18"/>
 <text x="48" y="250" text-anchor="end">0</text>
 <line x1="56" y1="137" x2="856" y2="137" stroke="#8b8b8b" stroke-opacity="0.18"/>
-<text x="48" y="141" text-anchor="end">25</text>
+<text x="48" y="141" text-anchor="end">50</text>
 <line x1="56" y1="28" x2="856" y2="28" stroke="#8b8b8b" stroke-opacity="0.18"/>
-<text x="48" y="32" text-anchor="end">50</text>
-<path d="M 56,246 L 56,181 73,181 90,181 108,177 125,133 142,111 160,107 177,107 195,98 212,94 229,94 247,94 264,94 282,94 299,94 316,94 334,94 351,94 369,94 386,94 403,94 421,94 438,94 456,94 473,94 490,94 508,94 525,94 542,94 560,94 577,94 595,94 612,90 629,81 647,63 664,50 682,50 699,50 716,42 734,42 751,42 769,37 786,37 803,28 821,28 838,28 856,28 L 856,246 Z" fill="#F5872B" fill-opacity="0.08"/>
-<polyline points="56,181 73,181 90,181 108,177 125,133 142,111 160,107 177,107 195,98 212,94 229,94 247,94 264,94 282,94 299,94 316,94 334,94 351,94 369,94 386,94 403,94 421,94 438,94 456,94 473,94 490,94 508,94 525,94 542,94 560,94 577,94 595,94 612,90 629,81 647,63 664,50 682,50 699,50 716,42 734,42 751,42 769,37 786,37 803,28 821,28 838,28 856,28" fill="none" stroke="#F5872B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="48" y="32" text-anchor="end">100</text>
+<path d="M 56,246 L 56,214 73,214 90,214 107,212 124,190 141,179 158,177 175,177 192,172 209,170 226,170 243,170 260,170 277,170 294,170 311,170 328,170 345,170 362,170 379,170 396,170 413,170 430,170 447,170 464,170 481,170 498,170 515,170 532,170 549,170 566,170 583,170 600,168 617,164 634,155 651,148 668,148 685,148 702,144 719,144 736,144 753,142 770,142 787,137 804,137 821,137 838,137 856,133 L 856,246 Z" fill="#F5872B" fill-opacity="0.08"/>
+<polyline points="56,214 73,214 90,214 107,212 124,190 141,179 158,177 175,177 192,172 209,170 226,170 243,170 260,170 277,170 294,170 311,170 328,170 345,170 362,170 379,170 396,170 413,170 430,170 447,170 464,170 481,170 498,170 515,170 532,170 549,170 566,170 583,170 600,168 617,164 634,155 651,148 668,148 685,148 702,144 719,144 736,144 753,142 770,142 787,137 804,137 821,137 838,137 856,133" fill="none" stroke="#F5872B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <line x1="56" y1="246" x2="856" y2="246" stroke="#8b8b8b" stroke-opacity="0.4"/>
 <text x="56" y="264" text-anchor="start">Sep 7</text>
-<text x="456" y="264" text-anchor="middle">Sep 30</text>
-<text x="856" y="264" text-anchor="end">Oct 23</text>
+<text x="464" y="264" text-anchor="middle">Oct 1</text>
+<text x="856" y="264" text-anchor="end">Oct 24</text>
 <text x="856" y="14" text-anchor="end" fill="#F5872B" fill-opacity="0.55" font-size="10">relio</text>
 </svg>
